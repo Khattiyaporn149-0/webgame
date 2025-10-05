@@ -10,6 +10,8 @@
   --white-15: rgba(255,255,255,.15);
 }
 
+
+
 * { box-sizing: border-box }
 html, body { height: 100% }
 body {
@@ -133,8 +135,8 @@ body {
   transition: transform .06s ease, filter .2s ease;
 }
 .cta:active { transform: translateY(4px) }
-.quick { background: linear-gradient(180deg, #76f7b1, #54f4a8 40%, #2fe093); color:#0b1324 }
-.custom { background: linear-gradient(180deg, #ffe995, #ffd86b 40%, #ffc34a); color:#1b1b1b }
+.Join { background: linear-gradient(180deg, #76f7b1, #54f4a8 40%, #2fe093); color:#0b1324 }
+.Create { background: linear-gradient(180deg, #ffe995, #ffd86b 40%, #ffc34a); color:#1b1b1b }
 
 /* ---------- Secondary buttons ---------- */
 .secondary-buttons { display: flex; gap: 16px; justify-content: center }
@@ -166,7 +168,8 @@ body {
 }
 
 
-/* ---------- Modal ---------- */
+/* ---------- Moda
+l ---------- */
 .modal { position: fixed; inset: 0; display: none; place-items: center; background: #0008 }
 .modal.show { display: grid }
 .dialog { width: min(92vw, 680px); background: var(--panel); border:1px solid var(--stroke); border-radius: 16px; box-shadow: 0 20px 60px #000a }
@@ -186,6 +189,29 @@ body {
   .right-btn { text-align: center }
 }
 
+/* ---------- Create Room Menu ---------- */
+.textGame {
+  text-align: center;
+  text-shadow: 0 2px 0 #0007, 0 0 40px #8be9fd55;
+  transform: translateY(4px);
+}
+.textGame .word {
+  display: block; font-weight: 900;
+  letter-spacing: 1px;
+}
+.btroom {
+  width: min(200px, 50%);
+  padding: 18px 10px;
+  border-radius: 10px; border: 0;
+  font-size: clamp(10px, 2.8vw, 28px);
+  font-weight: 900; letter-spacing: .5px;
+  cursor: pointer;
+  box-shadow: 0 8px 0 #0006, 0 20px 40px #000a;
+  transition: transform .06s ease, filter .2s ease;
+}
+.btroom:active { transform: translateY(4px) }
+.GenerateCode { background: linear-gradient(180deg, #76f7b1, #54f4a8 40%, #2fe093); color:#0b1324 }
+.btnLeave { background: linear-gradient(180deg, #ffe995, #ffd86b 40%, #ffc34a); color:#1b1b1b }
 /* ---------- Start Screen ---------- */
 .start-screen {
   position: fixed;
@@ -256,3 +282,27 @@ body {
   transform: translateY(0);
 }
 
+.back-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: linear-gradient(135deg, #2fe093, #54f4a8);
+  color: #0b1324;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 50px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  transition: all 0.25s ease;
+}
+
+.back-btn:hover {
+  background: linear-gradient(135deg, #25c07d, #3edc90);
+  transform: translateY(-2px) scale(1.03);
+}
+
+.back-btn:active {
+  transform: scale(0.97);
+}

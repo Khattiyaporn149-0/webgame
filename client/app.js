@@ -148,14 +148,15 @@ document.getElementById('regionSel').addEventListener('change', e => {
   state.region = e.target.value; localStorage.setItem('ggd.region', state.region);
 });
 
-// Primary actions (guarded)
-document.getElementById('btnQuick').addEventListener('click', requireNameThen(() => {
-  alert('QUICKPLAY: เริ่มค้นหาห้อง/แมตช์…\n(ใส่โค้ดเชื่อมเอนจิ้นเกมของคุณที่นี่)');
+// Primary actions (hook here)
+document.getElementById('btnJoin').addEventListener('click', () => {
+  window.location.href = 'roomlist.html';
+
   // TODO: window.startGame && window.startGame({ mode: 'quick', ...state });
-}));
-document.getElementById('btnCustom').addEventListener('click', requireNameThen(() => {
-  alert('CUSTOM GAME: สร้างห้อง/เข้าห้อง…');
-}));
+});
+document.getElementById('btnCreate').addEventListener('click', () => {
+  window.location.href = 'createroom.html';
+});
 
 // Extra buttons
 document.getElementById('btnTutorial').addEventListener('click', ()=> alert('เปิดโหมดสอนเล่น'));
@@ -175,7 +176,7 @@ window.addEventListener('keydown', e => {
     if (startScreen.style.display !== 'none') {
       startBtn.click();
     } else {
-      document.getElementById('btnQuick').click();
+      document.getElementById('btnCreate').click();
     }
   }
 });

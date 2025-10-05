@@ -7,70 +7,63 @@ const app = express()
 const server = http.createServer(app)
 const io = new Server(server)
 
+const PORT = process.env.PORT || 3000
+
+// ======================
+// 1. เสิร์ฟหน้า client
+// ======================
 app.use(express.static(path.join(__dirname, "../client")))
 
-// 🔹 เก็บข้อมูลห้องทั้งหมดใน server
-// rooms = { ROOMCODE: { players: [socket.id, ...] } }
+// ======================
+// 2. Logic ห้องและ socket
+// ======================
 let rooms = {}
 
-// เมื่อมี client ใหม่เชื่อมต่อเข้ามา
 io.on("connection", (socket) => {
-  console.log("✅ Player connected:", socket.id)
+  console.log("🟢 Connected:", socket.id)
 
-  // ====== 1️⃣ สร้างห้องใหม่ ======
+  // สร้างห้องใหม่
   socket.on("createRoom", () => {
-    const roomCode = generateRoomCode() // สุ่มโค้ดห้อง 4 ตัว
-    rooms[roomCode] = { players: [] } // สร้าง object ห้องใหม่
-    socket.join(roomCode) // ให้ socket ตัวนี้เข้าห้องนั้นเลย
-    rooms[roomCode].players.push(socket.id) // บันทึก player ในห้อง
-    socket.emit("roomCreated", roomCode) // ส่งโค้ดห้องกลับให้คนสร้าง
-    console.log(`🟢 Room ${roomCode} created by ${socket.id}`)
+    const code = Math.random().toString(36).substring(2, 6).toUpperCase()
+    rooms[code] = { players: [socket.id] }
+    socket.join(code)
+    console.log(`✅ Room created: ${code}`)
+    socket.emit("roomCreated", code)
   })
 
-  // ====== 2️⃣ เข้าร่วมห้องด้วยโค้ด ======
+  // เข้าห้องที่มีอยู่
   socket.on("joinRoom", (code) => {
+    console.log(`🟡 ${socket.id} wants to join ${code}`)
     if (rooms[code]) {
-      socket.join(code) // เข้าห้องที่มีอยู่
+      socket.join(code)
       rooms[code].players.push(socket.id)
-      socket.emit("joinedRoom", code) // แจ้ง client ว่าเข้าห้องสำเร็จ
-      io.to(code).emit("newPlayer", socket.id) // แจ้งคนในห้องว่ามีคนใหม่
-      console.log(`🟢 ${socket.id} joined room ${code}`)
+      socket.emit("joinedRoom", code)
+      io.to(code).emit("newPlayer", socket.id)
     } else {
-      socket.emit("error", "❌ Room not found!") // แจ้ง error ถ้าโค้ดห้องไม่มีจริง
+      socket.emit("error", "❌ Room not found!")
     }
   })
 
-  // ====== 3️⃣ รับตำแหน่งการเคลื่อนไหวของผู้เล่น ======
-  socket.on("move", (data) => {
-    // หา “ชื่อห้อง” ที่ socket นี้อยู่
-    const room = Object.keys(socket.rooms).find((r) => r !== socket.id)
-    // ส่ง event playerMoved เฉพาะในห้องนั้นเท่านั้น
-    if (room) io.to(room).emit("playerMoved", { id: socket.id, ...data })
-  })
+    socket.on("move", (data) => {
+    // ส่งตำแหน่งไปให้ทุกคนในห้อง (ยกเว้นตัวเอง)
+    socket.to(data.room).emit("playerMoved", { id: socket.id, player: data.player })
+    })
 
-  // ====== 4️⃣ ออกจากเกม / ปิดเบราว์เซอร์ ======
+
+  // ออกจากเกม
   socket.on("disconnect", () => {
-    console.log("❌ Player disconnected:", socket.id)
-
-    // ลบผู้เล่นออกจากห้องทั้งหมดที่เขาอยู่
-    for (let [code, room] of Object.entries(rooms)) {
-      room.players = room.players.filter((p) => p !== socket.id)
-      // ถ้าห้องนั้นไม่มีคนเหลือ → ลบทิ้งเลย
-      if (room.players.length === 0) {
-        delete rooms[code]
-        console.log(`🗑️ Room ${code} removed (empty)`)
-      }
+    console.log("🔴 Disconnected:", socket.id)
+    for (const code in rooms) {
+      rooms[code].players = rooms[code].players.filter((id) => id !== socket.id)
+      if (rooms[code].players.length === 0) delete rooms[code]
     }
   })
 })
 
-// 🔹 ฟังก์ชันสุ่มโค้ดห้อง เช่น "ABCD"
-function generateRoomCode() {
-  return Math.random().toString(36).substring(2, 6).toUpperCase()
-}
-
-const PORT = process.env.PORT || 3000
-server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`))
+// ======================
+// 3. Start Server
+// ======================
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`)
+})
 // End of server/index.js
-
-//test

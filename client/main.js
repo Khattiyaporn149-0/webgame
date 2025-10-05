@@ -1,34 +1,70 @@
-// เชื่อมต่อกับ server (Render URL ของนาย)
-const socket = io("https://webgame-25n5.onrender.com")
+// ======== เชื่อมต่อกับ Socket.IO Server ========
+const socket = io("https://webgame-25n5.onrender.com") // เปลี่ยน URL เป็นของนายบน Render
 
-// สร้างห้องใหม่
+
+const joinCodeInput = document.getElementById("joinCodeInput")
+
+btnCreate.addEventListener("click", () => createRoom())
+btnJoin.addEventListener("click", () => joinRoom(joinCodeInput.value))
+
+// ======== ตัวแปรเก็บสถานะ ========
+let currentRoom = null
+
+// ======== อ้างอิง element จากหน้า HTML ========
+const btnJoin = document.getElementById("btnJoin")
+const btnCreate = document.getElementById("btnCreate")
+
+// สร้าง modal หรือ prompt ให้กรอกโค้ด (แบบง่ายก่อน)
+function askRoomCode() {
+  const code = prompt("ใส่รหัสห้อง (4 ตัว) หรือเว้นว่างเพื่อสร้างห้องใหม่")
+  if (!code) {
+    createRoom()
+  } else {
+    joinRoom(code.trim().toUpperCase())
+  }
+}
+
+// ======== Event ปุ่มหลัก ========
+btnJoin.addEventListener("click", () => {
+  // Quick play = สร้างห้องใหม่เลย
+  createRoom()
+})
+
+btnCreate.addEventListener("click", () => {
+  // Custom = เลือกว่าจะสร้างหรือ join
+  askRoomCode()
+})
+
+// ======== ฟังก์ชัน Create / Join ห้อง ========
 function createRoom() {
+  console.log("📤 สร้างห้องใหม่")
   socket.emit("createRoom")
 }
 
-// เข้าห้องด้วยโค้ด
 function joinRoom(code) {
+  console.log("📤 เข้าห้องด้วยโค้ด:", code)
   socket.emit("joinRoom", code)
 }
 
-// เมื่อสร้างห้องสำเร็จ
+// ======== ฟัง event กลับจาก server ========
 socket.on("roomCreated", (code) => {
-  alert(`✅ ห้องของคุณคือ ${code}`)
+  // ✅ หลังสร้างห้องสำเร็จ ให้เปลี่ยนไปหน้าเกมพร้อมส่งโค้ดไปใน URL
+  window.location.href = `game.html?room=${code}`
 })
 
-// เมื่อเข้าห้องสำเร็จ
 socket.on("joinedRoom", (code) => {
-  alert(`🎮 เข้าห้อง ${code} สำเร็จ!`)
+  // ✅ หลัง join ห้องสำเร็จ
+  window.location.href = `game.html?room=${code}`
 })
 
-// เมื่อมีผู้เล่นใหม่ในห้อง
+socket.on("error", (msg) => {
+  alert("⚠️ " + msg)
+})
+
+// ======== ฟังผู้เล่นใหม่ (ถ้ามี) ========
 socket.on("newPlayer", (id) => {
   console.log("👥 ผู้เล่นใหม่เข้ามา:", id)
 })
-
-// เมื่อเกิด error เช่น ใส่โค้ดห้องผิด
-socket.on("error", (msg) => alert(msg))
-
 // ======= ส่วนเดิมของเกม (ตัวละครเดิน) =======
 const canvas = document.getElementById("gameCanvas")
 const ctx = canvas.getContext("2d")
