@@ -176,7 +176,7 @@ window.addEventListener('keydown', e => {
     if (startScreen.style.display !== 'none') {
       startBtn.click();
     } else {
-      document.getElementById('btnQuick').click();
+      document.getElementById('btnCreate').click();
     }
   }
 });
