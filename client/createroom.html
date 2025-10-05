@@ -2,16 +2,32 @@
 <html lang="th">
 <head>
   <meta charset="utf-8" />
-  <title>Game Room</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Custom Game</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
+
 <body>
-  <h1 class="textGame">Game Room</h1>
-  <p>Room Code: <span id="roomCodeText"></span></p>
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
-  <button class="btroom GenerateCode">Generate Room Code</button>
-  <button class="btroom btnLeave">Leave Game</button> 
-  <script src="/socket.io/socket.io.js"></script> 
-  <script src="./game.js"></script>
+  <!-- 🟣 พื้นหลัง canvas -->
+  <canvas id="bgCanvas"></canvas>
+
+  <!-- 🧩 เนื้อหาหลักของหน้า -->
+  <main class="room-container">
+    <h1 class="textGame">CUSTOM GAME</h1>
+
+      <p class="room-row">
+        Room Code: <span id="roomCodeText">----</span>
+        <button class="btroom small" id="GenerateCode">Generate</button>
+      </p>
+
+      <div class="room-actions">
+        <button class="btroom" id="btnLeave">Leave Game</button>
+      </div>
+      
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="./room.js"></script>
+  <script src="./room-bg.js"></script> <!-- 🎨 script สำหรับวาด background -->
 </body>
 </html>
