@@ -167,26 +167,40 @@
   <div class="page-title">📜 Room List</div>
 
   <div class="lobby-container">
-    <button id="backBtn" class="back-btn">⬅ กลับ</button>
-    <button id="createRoomBtn">➕ สร้างห้องใหม่</button>
+    <!-- ✅ ปุ่มกลับ -->
+    <button id="backBtn" class="back-btn" onclick="window.location.href='index.html'">⬅ กลับ</button>
+
+    <!-- ✅ ปุ่มสร้างห้อง -->
+    <button id="createRoomBtn" onclick="window.location.href='createroom.html'">➕ สร้างห้องใหม่</button>
 
     <div id="roomListWrapper">
       <div id="roomList">
-        <!-- room card ตัวอย่าง -->
-        <!--
-        <div class="room-card">
-          <div class="room-info">
-            <div class="room-name">Room #AB12</div>
-            <div class="room-detail">Players: 3/8</div>
-          </div>
-          <button class="join-btn">Join</button>
-        </div>
-        -->
+        <!-- ห้องจะถูกแสดงตรงนี้ -->
       </div>
     </div>
   </div>
 
+  <!-- ✅ สคริปต์ -->
   <script src="./roomlist.js"></script>
-  <script src="./room-bg.js"></script> <!-- ✅ ใช้ canvas background ร่วมกับหน้าอื่น -->
+  <script src="./room-bg.js"></script>
+
+  <!-- ✅ fallback หาก JS ไม่โหลด -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const backBtn = document.getElementById("backBtn");
+      if (backBtn) {
+        backBtn.addEventListener("click", () => {
+          window.location.href = "index.html";
+        });
+      }
+
+      const createBtn = document.getElementById("createRoomBtn");
+      if (createBtn) {
+        createBtn.addEventListener("click", () => {
+          window.location.href = "createroom.html";
+        });
+      }
+    });
+  </script>
 </body>
 </html>

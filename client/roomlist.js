@@ -1,7 +1,7 @@
 // ========================================
-// 1️⃣ เชื่อมต่อ Socket.IO
+// 1️⃣ เชื่อมต่อ Socket.IO (ถ้าไม่มี backend ก็ไม่ error แค่ไม่แสดงห้อง)
 // ========================================
-const socket = io();
+const socket = io ? io() : null;
 
 // ========================================
 // 2️⃣ ฟังก์ชัน render ห้อง
@@ -32,23 +32,24 @@ function renderRooms(rooms) {
 }
 
 // ========================================
-// 3️⃣ ขอรายการห้องจาก server
+// 3️⃣ ขอรายการห้องจาก server ถ้า socket มี
 // ========================================
-socket.emit("getRooms");
+if (socket) socket.emit("getRooms");
 
 // ========================================
 // 4️⃣ ฟัง event "roomList" ที่ server ส่งมา
 // ========================================
-socket.on("roomList", (roomList) => {
-  console.log("📦 ได้ข้อมูลห้องจาก server:", roomList);
-  renderRooms(roomList);
-});
+if (socket) {
+  socket.on("roomList", (roomList) => {
+    console.log("📦 ได้ข้อมูลห้องจาก server:", roomList);
+    renderRooms(roomList);
+  });
+}
 
 // ========================================
 // 5️⃣ ปุ่มสร้างห้อง
 // ========================================
 document.getElementById("createRoomBtn").addEventListener("click", () => {
-  // ไปหน้า create room
   window.location.href = "createroom.html";
 });
 
@@ -63,6 +64,10 @@ document.getElementById("backBtn").addEventListener("click", () => {
 // 7️⃣ กด Join → เข้าหน้าเกมพร้อมรหัสห้อง
 // ========================================
 function joinRoom(roomCode) {
-  // ✅ redirect ไปหน้า game.html พร้อม query ?room=XXXX
   window.location.href = `game.html?room=${roomCode}`;
 }
+
+// ========================================
+// 🧪 ถ้าไม่มี backend → สร้างห้องจำลองเพื่อทดสอบ
+// ========================================
+
