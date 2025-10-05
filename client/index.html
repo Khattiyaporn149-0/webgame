@@ -2,15 +2,89 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Multiplayer Test</title>
+    <title>🎮 Multiplayer Room Game</title>
+
     <style>
-      body { margin: 0; overflow: hidden; background: #1a1a1a; }
-      canvas { display: block; margin: auto; background: #222; }
+      /* ===== 🎨 ตั้งค่าหน้าตาทั่วไปของเว็บ ===== */
+      body {
+        margin: 0;
+        background: #111; /* สีพื้นหลังดำ */
+        color: white; /* ตัวอักษรสีขาว */
+        font-family: sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center; /* จัดทุกอย่างให้อยู่กลาง */
+      }
+
+      /* ===== พื้นที่แสดงเกม (canvas) ===== */
+      canvas {
+        background: #222; /* สีเทาเข้ม */
+        margin-top: 20px;
+        border-radius: 10px;
+      }
+
+      /* ===== เมนูด้านบนที่มีปุ่ม Create/Join ===== */
+      .menu {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px; /* ระยะห่างระหว่างปุ่ม/ช่องกรอก */
+      }
+
+      /* ===== ช่องกรอกโค้ดห้อง ===== */
+      input {
+        padding: 5px;
+        font-size: 16px;
+        width: 100px;
+        text-transform: uppercase; /* พิมพ์เป็นตัวใหญ่ */
+        text-align: center;
+        border-radius: 5px;
+        border: none;
+        outline: none;
+      }
+
+      /* ===== ปุ่มต่าง ๆ ===== */
+      button {
+        padding: 8px 12px;
+        font-size: 16px;
+        cursor: pointer;
+        border: none;
+        border-radius: 6px;
+        background: #4caf50; /* สีเขียว */
+        color: white;
+        transition: 0.2s;
+      }
+
+      button:hover {
+        background: #45a049; /* สีเข้มขึ้นเวลา hover */
+      }
     </style>
   </head>
+
   <body>
+    <!-- ===== หัวข้อหลักของเกม ===== -->
+    <h1>🎮 Simple Multiplayer Room Game</h1>
+
+    <!-- ===== เมนูสำหรับสร้างหรือเข้าห้อง ===== -->
+    <div class="menu">
+      <!-- ปุ่มสร้างห้อง: เรียกฟังก์ชัน createRoom() -->
+      <button onclick="createRoom()">Create Room</button>
+
+      <!-- ช่องกรอกโค้ดห้อง: ใส่โค้ดที่เพื่อนให้มา -->
+      <input id="roomCode" placeholder="CODE" maxlength="4" />
+
+      <!-- ปุ่มเข้าห้อง: ดึงค่าจาก input ไปใส่ใน joinRoom() -->
+      <button onclick="joinRoom(document.getElementById('roomCode').value)">
+        Join Room
+      </button>
+    </div>
+
+    <!-- ===== พื้นที่เล่นเกม ===== -->
     <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <!-- ===== โหลด library ของ socket.io จาก server ===== -->
     <script src="/socket.io/socket.io.js"></script>
+
+    <!-- ===== โหลดโค้ดเกมหลัก (main.js) ===== -->
     <script src="main.js"></script>
   </body>
 </html>
