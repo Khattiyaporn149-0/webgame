@@ -46,7 +46,9 @@ let keys = {};
 document.addEventListener("keydown", e => keys[e.key] = true);
 document.addEventListener("keyup", e => keys[e.key] = false);
 
+let lastSend = 0;
 function update() {
+  const now = Date.now();
   const me = players[myId];
   if (!me) return;
 
@@ -55,7 +57,11 @@ function update() {
   if (keys["ArrowLeft"] || keys["a"]) me.x -= speed;
   if (keys["ArrowRight"] || keys["d"]) me.x += speed;
 
-  socket.emit("move", { x: me.x, y: me.y });
+  // ส่งข้อมูลทุก 50 มิลลิวินาที แทนที่จะทุก frame
+  if (now - lastSend > 50) {
+    socket.emit("move", { x: me.x, y: me.y });
+    lastSend = now;
+  }
 }
 
 function draw() {
