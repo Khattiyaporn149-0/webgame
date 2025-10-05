@@ -49,6 +49,78 @@ setInterval(() => {
   elCountdown.textContent = `${hh}:${mm}:${ss}`;
 }, 1000);
 
+// -------------- Name Gate (Start Screen) --------------
+const startScreen = document.getElementById("startScreen");
+const startBtn = document.getElementById("startBtn");
+const playerNameInput = document.getElementById("playerNameInput");
+
+// rule: 3–16 chars, allow Thai/English/digits/space/_/-
+const nameOk = (n) => {
+  if (!n) return false;
+  const t = n.trim();
+  if (t.length < 3 || t.length > 16) return false;
+  // อนุญาตทั่วไป ถ้าจะเข้มงวดขึ้นใช้ regex: /^[\\p{L}\\p{N} _-]+$/u
+  return true;
+};
+
+function applyName(t) {
+  state.name = t.trim();
+  localStorage.setItem("ggd.name", state.name);
+  document.getElementById("playerNameTop").textContent = state.name;
+}
+
+function showStartScreen() {
+  startScreen.style.display = "grid";
+  document.querySelector(".wrap").style.display = "none";
+  playerNameInput.value = (state.name && state.name !== 'Guest') ? state.name : '';
+  playerNameInput.focus();
+}
+
+function hideStartScreen() {
+  startScreen.style.display = "none";
+  const wrap = document.querySelector(".wrap");
+  wrap.style.display = "grid";
+  requestAnimationFrame(() => wrap.classList.add("show")); // ✨ เพิ่มตรงนี้
+}
+
+
+startBtn.addEventListener("click", () => {
+  const name = playerNameInput.value.trim();
+  if (!nameOk(name)) {
+    alert("❗ กรุณากรอกชื่อยาว 3–16 ตัวอักษร");
+    return;
+  }
+  applyName(name);
+  hideStartScreen();
+});
+
+// Enter เพื่อยืนยันชื่อ
+playerNameInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") startBtn.click();
+});
+
+// แสดง start screen ถ้ายังไม่มีชื่อจริง ๆ
+window.addEventListener("DOMContentLoaded", () => {
+  const savedName = localStorage.getItem("ggd.name");
+  if (savedName && nameOk(savedName)) {
+    applyName(savedName);
+    hideStartScreen();
+  } else {
+    showStartScreen();
+  }
+});
+
+// helper: บังคับให้มีชื่อก่อน ถึงจะทำ action
+const requireNameThen = (fn) => (...args) => {
+  const saved = localStorage.getItem("ggd.name");
+  if (!saved || !nameOk(saved)) {
+    showStartScreen();
+    return;
+  }
+  applyName(saved);
+  fn(...args);
+};
+
 // ---- Buttons ----
 const settingsModal = document.getElementById('settingsModal');
 document.getElementById('btnSettingsTop').addEventListener('click', () => {
@@ -90,13 +162,29 @@ document.getElementById('btnCreate').addEventListener('click', () => {
 document.getElementById('btnTutorial').addEventListener('click', ()=> alert('เปิดโหมดสอนเล่น'));
 document.getElementById('btnClassic').addEventListener('click', ()=> alert('สลับเพลงธีม/โหมดคลาสสิก'));
 document.getElementById('btnFriends').addEventListener('click', ()=> alert('เปิดรายชื่อเพื่อน'));
+
+// ปุ่มรูปคน: ให้เปลี่ยนชื่อเมื่อไรก็ได้
 document.getElementById('btnProfile').addEventListener('click', ()=> {
-  const nm = prompt('ตั้งชื่อผู้เล่น', state.name) || state.name;
-  state.name = nm.trim().slice(0, 16) || 'Guest';
-  document.getElementById('playerNameTop').textContent = state.name;
-  localStorage.setItem('ggd.name', state.name);
+  showStartScreen(); // เปิดหน้าตั้งชื่อเหมือนตอนเริ่มเกม
 });
+
 document.getElementById('btnWorld').addEventListener('click', ()=> alert('เลือกภูมิภาค/ภาษา'));
 
-// Keyboard shortcut
-window.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btnJoin').click(); });
+// Keyboard shortcut: ถ้าหน้า start ยังเปิดอยู่ ให้ Enter เป็นยืนยันชื่อ
+window.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    if (startScreen.style.display !== 'none') {
+      startBtn.click();
+    } else {
+      document.getElementById('btnQuick').click();
+    }
+  }
+});
+
+// sound
+function hideStartScreen() {
+  startScreen.style.display = "none";
+  const wrap = document.querySelector(".wrap");
+  wrap.style.display = "grid";
+  requestAnimationFrame(() => wrap.classList.add("show")); // ✨ เพิ่มตรงนี้
+}

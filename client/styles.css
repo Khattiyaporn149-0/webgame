@@ -74,19 +74,40 @@ body {
 /* ---------- Left rail buttons ---------- */
 .rail-btn {
   position: relative;
-  display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
   background: var(--panel-2);
   border: 1px solid var(--stroke);
   border-radius: 14px;
   padding: 10px 12px;
   cursor: pointer;
   box-shadow: 0 8px 30px #0006;
+  color: #E6E6FA; /* ✅ เพิ่มสีตัวอักษร */
+  font-weight: 700; /* ✅ เพิ่มความหนาตัวอักษร */
+  transition: all 0.25s ease; /* ✅ ทำให้เปลี่ยนนุ่มขึ้น */
 }
-.rail-btn .emoji { filter: drop-shadow(0 2px 4px #0007) }
+
+.rail-btn:hover {
+  background: #2c3e50;   /* ✅ พื้นหลังเปลี่ยนเมื่อ hover */
+  color: #ffffff;        /* ✅ ตัวอักษรเปลี่ยนเป็นขาว */
+  transform: translateY(-2px); /* ✅ ขยับขึ้นนิดๆ ดู interactive */
+}
+
+.rail-btn .emoji {
+  filter: drop-shadow(0 2px 4px #0007);
+}
+
 .rail-btn .badge {
-  background: #0009; border: 1px solid var(--stroke);
-  padding: 2px 8px; border-radius: 999px; font-size: 12px;
+  background: #0009;
+  border: 1px solid var(--stroke);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #ffffff; /* ✅ เพิ่มให้ badge ตัวอักษรเป็นขาวด้วย */
 }
+
 
 /* ---------- Title ---------- */
 .game-title {
@@ -132,11 +153,23 @@ body {
   background: var(--panel-2);
   border: 1px solid var(--stroke);
   border-radius: 14px;
-  padding: 12px 16px; cursor: pointer; font-weight: 800;
-  text-align: left; box-shadow: 0 8px 30px #0006;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-weight: 800;
+  text-align: left;
+  box-shadow: 0 8px 30px #0006;
+  color: #E6E6FA; /* ← เพิ่มสีตัวอักษร */
+  transition: all 0.2s ease; /* เพิ่มความนุ่มตอน hover */
 }
 
-/* ---------- Modal ---------- */
+.right-btn:hover {
+  color: #ffffff; /* ← สีตอน hover */
+  background: #2c3e50; /* ← สีพื้นหลังตอน hover */
+}
+
+
+/* ---------- Moda
+l ---------- */
 .modal { position: fixed; inset: 0; display: none; place-items: center; background: #0008 }
 .modal.show { display: grid }
 .dialog { width: min(92vw, 680px); background: var(--panel); border:1px solid var(--stroke); border-radius: 16px; box-shadow: 0 20px 60px #000a }
@@ -179,3 +212,73 @@ body {
 .btroom:active { transform: translateY(4px) }
 .GenerateCode { background: linear-gradient(180deg, #76f7b1, #54f4a8 40%, #2fe093); color:#0b1324 }
 .btnLeave { background: linear-gradient(180deg, #ffe995, #ffd86b 40%, #ffc34a); color:#1b1b1b }
+/* ---------- Start Screen ---------- */
+.start-screen {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #0a0f1c, #060a14);
+  z-index: 9999; /* อยู่บนสุด */
+}
+
+.start-panel {
+  background: var(--panel);
+  padding: 32px;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 20px 60px #000a;
+  width: min(90%, 400px);
+}
+
+.start-panel h1 {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+}
+
+.start-panel p {
+  font-size: 1.2rem;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+.start-panel input {
+  width: 100%;
+  padding: 12px;
+  font-size: 1.2rem;
+  border: 2px solid var(--stroke);
+  border-radius: 12px;
+  background: #0f1729;
+  color: #fff;
+  text-align: center;
+}
+
+.start-panel button {
+  margin-top: 20px;
+  width: 100%;
+  padding: 14px;
+  font-size: 1.3rem;
+  font-weight: bold;
+  background: linear-gradient(180deg, #ffd86b, #ffb347);
+  border: none;
+  border-radius: 14px;
+  color: #000;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.start-panel button:active {
+  transform: translateY(2px);
+}
+
+/* ===== Transition เข้าเมนู ===== */
+.wrap {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.wrap.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
