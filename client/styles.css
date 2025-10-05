@@ -366,3 +366,42 @@ l ---------- */
 .back-btn:active {
   transform: scale(0.97);
 }
+
+/* ---------- Form Controls (select / option) ---------- */
+select {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;              /* ✅ สีตัวอักษร */
+  outline: none;
+  margin-bottom: 14px;
+  appearance: none;            /* ✅ ซ่อน default arrow */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+select:focus {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;             /* ✅ สีตอน focus */
+}
+
+/* ✅ ป้องกัน dropdown เป็นพื้นหลังขาว */
+option {
+  background: #1b2438;       /* ✅ พื้นหลัง dropdown */
+  color: #ffffff;            /* ✅ สีตัวอักษรในรายการ */
+}
+
+/* ---------- Animation for create-room container ---------- */
+.room-container {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.room-container.show {
+  opacity: 1;
+  transform: translateY(0);
+}
