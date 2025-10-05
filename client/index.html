@@ -1,90 +1,129 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>🎮 Multiplayer Room Game</title>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Start Menu – Goose-like</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- BACKGROUND -->
+  <div class="bg">
+    <div class="bg-video-overlay"></div>
+    <canvas id="bg-canvas"></canvas>
+  </div>
 
-    <style>
-      /* ===== 🎨 ตั้งค่าหน้าตาทั่วไปของเว็บ ===== */
-      body {
-        margin: 0;
-        background: #111; /* สีพื้นหลังดำ */
-        color: white; /* ตัวอักษรสีขาว */
-        font-family: sans-serif;
-        display: flex;
-        flex-direction: column;
-        align-items: center; /* จัดทุกอย่างให้อยู่กลาง */
-      }
-
-      /* ===== พื้นที่แสดงเกม (canvas) ===== */
-      canvas {
-        background: #222; /* สีเทาเข้ม */
-        margin-top: 20px;
-        border-radius: 10px;
-      }
-
-      /* ===== เมนูด้านบนที่มีปุ่ม Create/Join ===== */
-      .menu {
-        margin-top: 20px;
-        display: flex;
-        gap: 10px; /* ระยะห่างระหว่างปุ่ม/ช่องกรอก */
-      }
-
-      /* ===== ช่องกรอกโค้ดห้อง ===== */
-      input {
-        padding: 5px;
-        font-size: 16px;
-        width: 100px;
-        text-transform: uppercase; /* พิมพ์เป็นตัวใหญ่ */
-        text-align: center;
-        border-radius: 5px;
-        border: none;
-        outline: none;
-      }
-
-      /* ===== ปุ่มต่าง ๆ ===== */
-      button {
-        padding: 8px 12px;
-        font-size: 16px;
-        cursor: pointer;
-        border: none;
-        border-radius: 6px;
-        background: #4caf50; /* สีเขียว */
-        color: white;
-        transition: 0.2s;
-      }
-
-      button:hover {
-        background: #45a049; /* สีเข้มขึ้นเวลา hover */
-      }
-    </style>
-  </head>
-
-  <body>
-    <!-- ===== หัวข้อหลักของเกม ===== -->
-    <h1>🎮 Simple Multiplayer Room Game</h1>
-
-    <!-- ===== เมนูสำหรับสร้างหรือเข้าห้อง ===== -->
-    <div class="menu">
-      <!-- ปุ่มสร้างห้อง: เรียกฟังก์ชัน createRoom() -->
-      <button onclick="createRoom()">Create Room</button>
-
-      <!-- ช่องกรอกโค้ดห้อง: ใส่โค้ดที่เพื่อนให้มา -->
-      <input id="roomCode" placeholder="CODE" maxlength="4" />
-
-      <!-- ปุ่มเข้าห้อง: ดึงค่าจาก input ไปใส่ใน joinRoom() -->
-      <button onclick="joinRoom(document.getElementById('roomCode').value)">
-        Join Room
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="login-tag">
+      <span class="tag-icon">🪪</span>
+      LOGGED IN AS <b id="playerNameTop">Guest</b>
+      <span class="clan">[GAMES&APPS TUTOR]</span>
+      <span class="ver" id="ver">V3.05.01</span>
+    </div>
+    <div class="top-icons">
+      <button class="icon-btn" title="Profile" id="btnProfile" aria-label="Profile">
+        <svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-5 0-9 2.5-9 5.5V22h18v-2.5C21 16.5 17 14 12 14Z"/></svg>
+      </button>
+      <button class="icon-btn" title="World" id="btnWorld" aria-label="World">
+        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2Zm7.93 9h-3.18A15.1 15.1 0 0 0 16 7.05 8.01 8.01 0 0 1 19.93 11ZM8.18 11H4.07A8.01 8.01 0 0 1 8 7.05 15.1 15.1 0 0 0 8.18 11Zm0 2A15.1 15.1 0 0 0 8 16.95 8.01 8.01 0 0 1 4.07 13Zm8.64 0h3.22A8.01 8.01 0 0 1 16 16.95 15.1 15.1 0 0 0 16.82 13ZM10 16.9A20.79 20.79 0 0 1 9.19 13h5.62A20.79 20.79 0 0 1 14 16.9 18.07 18.07 0 0 1 12 20a18.07 18.07 0 0 1-2-3.1ZM14 7.1A20.79 20.79 0 0 1 14.81 11H9.19A20.79 20.79 0 0 1 10 7.1 18.07 18.07 0 0 1 12 4a18.07 18.07 0 0 1 2 3.1Z"/></svg>
+      </button>
+      <button class="icon-btn" title="Settings" id="btnSettingsTop" aria-label="Settings">
+        <svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 1-4 4 4 4 0 0 1 4-4Zm9 4a7.43 7.43 0 0 0-.09-1l2.09-1.64-2-3.46-2.49.63a7.51 7.51 0 0 0-1.73-1L14.5 2h-5l-.28 2.53a7.51 7.51 0 0 0-1.73 1l-2.49-.63-2 3.46L4.09 11a7.43 7.43 0 0 0 0 2l-2.09 1.64 2 3.46 2.49-.63a7.51 7.51 0 0 0 1.73 1L9.5 22h5l.28-2.53a7.51 7.51 0 0 0 1.73-1l2.49.63 2-3.46L20.91 13a7.43 7.43 0 0 0 .09-1Z"/></svg>
       </button>
     </div>
+  </header>
 
-    <!-- ===== พื้นที่เล่นเกม ===== -->
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <!-- MAIN WRAP -->
+  <div class="wrap">
 
-    <!-- ===== โหลด library ของ socket.io จาก server ===== -->
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- LEFT RAIL -->
+    <aside class="left-rail">
+      <button class="rail-btn gift">
+        <span class="emoji">🎁</span>
+        <span class="label">Gifts</span>
+        <span class="badge">3</span>
+      </button>
+      <button class="rail-btn missions">
+        <span class="emoji">🗂️</span>
+        <span class="label">Missions</span>
+        <span class="badge">New</span>
+      </button>
+      <button class="rail-btn calendar">
+        <span class="emoji">🗓️</span>
+        <span class="label">7 Day(s)</span>
+      </button>
+      <button class="rail-btn timer">
+        <span class="emoji">⏰</span>
+        <span class="label"><span id="countdown">23:59:59</span></span>
+        <span class="badge">Bonus ×3</span>
+      </button>
+    </aside>
 
-    <!-- ===== โหลดโค้ดเกมหลัก (main.js) ===== -->
-    <script src="main.js"></script>
-  </body>
+    <!-- CENTER STACK -->
+    <main class="center-stack">
+      <div class="title-stack">
+        <div class="game-title">
+          <span class="word word-1">GOOSE</span>
+          <span class="word word-2">GOOSE</span>
+          <span class="word word-3">DUCK</span>
+        </div>
+      </div>
+
+      <div class="primary-buttons">
+        <button class="cta quick" id="btnQuick">QUICKPLAY</button>
+        <button class="cta custom" id="btnCustom">CUSTOM GAME</button>
+      </div>
+
+      <div class="secondary-buttons">
+        <button class="sec-btn" id="btnCollection">COLLECTION</button>
+        <button class="sec-btn" id="btnClaw">CLAW MACHINE</button>
+      </div>
+    </main>
+
+    <!-- RIGHT RAIL -->
+    <aside class="right-rail">
+      <div class="right-group">
+        <button class="right-btn" id="btnTutorial">❓ TUTORIAL</button>
+        <button class="right-btn" id="btnClassic">🎵 CLASSIC</button>
+        <button class="right-btn" id="btnFriends">👥 FRIENDS</button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div class="modal" id="settingsModal" aria-hidden="true" role="dialog">
+    <div class="dialog">
+      <div class="dialog-head">
+        <h3>Settings</h3>
+        <button class="x" id="closeSettings">✖</button>
+      </div>
+      <div class="dialog-body">
+        <label class="row">
+          <span>Master Volume</span>
+          <input id="rangeMaster" type="range" min="0" max="1" step="0.01">
+        </label>
+        <label class="row">
+          <span>Music</span>
+          <input id="rangeMusic" type="range" min="0" max="1" step="0.01">
+        </label>
+        <label class="row">
+          <span>SFX</span>
+          <input id="rangeSfx" type="range" min="0" max="1" step="0.01">
+        </label>
+        <label class="row">
+          <span>Region</span>
+          <select id="regionSel">
+            <option value="asia">Asia</option>
+            <option value="na">North America</option>
+            <option value="eu">Europe</option>
+          </select>
+        </label>
+        <div class="note">* ค่านี้จะถูกบันทึกลงในเบราว์เซอร์ (localStorage)</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
 </html>
