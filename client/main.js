@@ -1,4 +1,4 @@
-const socket = io();
+const socket = io("https://webgame-25n5.onrender.com/");
 
 // ตัวแปรเกม
 const canvas = document.getElementById("gameCanvas");
