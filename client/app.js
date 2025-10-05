@@ -77,12 +77,13 @@ document.getElementById('regionSel').addEventListener('change', e => {
 });
 
 // Primary actions (hook here)
-document.getElementById('btnQuick').addEventListener('click', () => {
-  alert('QUICKPLAY: เริ่มค้นหาห้อง/แมตช์…\n(ใส่โค้ดเชื่อมเอนจิ้นเกมของคุณที่นี่)');
+document.getElementById('btnJoin').addEventListener('click', () => {
+  window.location.href = 'roomlist.html';
+
   // TODO: window.startGame && window.startGame({ mode: 'quick', ...state });
 });
-document.getElementById('btnCustom').addEventListener('click', () => {
-  alert('CUSTOM GAME: สร้างห้อง/เข้าห้อง…');
+document.getElementById('btnCreate').addEventListener('click', () => {
+  window.location.href = 'createroom.html';
 });
 
 // Extra buttons
@@ -98,4 +99,4 @@ document.getElementById('btnProfile').addEventListener('click', ()=> {
 document.getElementById('btnWorld').addEventListener('click', ()=> alert('เลือกภูมิภาค/ภาษา'));
 
 // Keyboard shortcut
-window.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btnQuick').click(); });
+window.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btnJoin').click(); });

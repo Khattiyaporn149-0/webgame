@@ -10,6 +10,8 @@
   --white-15: rgba(255,255,255,.15);
 }
 
+
+
 * { box-sizing: border-box }
 html, body { height: 100% }
 body {
@@ -112,8 +114,8 @@ body {
   transition: transform .06s ease, filter .2s ease;
 }
 .cta:active { transform: translateY(4px) }
-.quick { background: linear-gradient(180deg, #76f7b1, #54f4a8 40%, #2fe093); color:#0b1324 }
-.custom { background: linear-gradient(180deg, #ffe995, #ffd86b 40%, #ffc34a); color:#1b1b1b }
+.Join { background: linear-gradient(180deg, #76f7b1, #54f4a8 40%, #2fe093); color:#0b1324 }
+.Create { background: linear-gradient(180deg, #ffe995, #ffd86b 40%, #ffc34a); color:#1b1b1b }
 
 /* ---------- Secondary buttons ---------- */
 .secondary-buttons { display: flex; gap: 16px; justify-content: center }
@@ -153,3 +155,27 @@ body {
   .right-rail { grid-auto-flow: column; grid-auto-columns: 1fr; overflow-x:auto }
   .right-btn { text-align: center }
 }
+
+/* ---------- Create Room Menu ---------- */
+.textGame {
+  text-align: center;
+  text-shadow: 0 2px 0 #0007, 0 0 40px #8be9fd55;
+  transform: translateY(4px);
+}
+.textGame .word {
+  display: block; font-weight: 900;
+  letter-spacing: 1px;
+}
+.btroom {
+  width: min(200px, 50%);
+  padding: 18px 10px;
+  border-radius: 10px; border: 0;
+  font-size: clamp(10px, 2.8vw, 28px);
+  font-weight: 900; letter-spacing: .5px;
+  cursor: pointer;
+  box-shadow: 0 8px 0 #0006, 0 20px 40px #000a;
+  transition: transform .06s ease, filter .2s ease;
+}
+.btroom:active { transform: translateY(4px) }
+.GenerateCode { background: linear-gradient(180deg, #76f7b1, #54f4a8 40%, #2fe093); color:#0b1324 }
+.btnLeave { background: linear-gradient(180deg, #ffe995, #ffd86b 40%, #ffc34a); color:#1b1b1b }

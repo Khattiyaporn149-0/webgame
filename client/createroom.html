@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <title>Game Room</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <h1 class="textGame">Game Room</h1>
+  <p>Room Code: <span id="roomCodeText"></span></p>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <button class="btroom GenerateCode">Generate Room Code</button>
+  <button class="btroom btnLeave">Leave Game</button>
+    
+  <script src="/socket.io/socket.io.js"></script> 
+  <script src="./game.js"></script>
+</body>
+</html>
