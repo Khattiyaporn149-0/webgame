@@ -342,3 +342,27 @@ l ---------- */
   transform: translateY(0);
 }
 
+.back-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: linear-gradient(135deg, #2fe093, #54f4a8);
+  color: #0b1324;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 50px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  transition: all 0.25s ease;
+}
+
+.back-btn:hover {
+  background: linear-gradient(135deg, #25c07d, #3edc90);
+  transform: translateY(-2px) scale(1.03);
+}
+
+.back-btn:active {
+  transform: scale(0.97);
+}
