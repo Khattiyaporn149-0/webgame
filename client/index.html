@@ -1,9 +1,13 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
+  <link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+/>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Start Menu – Goose-like</title>
+  <title>The Heist</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -18,8 +22,8 @@
     <div class="login-tag">
       <span class="tag-icon">🪪</span>
       LOGGED IN AS <b id="playerNameTop">Guest</b>
-      <span class="clan">[GAMES&APPS TUTOR]</span>
-      <span class="ver" id="ver">V3.05.01</span>
+      <span class="clan">[The Heist]</span>
+      <span class="ver" id="ver">Vtestbeta</span>
     </div>
     <div class="top-icons">
       <button class="icon-btn" title="Profile" id="btnProfile" aria-label="Profile">
@@ -33,6 +37,18 @@
       </button>
     </div>
   </header>
+
+  
+<!-- START SCREEN -->
+<div class="start-screen" id="startScreen">
+  <div class="start-panel">
+    <h1>🎮 Start Game</h1>
+    <p>กรุณากรอกชื่อผู้เล่นก่อนเริ่ม</p>
+    <input type="text" id="playerNameInput" placeholder="เช่น MasterHeist" maxlength="16" />
+    <button id="startBtn">Start</button>
+  </div>
+</div>
+
 
   <!-- MAIN WRAP -->
   <div class="wrap">
@@ -64,15 +80,22 @@
     <main class="center-stack">
       <div class="title-stack">
         <div class="game-title">
-          <span class="word word-1">GOOSE</span>
-          <span class="word word-2">GOOSE</span>
-          <span class="word word-3">DUCK</span>
+          <span class="word word-2">THE</span>
+          <span class="word word-3">HEIST</span>
         </div>
       </div>
 
       <div class="primary-buttons">
-        <button class="cta quick" id="btnQuick">QUICKPLAY</button>
-        <button class="cta custom" id="btnCustom">CUSTOM GAME</button>
+<button class="cta quick" id="btnQuick">
+  <i class="fa-solid fa-rocket"></i>
+  QUICKPLAY
+</button>
+
+<button class="cta custom" id="btnCustom">
+  <i class="fa-solid fa-hammer"></i>
+  CUSTOM GAME
+</button>
+
       </div>
 
       <div class="secondary-buttons">
