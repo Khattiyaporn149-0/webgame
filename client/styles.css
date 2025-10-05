@@ -1,0 +1,155 @@
+/* ---------- Base ---------- */
+:root {
+  --fg: #f5f7ff;
+  --muted: #b6c3de;
+  --panel: #101827cc;
+  --panel-2: #0b1424cc;
+  --stroke: #2a3347;
+  --green: #54f4a8;
+  --yellow: #ffd866;
+  --white-15: rgba(255,255,255,.15);
+}
+
+* { box-sizing: border-box }
+html, body { height: 100% }
+body {
+  margin: 0;
+  color: var(--fg);
+  font-family: Inter, system-ui, Segoe UI, Arial, sans-serif;
+  overflow: hidden;
+  background: radial-gradient(1200px 600px at 70% 20%, #1b2642 0%, #0a0f1c 60%, #060a14 100%);
+}
+
+/* ---------- Background Canvas Glow ---------- */
+.bg { position: fixed; inset: 0; z-index: -1 }
+#bg-canvas { width: 100%; height: 100% }
+.bg-video-overlay {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(60vmax 40vmax at 70% 20%, #6b9cff11, #0000 70%),
+    radial-gradient(40vmax 30vmax at 30% 70%, #f6d36511, #0000 70%);
+  filter: blur(2px) saturate(140%);
+}
+
+/* ---------- Top bar ---------- */
+.topbar {
+  position: fixed; left: 0; right: 0; top: 0;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 20px;
+}
+.login-tag {
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  padding: 8px 12px;
+  border-radius: 12px;
+  display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 8px 30px #0006;
+}
+.login-tag .tag-icon { opacity: .9 }
+.login-tag .clan { opacity: .8 }
+.login-tag .ver { opacity: .6; margin-left: 6px; }
+
+.top-icons { display: flex; gap: 12px }
+.icon-btn {
+  width: 40px; height: 40px; display: grid; place-items: center;
+  background: var(--panel); border: 1px solid var(--stroke); border-radius: 50%;
+  cursor: pointer; box-shadow: 0 6px 20px #0006;
+}
+.icon-btn svg { width: 22px; height: 22px; fill: var(--fg); opacity: .9 }
+
+/* ---------- Layout ---------- */
+.wrap {
+  position: fixed; inset: 64px 20px 20px 20px;
+  display: grid; grid-template-columns: 220px 1fr 220px; gap: 16px;
+}
+.left-rail, .right-rail {
+  display: grid; gap: 12px; align-content: start;
+}
+.center-stack {
+  display: grid; grid-template-rows: auto auto auto 1fr; gap: 22px; align-content: start;
+}
+
+/* ---------- Left rail buttons ---------- */
+.rail-btn {
+  position: relative;
+  display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  padding: 10px 12px;
+  cursor: pointer;
+  box-shadow: 0 8px 30px #0006;
+}
+.rail-btn .emoji { filter: drop-shadow(0 2px 4px #0007) }
+.rail-btn .badge {
+  background: #0009; border: 1px solid var(--stroke);
+  padding: 2px 8px; border-radius: 999px; font-size: 12px;
+}
+
+/* ---------- Title ---------- */
+.game-title {
+  text-align: center;
+  text-shadow: 0 2px 0 #0007, 0 0 40px #8be9fd55;
+  transform: translateY(4px);
+}
+.game-title .word {
+  display: block; font-weight: 900;
+  letter-spacing: 1px;
+}
+.word-1, .word-2 { font-size: clamp(36px, 6vw, 72px) }
+.word-3 { font-size: clamp(42px, 7vw, 82px) }
+
+/* ---------- Primary buttons ---------- */
+.primary-buttons { display: grid; gap: 16px; justify-items: center }
+.cta {
+  width: min(480px, 90%);
+  padding: 18px 44px;
+  border-radius: 18px; border: 0;
+  font-size: clamp(18px, 2.8vw, 28px);
+  font-weight: 900; letter-spacing: .5px;
+  cursor: pointer;
+  box-shadow: 0 8px 0 #0006, 0 20px 40px #000a;
+  transition: transform .06s ease, filter .2s ease;
+}
+.cta:active { transform: translateY(4px) }
+.quick { background: linear-gradient(180deg, #76f7b1, #54f4a8 40%, #2fe093); color:#0b1324 }
+.custom { background: linear-gradient(180deg, #ffe995, #ffd86b 40%, #ffc34a); color:#1b1b1b }
+
+/* ---------- Secondary buttons ---------- */
+.secondary-buttons { display: flex; gap: 16px; justify-content: center }
+.sec-btn {
+  padding: 14px 24px; border-radius: 12px; border: 2px solid #fff3;
+  background: var(--white-15); color: var(--fg);
+  font-weight: 700; cursor: pointer;
+  box-shadow: 0 6px 20px #0006;
+}
+
+/* ---------- Right rail ---------- */
+.right-group { display: grid; gap: 12px }
+.right-btn {
+  background: var(--panel-2);
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  padding: 12px 16px; cursor: pointer; font-weight: 800;
+  text-align: left; box-shadow: 0 8px 30px #0006;
+}
+
+/* ---------- Modal ---------- */
+.modal { position: fixed; inset: 0; display: none; place-items: center; background: #0008 }
+.modal.show { display: grid }
+.dialog { width: min(92vw, 680px); background: var(--panel); border:1px solid var(--stroke); border-radius: 16px; box-shadow: 0 20px 60px #000a }
+.dialog-head { display:flex; justify-content: space-between; align-items:center; padding: 12px 16px; border-bottom:1px solid var(--stroke) }
+.dialog-head h3 { margin:0 }
+.dialog-head .x { background: var(--panel-2); border:1px solid var(--stroke); color: var(--fg); padding: 6px 10px; border-radius: 10px; cursor:pointer }
+.dialog-body { padding: 16px; display:grid; gap: 12px }
+.row { display:flex; gap:12px; align-items:center; justify-content:space-between }
+.row input[type=range] { width: 260px }
+.note { opacity: .8; font-size: 13px; margin-top: 6px }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) {
+  .wrap { grid-template-columns: 1fr; grid-template-rows: auto auto auto; inset: 64px 12px 12px 12px }
+  .left-rail { grid-auto-flow: column; grid-auto-columns: 1fr; overflow-x:auto }
+  .right-rail { grid-auto-flow: column; grid-auto-columns: 1fr; overflow-x:auto }
+  .right-btn { text-align: center }
+}

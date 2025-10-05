@@ -1,0 +1,101 @@
+// Tiny animated background + UI logic + persistence
+
+// ---- Background canvas particles (lightweight) ----
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let w, h, stars;
+function resize() {
+  w = canvas.width = window.innerWidth;
+  h = canvas.height = window.innerHeight;
+  stars = Array.from({length: Math.min(140, Math.floor(w*h/12000))}, () => ({
+    x: Math.random()*w,
+    y: Math.random()*h,
+    r: Math.random()*1.8 + 0.2,
+    s: Math.random()*0.5 + 0.1
+  }));
+}
+window.addEventListener('resize', resize);
+resize();
+(function loop(){
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  for (const st of stars) {
+    ctx.globalAlpha = 0.4 + Math.sin((performance.now()/1000 + st.x)*st.s)*0.4;
+    ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2); ctx.fill();
+  }
+  requestAnimationFrame(loop);
+})();
+
+// ---- State & persistence ----
+const state = {
+  name: localStorage.getItem('ggd.name') || 'Guest',
+  volume: parseFloat(localStorage.getItem('ggd.vol') || '0.8'),
+  music: parseFloat(localStorage.getItem('ggd.music') || '0.6'),
+  sfx: parseFloat(localStorage.getItem('ggd.sfx') || '0.9'),
+  region: localStorage.getItem('ggd.region') || 'asia',
+  version: 'V3.05.01'
+};
+document.getElementById('playerNameTop').textContent = state.name;
+document.getElementById('ver').textContent = state.version;
+
+// ---- Countdown (left rail) ----
+let remaining = 24*60*60; // 24h demo
+const elCountdown = document.getElementById('countdown');
+setInterval(() => {
+  remaining = Math.max(0, remaining-1);
+  const hh = String(Math.floor(remaining/3600)).padStart(2,'0');
+  const mm = String(Math.floor((remaining%3600)/60)).padStart(2,'0');
+  const ss = String(remaining%60).padStart(2,'0');
+  elCountdown.textContent = `${hh}:${mm}:${ss}`;
+}, 1000);
+
+// ---- Buttons ----
+const settingsModal = document.getElementById('settingsModal');
+document.getElementById('btnSettingsTop').addEventListener('click', () => {
+  settingsModal.classList.add('show');
+  // sync sliders
+  document.getElementById('rangeMaster').value = state.volume;
+  document.getElementById('rangeMusic').value = state.music;
+  document.getElementById('rangeSfx').value = state.sfx;
+  document.getElementById('regionSel').value = state.region;
+});
+document.getElementById('closeSettings').addEventListener('click', () => {
+  settingsModal.classList.remove('show');
+});
+
+document.getElementById('rangeMaster').addEventListener('input', e => {
+  state.volume = +e.target.value; localStorage.setItem('ggd.vol', state.volume);
+});
+document.getElementById('rangeMusic').addEventListener('input', e => {
+  state.music = +e.target.value; localStorage.setItem('ggd.music', state.music);
+});
+document.getElementById('rangeSfx').addEventListener('input', e => {
+  state.sfx = +e.target.value; localStorage.setItem('ggd.sfx', state.sfx);
+});
+document.getElementById('regionSel').addEventListener('change', e => {
+  state.region = e.target.value; localStorage.setItem('ggd.region', state.region);
+});
+
+// Primary actions (hook here)
+document.getElementById('btnQuick').addEventListener('click', () => {
+  alert('QUICKPLAY: เริ่มค้นหาห้อง/แมตช์…\n(ใส่โค้ดเชื่อมเอนจิ้นเกมของคุณที่นี่)');
+  // TODO: window.startGame && window.startGame({ mode: 'quick', ...state });
+});
+document.getElementById('btnCustom').addEventListener('click', () => {
+  alert('CUSTOM GAME: สร้างห้อง/เข้าห้อง…');
+});
+
+// Extra buttons
+document.getElementById('btnTutorial').addEventListener('click', ()=> alert('เปิดโหมดสอนเล่น'));
+document.getElementById('btnClassic').addEventListener('click', ()=> alert('สลับเพลงธีม/โหมดคลาสสิก'));
+document.getElementById('btnFriends').addEventListener('click', ()=> alert('เปิดรายชื่อเพื่อน'));
+document.getElementById('btnProfile').addEventListener('click', ()=> {
+  const nm = prompt('ตั้งชื่อผู้เล่น', state.name) || state.name;
+  state.name = nm.trim().slice(0, 16) || 'Guest';
+  document.getElementById('playerNameTop').textContent = state.name;
+  localStorage.setItem('ggd.name', state.name);
+});
+document.getElementById('btnWorld').addEventListener('click', ()=> alert('เลือกภูมิภาค/ภาษา'));
+
+// Keyboard shortcut
+window.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btnQuick').click(); });
