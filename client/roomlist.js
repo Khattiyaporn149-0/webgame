@@ -1,12 +1,16 @@
-let rooms = [
-  { roomId: "A1B2C3", roomName: "Sarayut's Room", host: "Sarayut", players: 1, maxPlayers: 8, status: "waiting" }
-];
+// ========================================
+// 1️⃣ เชื่อมต่อ Socket.IO
+// ========================================
+const socket = io();
 
-function renderRooms() {
+// ========================================
+// 2️⃣ ฟังก์ชัน render ห้อง
+// ========================================
+function renderRooms(rooms) {
   const container = document.getElementById("roomList");
   container.innerHTML = "";
 
-  if (rooms.length === 0) {
+  if (!rooms || rooms.length === 0) {
     container.innerHTML = "<p style='text-align:center;opacity:0.7'>ยังไม่มีห้องที่เปิดอยู่ 😅</p>";
     return;
   }
@@ -14,39 +18,51 @@ function renderRooms() {
   rooms.forEach(room => {
     const roomEl = document.createElement("div");
     roomEl.className = "room-card";
+
     roomEl.innerHTML = `
       <div class="room-info">
-        <div class="room-name">${room.roomName}</div>
-        <div class="room-detail">👤 Host: ${room.host}</div>
-        <div class="room-detail">🧑 Players: ${room.players}/${room.maxPlayers}</div>
-        <div class="room-detail">📶 Status: ${room.status}</div>
+        <div class="room-name">ห้อง ${room.code}</div>
+        <div class="room-detail">🧑 Players: ${room.players}/8</div>
       </div>
-      <button class="join-btn" onclick="joinRoom('${room.roomId}')">Join</button>
+      <button class="join-btn" onclick="joinRoom('${room.code}')">Join</button>
     `;
+
     container.appendChild(roomEl);
   });
 }
 
-document.getElementById("createRoomBtn").addEventListener("click", () => {
-  const roomName = prompt("ตั้งชื่อห้อง:");
-  if (!roomName) return;
-  rooms.push({
-    roomId: Math.random().toString(36).substring(2, 8).toUpperCase(),
-    roomName,
-    host: "Player" + Math.floor(Math.random() * 100),
-    players: 1,
-    maxPlayers: 8,
-    status: "waiting"
-  });
-  renderRooms();
+// ========================================
+// 3️⃣ ขอรายการห้องจาก server
+// ========================================
+socket.emit("getRooms");
+
+// ========================================
+// 4️⃣ ฟัง event "roomList" ที่ server ส่งมา
+// ========================================
+socket.on("roomList", (roomList) => {
+  console.log("📦 ได้ข้อมูลห้องจาก server:", roomList);
+  renderRooms(roomList);
 });
 
-function joinRoom(roomId) {
-  alert(`✅ เข้าห้อง ${roomId} แล้ว!`);
-}
+// ========================================
+// 5️⃣ ปุ่มสร้างห้อง
+// ========================================
+document.getElementById("createRoomBtn").addEventListener("click", () => {
+  // ไปหน้า create room
+  window.location.href = "createroom.html";
+});
 
+// ========================================
+// 6️⃣ ปุ่มกลับหน้าหลัก
+// ========================================
 document.getElementById("backBtn").addEventListener("click", () => {
   window.location.href = "index.html";
 });
 
-renderRooms();
+// ========================================
+// 7️⃣ กด Join → เข้าหน้าเกมพร้อมรหัสห้อง
+// ========================================
+function joinRoom(roomCode) {
+  // ✅ redirect ไปหน้า game.html พร้อม query ?room=XXXX
+  window.location.href = `game.html?room=${roomCode}`;
+}
