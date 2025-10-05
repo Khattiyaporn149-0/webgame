@@ -37,14 +37,14 @@ document.getElementById('btnCreate').addEventListener('click', () => {
 
   // ❗ ตรวจสอบห้ามว่าง
   if (roomNameInput === "") {
-    errorDiv.textContent = "⚠️ Please enter a room name before creating.";
+    errorDiv.textContent = "⚠️ Please enter a room name.";
     return;
   }
 
   // ❗ ตรวจสอบให้ใส่ได้เฉพาะภาษาอังกฤษและตัวเลข
   const validNamePattern = /^[A-Za-z0-9]+$/;
   if (!validNamePattern.test(roomNameInput)) {
-    errorDiv.textContent = "⚠️ Room name must contain only English letters and numbers (no spaces).";
+    errorDiv.textContent = "⚠️ Room name English and numbers (no spaces).";
     return;
   }
 
