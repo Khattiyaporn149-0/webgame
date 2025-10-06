@@ -1,0 +1,31 @@
+# 🧱 Binary files (ห้าม Git แตะ line ending)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.mp3 binary
+*.mp4 binary
+*.wav binary
+*.import binary
+*.ttf binary
+*.glb binary
+*.fbx binary
+
+# 🧩 Source / Code files (normalize line endings)
+*.js text
+*.ts text
+*.jsx text
+*.tsx text
+*.html text
+*.css text
+*.json text
+*.vue text
+*.env text
+*.md text
+*.yml text
+*.yaml text
+
+# 🧠 Misc
+*.txt text
+*.cfg text
+*.ini text
