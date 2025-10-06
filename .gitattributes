@@ -1,4 +1,6 @@
+# =====================================
 # 🧱 Binary files (ห้าม Git แตะ line ending)
+# =====================================
 *.png binary
 *.jpg binary
 *.jpeg binary
@@ -10,22 +12,48 @@
 *.ttf binary
 *.glb binary
 *.fbx binary
+*.ico binary
+*.exe binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.7z binary
+*.psd binary
 
-# 🧩 Source / Code files (normalize line endings)
-*.js text
-*.ts text
-*.jsx text
-*.tsx text
-*.html text
-*.css text
-*.json text
-*.vue text
-*.env text
-*.md text
-*.yml text
-*.yaml text
+# =====================================
+# 🧩 Source / Code files (normalize line endings → LF)
+# =====================================
+*.js   text eol=lf
+*.ts   text eol=lf
+*.jsx  text eol=lf
+*.tsx  text eol=lf
+*.html text eol=lf
+*.css  text eol=lf
+*.json text eol=lf
+*.vue  text eol=lf
+*.env  text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.mjs  text eol=lf
+*.cjs  text eol=lf
+*.sh   text eol=lf
+*.conf text eol=lf
+*.cfg  text eol=lf
+*.ini  text eol=lf
 
-# 🧠 Misc
-*.txt text
-*.cfg text
-*.ini text
+# =====================================
+# 🧠 Misc / Config files
+# =====================================
+*.txt  text eol=lf
+*.log  text eol=lf
+Dockerfile text eol=lf
+*.ps1  text eol=crlf   # PowerShell script ใช้ CRLF ดีกว่าใน Windows
+Makefile text eol=lf
+*.bat  text eol=crlf   # Batch script ใช้ CRLF ดีกว่าใน Windows
+*.cmd  text eol=crlf   # Command script ใช้ CRLF ดีกว่าใน Windows
+*.cmake text eol=lf
+*.patch text eol=lf
+*.diff text eol=lf
+*.gitignore text eol=lf
+.gitattributes text eol=lf
