@@ -159,7 +159,6 @@ document.getElementById('btnCreate').addEventListener('click', () => {
 });
 
 // Extra buttons
-document.getElementById('btnTutorial').addEventListener('click', ()=> alert('เปิดโหมดสอนเล่น'));
 document.getElementById('btnClassic').addEventListener('click', ()=> alert('สลับเพลงธีม/โหมดคลาสสิก'));
 document.getElementById('btnFriends').addEventListener('click', ()=> alert('เปิดรายชื่อเพื่อน'));
 
@@ -188,3 +187,37 @@ function hideStartScreen() {
   wrap.style.display = "grid";
   requestAnimationFrame(() => wrap.classList.add("show")); // ✨ เพิ่มตรงนี้
 }
+
+const btnTutorial = document.getElementById('btnTutorial');
+const tutorialModal = document.getElementById('tutorialModal');
+const closeTutorial = document.getElementById('closeTutorial');
+const tabButtons = document.querySelectorAll('.tab-btn');
+const tabPanes = document.querySelectorAll('.tab-pane');
+
+// เปิด Popup
+btnTutorial.addEventListener('click', () => {
+  tutorialModal.classList.add('active');
+});
+
+// ปิด Popup
+closeTutorial.addEventListener('click', () => {
+  tutorialModal.classList.remove('active');
+});
+
+// ปิดเมื่อคลิกข้างนอก
+tutorialModal.addEventListener('click', (e) => {
+  if (e.target === tutorialModal) tutorialModal.classList.remove('active');
+});
+
+// สลับแท็บ
+tabButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    // เอา active ออกจากทุกปุ่มและ pane
+    tabButtons.forEach(b => b.classList.remove('active'));
+    tabPanes.forEach(p => p.classList.remove('active'));
+
+    // ใส่ active ในแท็บที่เลือก
+    btn.classList.add('active');
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+  });
+});
