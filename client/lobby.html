@@ -281,11 +281,32 @@
     </div>
   </div>
 
+  <!-- ปุ่มกลับ -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script>
     // 📦 ดึงข้อมูลห้องจาก localStorage
     const savedRoom = JSON.parse(localStorage.getItem('currentRoom') || '{}');
     document.getElementById("roomName").textContent = savedRoom.name || "My Room";
     document.getElementById("roomCode").textContent = savedRoom.code || "XXXX";
+
+    // 🌐 เชื่อมต่อ Socket.IO (Render / Local)
+    const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+    const socket = io(
+      isLocal
+        ? "http://localhost:3000"                 // ✅ ถ้ารันในเครื่อง
+        : "https://webgame-25n5.onrender.com",    // ✅ ถ้ารันบน Render
+      {
+        transports: ["websocket"],
+        withCredentials: false,
+      }
+    );
+
+    // =========================
+    // Debug Connection
+    // =========================
+    socket.on("connect", () => console.log("✅ Connected:", socket.id));
+    socket.on("connect_error", (err) => console.error("❌ Connect error:", err.message));
+    socket.on("disconnect", () => console.warn("⚠️ Disconnected from server"));
 
     // 🌌 พื้นหลัง
     const canvas = document.getElementById("bgCanvas");
@@ -314,6 +335,7 @@
       const f=characters[currentCharIndex];
       img.src=`./assets/Characters/${f}/idle_1.png`;
       label.textContent=f.replace("mini_","").toUpperCase();
+      socket.emit("changeChar",{room:savedRoom.code,char:f});
     }
     const prev=document.getElementById("prevChar"), next=document.getElementById("nextChar");
     prev.onclick=()=>{if(!isReady){currentCharIndex=(currentCharIndex-1+characters.length)%characters.length;updateChar();}};
@@ -330,7 +352,7 @@
       readyBtn.style.background=isReady?"linear-gradient(135deg,#77FF6B,#4AFF59)":"linear-gradient(135deg,#E02F2F,#C04125)";
       img.classList.toggle("ready-char",isReady);
       showWarning();
-      if(isReady) startCountdown();
+      socket.emit("playerReady",{room:savedRoom.code,ready:isReady});
     }
 
     function showWarning(){
@@ -339,7 +361,7 @@
       warning._t=setTimeout(()=>warning.classList.remove("show"),4000);
     }
 
-    // 🕹️ Countdown
+    // 🕹️ Countdown (triggered by server)
     function startCountdown(){
       let count=3;
       overlay.textContent=count;
@@ -355,11 +377,41 @@
       },1000);
     }
 
-    // แชท
-    const chatInput=document.getElementById("chatInput"), sendBtn=document.getElementById("sendBtn"), box=document.getElementById("chatMessages");
-    function addMsg(s,t){const p=document.createElement("p");p.innerHTML=`<b>${s}:</b> ${t}`;box.appendChild(p);box.scrollTop=box.scrollHeight;}
-    sendBtn.onclick=()=>{const msg=chatInput.value.trim();if(!msg)return;addMsg("You",msg);chatInput.value="";};
-    chatInput.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendBtn.click();}});
+    // 💬 แชท
+    const chatInput=document.getElementById("chatInput"),
+          sendBtn=document.getElementById("sendBtn"),
+          box=document.getElementById("chatMessages");
+    function addMsg(s,t){
+        const p=document.createElement("p");
+        p.innerHTML=`<b>${s}:</b> ${t}`;
+        box.appendChild(p);box.scrollTop=box.scrollHeight;
+    }
+    sendBtn.onclick=()=>{
+      const msg=chatInput.value.trim();
+      if(!msg)return;
+      socket.emit("chatMessage",{room:savedRoom.code,text:msg});
+      chatInput.value="";
+    };
+    chatInput.addEventListener("keydown",e=>{
+      if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendBtn.click();}
+    });
+    socket.on("chatMessage",(data)=>addMsg(data.sender,data.text));
+
+    // 👥 รายชื่อผู้เล่น
+    socket.on("updatePlayers",(playerList)=>{
+      const list=document.getElementById("playerList");
+      list.innerHTML="";
+      playerList.forEach(p=>{
+        const li=document.createElement("li");
+        li.textContent=`${p.name} ${p.ready?"✔️":"⌛"}`;
+        list.appendChild(li);
+      });
+      const allReady=playerList.every(p=>p.ready);
+      if(allReady && playerList.length>1){
+        showWarning();
+        startCountdown();
+      }
+    });
 
     // ปุ่มกลับ
     document.getElementById("btnBack").onclick=()=>window.location.href="createroom.html";
