@@ -154,6 +154,32 @@ io.on("connection", (socket) => {
   })
 })
 
+socket.on("playerReady", ({ room, ready }) => {
+  const r = rooms[room];
+  if (!r) return;
+
+  // เก็บสถานะ ready ของผู้เล่นใน object (เพิ่ม key “ready”)
+  if (!r.info) r.info = {}; // สร้าง dict ไว้เก็บข้อมูลเพิ่ม
+  r.info[socket.id] = { ready };
+
+  // รวมรายชื่อพร้อมสถานะ
+  const playerList = r.players.map(id => ({
+    name: id.substring(0, 5),
+    ready: r.info[id]?.ready || false,
+  }));
+
+  // broadcast ให้ทุกคนในห้องรู้
+  io.to(room).emit("updatePlayers", playerList);
+});
+
+socket.on("chatMessage", (data) => {
+  io.to(data.room).emit("chatMessage", {
+    sender: socket.id.substring(0, 5),
+    text: data.text,
+  });
+});
+
+
 // ==========================================
 // 7. เริ่มต้นเซิร์ฟเวอร์
 // ==========================================
