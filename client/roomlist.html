@@ -6,159 +6,63 @@
   <title>Room List</title>
   <link rel="stylesheet" href="./styles.css" />
   <style>
-    /* ✅ background canvas ให้เต็มหน้าจอ */
-    #bgCanvas {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 0;
-    }
-
+    /* ✅ พื้นหลังเต็มจอ */
+    #bgCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
     .bg-video-overlay {
-      position: fixed;
-      inset: 0;
+      position: fixed; inset: 0;
       background:
         radial-gradient(60vmax 40vmax at 70% 20%, #6b9cff11, #0000 70%),
         radial-gradient(40vmax 30vmax at 30% 70%, #f6d36511, #0000 70%);
-      filter: blur(2px) saturate(140%);
-      z-index: 1;
+      filter: blur(2px) saturate(140%); z-index: 1; pointer-events: none;
     }
-
     body {
-      font-family: "Segoe UI", sans-serif;
-      color: #e6e6fa;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      padding-top: 60px;
-      margin: 0;
-      min-height: 100vh;
-      position: relative;
-      z-index: 2;
+      font-family: "Segoe UI", sans-serif; color: #e6e6fa;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      padding-top: 60px; margin: 0; min-height: 100vh; position: relative; z-index: 2;
+      background:#0b1324;
     }
-
-    .page-title {
-      font-size: 36px;
-      font-weight: bold;
-      margin-bottom: 20px;
-      text-align: center;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.6);
-      z-index: 2;
-    }
-
+    .page-title { font-size: 36px; font-weight: bold; margin-bottom: 20px; text-align: center; text-shadow: 0 2px 10px rgba(0,0,0,0.6); z-index: 2; }
     .lobby-container {
-      width: 800px;
-      max-width: 90%;
+      width: 800px; max-width: 90%;
       background: rgba(27, 38, 59, 0.95);
-      border: 2px solid #394867;
-      border-radius: 20px;
-      padding: 30px;
+      border: 2px solid #394867; border-radius: 20px; padding: 30px;
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      z-index: 2;
+      display: flex; flex-direction: column; position: relative; z-index: 2;
+      gap:16px;
     }
-
     .back-btn {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      background: linear-gradient(135deg, #2fe093, #54f4a8);
-      color: #0b1324;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 30px;
-      font-weight: bold;
-      font-size: 16px;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      transition: 0.25s;
+      position: absolute; top: 20px; left: 20px;
+      background: linear-gradient(135deg, #2fe093, #54f4a8); color: #0b1324; border: none;
+      padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 16px; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); transition: 0.25s;
     }
-    .back-btn:hover {
-      background: linear-gradient(135deg, #25c07d, #3edc90);
-      transform: translateY(-2px);
-    }
-
+    .back-btn:hover { background: linear-gradient(135deg, #25c07d, #3edc90); transform: translateY(-2px); }
     #createRoomBtn {
-      align-self: flex-end;
-      margin-bottom: 20px;
-      padding: 12px 20px;
-      background: #2fe093;
-      border: none;
-      border-radius: 30px;
-      font-weight: bold;
-      font-size: 16px;
-      cursor: pointer;
-      color: #0b1324;
-      transition: 0.2s;
+      align-self: flex-end; margin-bottom: 0; padding: 12px 20px;
+      background: #2fe093; border: none; border-radius: 30px; font-weight: bold; font-size: 16px;
+      cursor: pointer; color: #0b1324; transition: 0.2s;
     }
-    #createRoomBtn:hover {
-      background: #25c07d;
-    }
-
+    #createRoomBtn:hover { background: #25c07d; }
     #roomListWrapper {
-      background: rgba(14, 22, 38, 0.7);
-      border: 1px solid #394867;
-      border-radius: 16px;
-      padding: 16px;
-      max-height: 400px;
-      overflow-y: auto;
+      background: rgba(14, 22, 38, 0.7); border: 1px solid #394867; border-radius: 16px; padding: 16px;
+      max-height: 480px; overflow-y: auto;
     }
-
-    #roomList {
-      display: grid;
-      gap: 16px;
-    }
-
+    #roomList { display: grid; gap: 16px; }
     .room-card {
-      background: rgba(14, 22, 38, 0.85);
-      border: 1px solid #394867;
-      border-radius: 14px;
-      padding: 16px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      transition: transform 0.2s, box-shadow 0.2s;
+      background: rgba(14, 22, 38, 0.85); border: 1px solid #394867; border-radius: 14px; padding: 16px 20px;
+      display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s, box-shadow 0.2s;
     }
-    .room-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-    }
-
-    .room-info {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .room-name {
-      font-size: 20px;
-      font-weight: bold;
-    }
-    .room-detail {
-      font-size: 14px;
-      opacity: 0.8;
-    }
-
-    .join-btn {
-      padding: 10px 16px;
-      background: #76f7b1;
-      border: none;
-      border-radius: 8px;
-      font-weight: bold;
-      cursor: pointer;
-      color: #0b1324;
-      transition: 0.2s;
-    }
-    .join-btn:hover {
-      background: #54f4a8;
-    }
+    .room-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+    .room-info { display: flex; flex-direction: column; gap: 4px; }
+    .room-name { font-size: 20px; font-weight: bold; }
+    .room-detail { font-size: 14px; opacity: 0.8; }
+    .join-btn { padding: 10px 16px; background: #76f7b1; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: #0b1324; transition: 0.2s; }
+    .join-btn:hover { background: #54f4a8; }
+    .muted{opacity:.8;font-size:13px}
+    #info {min-height:18px}
   </style>
 </head>
 <body>
-
   <!-- 🟦 พื้นหลัง -->
   <canvas id="bgCanvas"></canvas>
   <div class="bg-video-overlay"></div>
@@ -167,40 +71,133 @@
   <div class="page-title">📜 Room List</div>
 
   <div class="lobby-container">
-    <!-- ✅ ปุ่มกลับ -->
     <button id="backBtn" class="back-btn" onclick="window.location.href='index.html'">⬅ กลับ</button>
-
-    <!-- ✅ ปุ่มสร้างห้อง -->
     <button id="createRoomBtn" onclick="window.location.href='createroom.html'">➕ สร้างห้องใหม่</button>
 
+    <div id="info" class="muted"></div>
+
     <div id="roomListWrapper">
-      <div id="roomList">
-        <!-- ห้องจะถูกแสดงตรงนี้ -->
+      <div id="roomList"><!-- ห้องจะแสดงตรงนี้ --></div>
+      <div id="emptyState" style="opacity:.8; text-align:center; padding:16px; display:none;">
+        ยังไม่มีห้องในตอนนี้ ลองกด “สร้างห้องใหม่” ด้านบนได้เลย
       </div>
     </div>
   </div>
 
-  <!-- ✅ สคริปต์ -->
-  <script src="./roomlist.js"></script>
-  <script src="./room-bg.js"></script>
+  <!-- สคริปต์พื้นหลัง (ไม่ต้องเป็น module) -->
+  <script src="./room-bg.js" defer></script>
 
-  <!-- ✅ fallback หาก JS ไม่โหลด -->
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const backBtn = document.getElementById("backBtn");
-      if (backBtn) {
-        backBtn.addEventListener("click", () => {
-          window.location.href = "index.html";
-        });
+  <!-- ✅ สคริปต์ดึงลิสต์ห้อง (มี fallback 3 ชั้น + debug) -->
+  <script type="module">
+    import { db } from "./firebase.js";
+    import { getApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import {
+      collection, query, where, orderBy, onSnapshot, getDocs
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    const $ = (id) => document.getElementById(id);
+    const listEl = $("roomList");
+    const emptyEl = $("emptyState");
+    const infoEl = $("info");
+
+    // debug: ให้แน่ใจว่าหน้านี้ชี้ project เดียวกับหน้า create
+    try { console.log("[roomlist] projectId =", getApp().options.projectId); } catch {}
+
+    const createdCode = new URLSearchParams(location.search).get("code");
+    if (createdCode) infoEl.textContent = `เข้ามาจากห้องที่เพิ่งสร้าง: ${createdCode}`;
+
+    // ---------- renderer ----------
+    function renderSnapshot(snap){
+      listEl.innerHTML = "";
+      if (snap.empty) {
+        emptyEl.style.display = "block";
+        return;
+      }
+      emptyEl.style.display = "none";
+
+      snap.forEach(docSnap => {
+        const r = docSnap.data();
+        const code = r.code || docSnap.id;
+        const card = document.createElement("div");
+        card.className = "room-card";
+        card.innerHTML = `
+          <div class="room-info">
+            <div class="room-name">ห้อง ${code}</div>
+            <div class="room-detail">
+              ${r.name || "-"} · ${r.type || "public"} · host: ${r.host || "-"}
+            </div>
+          </div>
+          <button class="join-btn">Join</button>
+        `;
+        card.querySelector(".join-btn").onclick = () => location.href = `lobby.html?code=${code}`;
+        if (createdCode && code === createdCode) {
+          card.style.outline = "2px solid #76f7b1";
+          card.style.boxShadow = "0 0 0 3px rgba(118,247,177,.25)";
+        }
+        listEl.appendChild(card);
+      });
+    }
+
+    // ---------- Fallback logic ----------
+    async function attachRealtimeWithFallback() {
+      // Q1: status + createdAt (สวยสุด ถ้ามี index)
+      try {
+        const q1 = query(collection(db, "rooms"),
+          where("status","==","lobby"),
+          orderBy("createdAt","desc")
+        );
+        console.log("[roomlist] try Q1 (status==lobby + orderBy createdAt)");
+        // ลองครั้งเดียว (ให้เห็นผลเร็ว)
+        const once = await getDocs(q1);
+        renderSnapshot(once);
+        // แล้วค่อย subscribe
+        onSnapshot(q1, renderSnapshot, onRealtimeError);
+        return;
+      } catch (e) {
+        console.warn("[roomlist] Q1 failed:", e?.code || e);
       }
 
-      const createBtn = document.getElementById("createRoomBtn");
-      if (createBtn) {
-        createBtn.addEventListener("click", () => {
-          window.location.href = "createroom.html";
-        });
+      // Q2: แค่ orderBy(createdAt) (ไม่ต้องมี indexร่วม)
+      try {
+        const q2 = query(collection(db, "rooms"), orderBy("createdAt","desc"));
+        console.log("[roomlist] try Q2 (orderBy createdAt)");
+        const once = await getDocs(q2);
+        renderSnapshot(once);
+        onSnapshot(q2, renderSnapshot, onRealtimeError);
+        return;
+      } catch (e) {
+        console.warn("[roomlist] Q2 failed:", e?.code || e);
       }
-    });
+
+      // Q3: ดึงดิบๆ (ไม่มี where/orderBy) — เห็นแน่
+      try {
+        const q3 = collection(db, "rooms");
+        console.log("[roomlist] try Q3 (raw collection)");
+        const once = await getDocs(q3);
+        renderSnapshot(once);
+        onSnapshot(q3, renderSnapshot, onRealtimeError);
+        return;
+      } catch (e) {
+        console.error("[roomlist] Q3 failed:", e?.code || e);
+        listEl.innerHTML = "";
+        emptyEl.style.display = "block";
+        emptyEl.textContent =
+          e?.code === "permission-denied"
+            ? "โหลดรายการห้องไม่ได้: permission-denied (เช็ก Firestore rules ให้ allow read ที่ /rooms)"
+            : "เกิดข้อผิดพลาดในการโหลดรายการห้อง (ดู Console)";
+      }
+    }
+
+    function onRealtimeError(err){
+      console.error("[roomlist] onSnapshot error:", err);
+      emptyEl.style.display = "block";
+      emptyEl.textContent =
+        err?.code === "permission-denied"
+          ? "โหลดรายการห้องไม่ได้: permission-denied (เช็ก Firestore rules: allow read ที่ /rooms)"
+          : (err?.message || "เกิดข้อผิดพลาดในการโหลดรายการห้อง");
+    }
+
+    attachRealtimeWithFallback();
   </script>
 </body>
 </html>
