@@ -1,78 +1,79 @@
 import { db } from "./firebase.js";
 import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  getDocs
+  collection, query, orderBy, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-// ✅ ดึงรายการห้อง public จาก Firestore
-const q = query(
-  collection(db, "rooms"),
-  where("type", "==", "public"),
-  orderBy("createdAt", "desc")
-);
+// ✅ ถ้ามี backend ก็ยังเชื่อม socket ได้ (optional)
+let socket = null;
+try {
+  socket = io("https://webgame-25n5.onrender.com");
+} catch (e) {
+  console.warn("⚠️ ไม่มี backend หรือเชื่อม socket ไม่ได้");
+}
+
+// ========================================
+// 📡 ถ้ามี socket ให้ขอห้องจาก server
+// ========================================
+if (socket) {
+  socket.emit("getRooms");
+  socket.on("roomList", (rooms) => {
+    console.log("📦 ได้ข้อมูลห้องจาก server:", rooms);
+    renderRooms(rooms);
+  });
+}
+
+// ========================================
+// 📊 ดึงรายการห้องจาก Firestore (แบบเรียลไทม์)
+// ========================================
+const q = query(collection(db, "rooms"), orderBy("createdAt", "desc"));
 
 onSnapshot(q, (snap) => {
-  const list = document.getElementById("roomList");
-  const empty = document.getElementById("emptyState");
-  list.innerHTML = "";
-
-  if (snap.empty) {
-    empty.style.display = "block";
-    return;
-  }
-  empty.style.display = "none";
-
-  snap.forEach(docSnap => {
-    const room = docSnap.data();
-    const div = document.createElement("div");
-    div.className = "room-card";
-    div.innerHTML = `
-      <div class="room-info">
-        <div class="room-name">📛 ${room.name}</div>
-        <div class="room-detail">👥 ${room.maxPlayers} • 🔒 ${room.type}</div>
-      </div>
-      <button class="join-btn" data-roomcode="${room.code}">Join</button>
-    `;
-    list.appendChild(div);
-  });
-
-  // ✅ ผูก event ให้ปุ่ม Join ทุกห้อง
-  document.querySelectorAll(".join-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const roomCode = btn.getAttribute("data-roomcode");
-      showCodePrompt(roomCode);
-    });
-  });
+  const rooms = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  console.log("🔥 Firestore rooms:", rooms);
+  renderRooms(rooms);
 });
 
-// 📌 แสดงกล่องให้ใส่โค้ดก่อนเข้า
-async function showCodePrompt(correctCode) {
-  const input = prompt("🔑 กรุณาใส่โค้ด 4 ตัวเพื่อเข้าห้องนี้:");
-  if (input === null) return;
+// ========================================
+// 🧩 ฟังก์ชัน render ห้อง
+// ========================================
+function renderRooms(rooms) {
+  const container = document.getElementById("roomList");
+  container.innerHTML = "";
 
-  const code = input.trim().toUpperCase();
-  if (!/^[A-Z0-9]{4}$/.test(code)) {
-    alert("⚠️ กรุณาใส่โค้ด 4 ตัว (A-Z หรือ 0-9)");
+  if (!rooms || rooms.length === 0) {
+    container.innerHTML = "<p style='text-align:center;opacity:0.7'>ยังไม่มีห้องที่เปิดอยู่ 😅</p>";
     return;
   }
 
-  if (code !== correctCode) {
-    alert("❌ โค้ดไม่ถูกต้อง ลองใหม่อีกครั้ง");
-    return;
-  }
+  rooms.forEach(room => {
+    const roomEl = document.createElement("div");
+    roomEl.className = "room-card";
 
-  // ✅ ตรวจสอบว่าห้องยังอยู่ไหม
-  const q = query(collection(db, "rooms"), where("code", "==", code));
-  const snap = await getDocs(q);
-  if (snap.empty) {
-    alert("❌ ไม่พบห้องนี้ หรือห้องถูกลบไปแล้ว");
-    return;
-  }
+    roomEl.innerHTML = `
+      <div class="room-info">
+        <div class="room-name">📛 ${room.name || "Unknown"} (${room.code})</div>
+        <div class="room-detail">👥 Players: ${(room.players?.length) || 1}/${room.maxPlayers || 8}</div>
+      </div>
+      <button class="join-btn" onclick="joinRoom('${room.code}')">Join</button>
+    `;
 
-  // ✅ ถ้าโค้ดถูกต้อง → ไป lobby
-  window.location.href = `lobby.html?code=${code}`;
+    container.appendChild(roomEl);
+  });
 }
+
+// ========================================
+// 📍 ปุ่มสร้างห้อง & กลับหน้าหลัก
+// ========================================
+document.getElementById("createRoomBtn").addEventListener("click", () => {
+  window.location.href = "createroom.html";
+});
+document.getElementById("backBtn").addEventListener("click", () => {
+  window.location.href = "index.html";
+});
+
+// ========================================
+// 🚀 Join → ไปหน้าเกมพร้อมรหัสห้อง
+// ========================================
+window.joinRoom = function (roomCode) {
+  window.location.href = `game.html?room=${roomCode}`;
+};
