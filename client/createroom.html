@@ -70,7 +70,16 @@
     <button class="btn" id="btnCreate">🚀 CREATE ROOM</button>
   </main>
 
+  <!-- สคริปต์พื้นหลังยังเป็น defer ได้ -->
   <script src="./room-bg.js" defer></script>
-  <script src="./createroom.js" defer></script>
+
+  <!-- สำคัญ: ใช้ ES module เพื่อให้ import ใน createroom.js ทำงาน -->
+  <script type="module" src="./createroom.js"></script>
+
+  <!-- (ออปชัน) ตัวช่วยโชว์ error ใน console เป็น alert ชั่วคราวเวลา dev -->
+  <script>
+    window.addEventListener('error', e => alert('Script error: ' + e.message));
+    window.addEventListener('unhandledrejection', e => alert('Promise error: ' + (e.reason?.message || e.reason)));
+  </script>
 </body>
 </html>

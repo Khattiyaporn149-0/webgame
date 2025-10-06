@@ -1,73 +1,78 @@
-// ========================================
-// 1️⃣ เชื่อมต่อ Socket.IO (ถ้าไม่มี backend ก็ไม่ error แค่ไม่แสดงห้อง)
-// ========================================
-const socket = io("https://webgame-25n5.onrender.com");
+import { db } from "./firebase.js";
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  getDocs
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-// ========================================
-// 2️⃣ ฟังก์ชัน render ห้อง
-// ========================================
-function renderRooms(rooms) {
-  const container = document.getElementById("roomList");
-  container.innerHTML = "";
+// ✅ ดึงรายการห้อง public จาก Firestore
+const q = query(
+  collection(db, "rooms"),
+  where("type", "==", "public"),
+  orderBy("createdAt", "desc")
+);
 
-  if (!rooms || rooms.length === 0) {
-    container.innerHTML = "<p style='text-align:center;opacity:0.7'>ยังไม่มีห้องที่เปิดอยู่ 😅</p>";
+onSnapshot(q, (snap) => {
+  const list = document.getElementById("roomList");
+  const empty = document.getElementById("emptyState");
+  list.innerHTML = "";
+
+  if (snap.empty) {
+    empty.style.display = "block";
+    return;
+  }
+  empty.style.display = "none";
+
+  snap.forEach(docSnap => {
+    const room = docSnap.data();
+    const div = document.createElement("div");
+    div.className = "room-card";
+    div.innerHTML = `
+      <div class="room-info">
+        <div class="room-name">📛 ${room.name}</div>
+        <div class="room-detail">👥 ${room.maxPlayers} • 🔒 ${room.type}</div>
+      </div>
+      <button class="join-btn" data-roomcode="${room.code}">Join</button>
+    `;
+    list.appendChild(div);
+  });
+
+  // ✅ ผูก event ให้ปุ่ม Join ทุกห้อง
+  document.querySelectorAll(".join-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const roomCode = btn.getAttribute("data-roomcode");
+      showCodePrompt(roomCode);
+    });
+  });
+});
+
+// 📌 แสดงกล่องให้ใส่โค้ดก่อนเข้า
+async function showCodePrompt(correctCode) {
+  const input = prompt("🔑 กรุณาใส่โค้ด 4 ตัวเพื่อเข้าห้องนี้:");
+  if (input === null) return;
+
+  const code = input.trim().toUpperCase();
+  if (!/^[A-Z0-9]{4}$/.test(code)) {
+    alert("⚠️ กรุณาใส่โค้ด 4 ตัว (A-Z หรือ 0-9)");
     return;
   }
 
-  rooms.forEach(room => {
-    const roomEl = document.createElement("div");
-    roomEl.className = "room-card";
+  if (code !== correctCode) {
+    alert("❌ โค้ดไม่ถูกต้อง ลองใหม่อีกครั้ง");
+    return;
+  }
 
-    roomEl.innerHTML = `
-      <div class="room-info">
-        <div class="room-name">ห้อง ${room.code}</div>
-        <div class="room-detail">🧑 Players: ${room.players}/8</div>
-      </div>
-      <button class="join-btn" onclick="joinRoom('${room.code}')">Join</button>
-    `;
+  // ✅ ตรวจสอบว่าห้องยังอยู่ไหม
+  const q = query(collection(db, "rooms"), where("code", "==", code));
+  const snap = await getDocs(q);
+  if (snap.empty) {
+    alert("❌ ไม่พบห้องนี้ หรือห้องถูกลบไปแล้ว");
+    return;
+  }
 
-    container.appendChild(roomEl);
-  });
+  // ✅ ถ้าโค้ดถูกต้อง → ไป lobby
+  window.location.href = `lobby.html?code=${code}`;
 }
-
-// ========================================
-// 3️⃣ ขอรายการห้องจาก server ถ้า socket มี
-// ========================================
-if (socket) socket.emit("getRooms");
-
-// ========================================
-// 4️⃣ ฟัง event "roomList" ที่ server ส่งมา
-// ========================================
-if (socket) {
-  socket.on("roomList", (roomList) => {
-    console.log("📦 ได้ข้อมูลห้องจาก server:", roomList);
-    renderRooms(roomList);
-  });
-}
-
-// ========================================
-// 5️⃣ ปุ่มสร้างห้อง
-// ========================================
-document.getElementById("createRoomBtn").addEventListener("click", () => {
-  window.location.href = "createroom.html";
-});
-
-// ========================================
-// 6️⃣ ปุ่มกลับหน้าหลัก
-// ========================================
-document.getElementById("backBtn").addEventListener("click", () => {
-  window.location.href = "index.html";
-});
-
-// ========================================
-// 7️⃣ กด Join → เข้าหน้าเกมพร้อมรหัสห้อง
-// ========================================
-function joinRoom(roomCode) {
-  window.location.href = `game.html?room=${roomCode}`;
-}
-
-// ========================================
-// 🧪 ถ้าไม่มี backend → สร้างห้องจำลองเพื่อทดสอบ
-// ========================================
-
