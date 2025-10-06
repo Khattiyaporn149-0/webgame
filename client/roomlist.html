@@ -122,9 +122,9 @@
         card.className = "room-card";
         card.innerHTML = `
           <div class="room-info">
-            <div class="room-name">ห้อง ${code}</div>
+            <div class="room-name">ห้อง ${r.name}</div>
             <div class="room-detail">
-              ${r.name || "-"} · ${r.type || "public"} · host: ${r.host || "-"}
+              ${r.type || "public"} · host: ${r.host || "-"}
             </div>
           </div>
           <button class="join-btn">Join</button>
