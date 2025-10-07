@@ -1,12 +1,5 @@
 /* ===========================================================
- 🎮 THE HEIST - MAIN FRONT SCRIPT (Clean & Stable)
-    Features:
-    - Persistent BGM + SFX
-    - Universal Settings system
-    - Popup Modals (Settings / Tutorial / Login / Profile)
-    - Firebase Auth integration
-    - Start screen gate
-    - Animated background
+ 🎮 THE HEIST - MAIN FRONT SCRIPT (Stable Synced Version)
 =========================================================== */
 
 // ============ 🧭 UTILITIES ============
@@ -15,21 +8,18 @@ function safe(id, fn) { const el = $(id); if (el) fn(el); return el; }
 
 // ============ 🎵 AUDIO SYSTEM ============
 if (window.GameAudio) window.GameAudio.init();
-
 const bgm = window.bgm;
 const clickSound = window.clickSound;
 
-// Resume bgm point
+// Resume BGM point
 window.addEventListener("DOMContentLoaded", () => {
   const last = parseFloat(localStorage.getItem("bgmTime") || "0");
   if (bgm && !isNaN(last)) bgm.currentTime = last;
 });
 
-// Save bgm point before leave
+// Save BGM point before leave
 window.addEventListener("beforeunload", () => {
-  if (bgm && !bgm.paused) {
-    localStorage.setItem("bgmTime", bgm.currentTime);
-  }
+  if (bgm && !bgm.paused) localStorage.setItem("bgmTime", bgm.currentTime);
 });
 
 // ============ ⚙️ SETTINGS ============
@@ -55,13 +45,8 @@ function openModal(id) {
   const el = $(id);
   if (!el) return;
   el.style.display = "flex";
-  el.style.zIndex = "10001";
   el.style.pointerEvents = "auto";
   el.setAttribute("aria-hidden", "false");
-  if (id === 'accountModal') {
-    const start = $('startScreen');
-    if (start && start.style.display !== 'none') start.style.display = 'none';
-  }
 }
 function closeModal(id) {
   const el = $(id);
@@ -101,7 +86,7 @@ if (canvas) {
 
 // ============ 🧠 STATE ============
 const state = {
-  name: localStorage.getItem('ggd.name') || 'Guest',
+  name: localStorage.getItem('ggd.name') ,
   version: 'V.test1.2.0'
 };
 safe('playerNameTop', el => el.textContent = state.name);
@@ -120,72 +105,23 @@ if (elCountdown) {
   }, 1000);
 }
 
-// ============ 🪪 START SCREEN ============
-const startScreen = $('startScreen');
-const playerNameInput = $('playerNameInput');
-const startBtn = $('startBtn');
-
-const nameOk = (n) => n && n.trim().length >= 3 && n.trim().length <= 16;
-function applyName(t) {
-  state.name = t.trim();
-  localStorage.setItem("ggd.name", state.name);
-  $('playerNameTop').textContent = state.name;
-}
-function showStartScreen() {
-  startScreen.style.display = "grid";
-  document.querySelector(".wrap").style.display = "none";
-  playerNameInput.value = (state.name && state.name !== 'Guest') ? state.name : '';
-}
-function hideStartScreen() {
-  startScreen.style.display = "none";
-  const wrap = document.querySelector(".wrap");
-  wrap.style.display = "grid";
-  requestAnimationFrame(() => wrap.classList.add("show"));
-}
-
-safe('startBtn', el => el.addEventListener("click", () => {
-  const name = playerNameInput.value.trim();
-  if (!nameOk(name)) return alert("❗ กรุณากรอกชื่อยาว 3–16 ตัวอักษร");
-  if (window.GameAudio) window.GameAudio.playClick();
-  applyName(name);
-  hideStartScreen();
-}));
-safe('playerNameInput', el => el.addEventListener("keydown", e => {
-  if (e.key === "Enter") $('startBtn').click();
-}));
-
-window.addEventListener("DOMContentLoaded", () => {
-  const saved = localStorage.getItem("ggd.name");
-  if (saved && nameOk(saved)) {
-    applyName(saved);
-    hideStartScreen();
-  } else showStartScreen();
-});
-
 // ============ ⚙️ SETTINGS POPUP ============
 safe('btnSettingsTop', btn => btn.addEventListener('click', ()=> openModal('settingsModal')));
 safe('closeSettings', btn => btn.addEventListener('click', ()=> closeModal('settingsModal')));
 
-['rangeMaster','rangeMusic','rangeSfx'].forEach(id=>{
-  safe(id, el => el.addEventListener('input', e => GameSettings.set({ 
-    [id.replace('range','').toLowerCase()]: +e.target.value 
+['rangeMasterSet','rangeMusicSet','rangeSfxSet'].forEach(id=>{
+  safe(id, el => el.addEventListener('input', e => GameSettings.set({
+    [id.replace('Set','').replace('range','').toLowerCase()]: +e.target.value
   })));
 });
-safe('regionSel', el => el.addEventListener('change', e => GameSettings.set({ region: e.target.value })));
-// Support new suffixed controls in index.html
-['rangeMaster_s','rangeMusic_s','rangeSfx_s'].forEach(id=>{
-  safe(id, el => el.addEventListener('input', e => GameSettings.set({ 
-    [id.replace('range','').replace('_s','').toLowerCase()]: +e.target.value 
-  })));
-});
-safe('regionSel_s', el => el.addEventListener('change', e => GameSettings.set({ region: e.target.value })));
+safe('regionSelSet', el => el.addEventListener('change', e => GameSettings.set({ region: e.target.value })));
 
 // ============ 🧩 TUTORIAL ============
 safe('btnTutorial', btn => btn.addEventListener('click', ()=> openModal('tutorialModal')));
 safe('closeTutorial', btn => btn.addEventListener('click', ()=> closeModal('tutorialModal')));
 safe('tutorialModal', modal => modal.addEventListener('click', e => { if (e.target===modal) closeModal('tutorialModal'); }));
 
-// Tabs
+// Tabs switching
 const tabButtons = document.querySelectorAll('.tab-btn');
 const tabPanes = document.querySelectorAll('.tab-pane');
 tabButtons.forEach(btn => {
@@ -204,10 +140,41 @@ safe('btnClassic', btn => btn.addEventListener('click', ()=> alert('🎵 สล�
 safe('btnFriends', btn => btn.addEventListener('click', ()=> alert('👥 เปิดรายชื่อเพื่อน')));
 safe('btnWorld', btn => btn.addEventListener('click', ()=> alert('🌍 เลือกภูมิภาค/ภาษา')));
 
-// Profile button -> unified account modal
+// ============ 👤 PROFILE BUTTON + ACCOUNT MODAL ============
+
+// อ่านค่าชื่อจาก localStorage
+let storedName = localStorage.getItem('ggd.name');
+const user = { displayName: storedName || null };
+
+// // 🧩 ให้เด้ง popup แค่ตอนแรกที่ยังไม่มีชื่อ
+// window.addEventListener("DOMContentLoaded", () => {
+//   const alreadyPrompted = localStorage.getItem("ggd.prompted");
+
+//   // ถ้าไม่มีชื่อ + ยังไม่เคยเด้ง
+//   if ((!storedName || storedName.trim() === "") && !alreadyPrompted) {
+//     openModal("accountModal");
+//     localStorage.setItem("ggd.prompted", "1"); // กันไม่ให้เด้งซ้ำ
+//   }
+// });
+
+// 🎯 ปุ่ม Profile — ถ้ายังไม่มีชื่อให้เปิด modal, ถ้ามีก็แสดงข้อมูล
 safe('btnProfile', btn => btn.addEventListener('click', () => {
-  openModal('accountModal');
-  if (typeof updateAccountView === 'function') updateAccountView();
+  const name = localStorage.getItem('ggd.name');
+  if (!name || name.trim() === "") {
+    // ยังไม่เคยตั้งชื่อ
+    openModal('accountModal');
+  } else {
+    // มีชื่อแล้ว = เปิดดูข้อมูล account ได้
+    openModal('accountModal');
+  }
+}));
+
+// ปุ่มปิด modal
+safe('closeAccount', btn => btn.addEventListener('click', () => closeModal('accountModal')));
+
+// ปิดเมื่อคลิกนอกกรอบ
+safe('accountModal', modal => modal.addEventListener('click', e => {
+  if (e.target === modal) closeModal('accountModal');
 }));
 
 // ============ 🔐 FIREBASE LOGIN ============
@@ -215,40 +182,39 @@ import { auth, provider, signInWithPopup, signOut, onAuthStateChanged, db, doc, 
 
 const playerNameTop = $('playerNameTop');
 const btnLoginGoogle = $('btnLoginGoogle');
-// unified account modal elements
-const accountModal = $('accountModal');
-const closeAccount = $('closeAccount');
 const profileName = $('profileName');
 const profileEmail = $('profileEmail');
 const profilePic = $('profilePic');
 const btnLogout = $('btnLogout');
 const guestView = $('guestView');
 const userView = $('userView');
-const playerNameInput2 = $('playerNameInput2');
-const startBtn2 = $('startBtn2');
+const startBtn = $('startBtn');
+const playerNameInput = $('playerNameInput');
 
 function updateAccountView() {
   const user = auth.currentUser;
   if (user) {
-    if (guestView) guestView.style.display = 'none';
-    if (userView) userView.style.display = 'block';
-    if (profileName) profileName.textContent = user.displayName || 'Unknown';
-    if (profileEmail) profileEmail.textContent = user.email || '';
-    if (profilePic) profilePic.src = user.photoURL || 'assets/default-avatar.png';
+    guestView.style.display = 'none';
+    userView.style.display = 'block';
+    profileName.textContent = user.displayName || 'Unknown';
+    profileEmail.textContent = user.email || '';
+    profilePic.src = user.photoURL || 'assets/default-avatar.png';
   } else {
-    if (guestView) guestView.style.display = 'block';
-    if (userView) userView.style.display = 'none';
+    guestView.style.display = 'block';
+    userView.style.display = 'none';
   }
 }
 
-safe('closeAccount', el => el.addEventListener('click', ()=> closeModal('accountModal')));
-safe('startBtn2', el => el.addEventListener('click', ()=> {
-  if (playerNameInput2 && playerNameInput2.value && nameOk(playerNameInput2.value)) {
-    applyName(playerNameInput2.value);
-    closeModal('accountModal');
-  }
+// Manual name set (guest)
+safe('startBtn', el => el.addEventListener("click", () => {
+  const name = playerNameInput.value.trim();
+  if (!/^[\wก-๙]{3,16}$/.test(name)) return alert("❗ กรุณากรอกชื่อ 3–16 ตัวอักษร");
+  localStorage.setItem('ggd.name', name);
+  playerNameTop.textContent = name;
+  closeModal('accountModal');
 }));
 
+// Google Login
 safe('btnLoginGoogle', el => el.addEventListener("click", async () => {
   try {
     const result = await signInWithPopup(auth, provider);
@@ -259,7 +225,7 @@ safe('btnLoginGoogle', el => el.addEventListener("click", async () => {
       coins: 0,
       lastLogin: new Date()
     }, { merge: true });
-    if (playerNameTop) playerNameTop.textContent = user.displayName || 'Guest';
+    playerNameTop.textContent = user.displayName ;
     updateAccountView();
     closeModal('accountModal');
   } catch (err) {
@@ -269,18 +235,13 @@ safe('btnLoginGoogle', el => el.addEventListener("click", async () => {
 }));
 
 onAuthStateChanged(auth, (user) => {
-  playerNameTop.textContent = user ? user.displayName : "Guest";
+  playerNameTop.textContent = user ? (user.displayName) : (state.name || "Guest");
+  updateAccountView();
 });
 
 safe('btnLogout', el => el.addEventListener("click", async () => {
   await signOut(auth);
-  closeModal('profileModal');
   playerNameTop.textContent = "Guest";
+  updateAccountView();
   alert("ออกจากระบบเรียบร้อยแล้ว");
-}));
-
-// Gift button forces login
-safe('btnGift', el => el.addEventListener("click", () => {
-  if (!auth.currentUser) openModal('loginModal');
-  else alert("🎁 คุณได้รับ 50 Coins!");
 }));

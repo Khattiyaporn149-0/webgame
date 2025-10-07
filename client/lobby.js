@@ -6,6 +6,9 @@ const params = new URLSearchParams(window.location.search);
 const roomCode = params.get("room");
 document.getElementById("roomCodeText").textContent = roomCode;
 
+if (window.hasOwnProperty("AccountCheck")) return;
+window.AccountCheck = true;
+
 // =====================
 // 🚀 โหลดทุกอย่างเมื่อหน้าเว็บพร้อม
 // =====================

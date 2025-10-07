@@ -4,6 +4,12 @@ import {
   doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
+if (window.hasOwnProperty("AccountCheck")) {
+  console.log("⏭️ AccountCheck already initialized — skipping duplicate import");
+} else {
+  window.AccountCheck = true;
+}
+
 // 📌 อ่านชื่อผู้เล่นจากระบบเดิม (ถ้ามี)
 const playerName = localStorage.getItem('ggd.name') || 'Guest';
 

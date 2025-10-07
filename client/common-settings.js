@@ -1,6 +1,17 @@
 // Common Settings and Audio Utility
 // Unifies settings across pages and keeps BGM seamless between pages
 
+window.addEventListener("DOMContentLoaded", () => {
+  safe('btnTutorial', btn => {
+    console.log("✅ listener added after DOM load");
+    btn.addEventListener('click', ()=> {
+      console.log("🎯 clicked!");
+      openModal('tutorialModal');
+    });
+  });
+});
+
+
 (function(){
   const KEY = 'gameSettings';
   const TIME_KEY = 'bgmTime';
@@ -73,6 +84,7 @@
       regionSel   && regionSel  .addEventListener('change', (e) => GameSettings.set({ region: e.target.value }));
     }
   };
+
 
   // Public API: GameAudio
   const GameAudio = {
