@@ -60,95 +60,28 @@
     .join-btn:hover { background: #54f4a8; }
     .muted{opacity:.8;font-size:13px}
     #info {min-height:18px}
-        /* SETTINGS MODAL */
-.modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.7);
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-.dialog {
-  background: #1e1e2f;
-  color: #fff;
-  padding: 24px;
-  border-radius: 16px;
-  width: 320px;
-  box-shadow: 0 0 20px rgba(0,0,0,0.5);
-}
-.dialog-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-.dialog-body label.row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 8px 0;
-}
-.dialog-body input[type=range],
-.dialog-body select {
-  width: 160px;
-}
-.dialog-body .note {
-  margin-top: 10px;
-  font-size: 0.85em;
-  color: #ccc;
-}
-.x {
-  background: none;
-  border: none;
-  color: #fff;
-  font-size: 18px;
-  cursor: pointer;
-}
 
-/* ปุ่ม settings */
-.icon-btn {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  background: rgba(255,255,255,0.1);
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  cursor: pointer;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s ease;
-}
-.icon-btn:hover {
-  background: rgba(255,255,255,0.25);
-}
-.icon-btn svg {
-  width: 22px;
-  height: 22px;
-  fill: #fff; }
+    /* SETTINGS MODAL */
+    .modal{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.7);
+      align-items:center; justify-content:center; z-index:9999; }
+    .dialog{ background:#1e1e2f; color:#fff; padding:24px; border-radius:16px; width:320px; box-shadow:0 0 20px rgba(0,0,0,.5) }
+    .dialog-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px }
+    .dialog-body label.row{ display:flex; justify-content:space-between; align-items:center; margin:8px 0 }
+    .dialog-body input[type=range], .dialog-body select{ width:160px }
+    .dialog-body .note{ margin-top:10px; font-size:.85em; color:#ccc }
+    .x{ background:none; border:none; color:#fff; font-size:18px; cursor:pointer }
 
-.modal[aria-hidden="false"] {
-  display: flex;
-  animation: fadeIn 0.25s ease;
-}
+    .icon-btn{ position:absolute; top:18px; right:18px; background:rgba(255,255,255,.1);
+      border:none; border-radius:50%; width:40px; height:40px; cursor:pointer; color:#fff;
+      display:flex; align-items:center; justify-content:center; transition:background .2s }
+    .icon-btn:hover{ background:rgba(255,255,255,.25) }
+    .icon-btn svg{ width:22px; height:22px; fill:#fff }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.96); }
-  to   { opacity: 1; transform: scale(1); }
+    .modal[aria-hidden="false"]{ display:flex; animation:fadeIn .25s ease }
+    @keyframes fadeIn{ from{ opacity:0; transform:scale(.96) } to{ opacity:1; transform:scale(1) } }
 
-}
-
-#pageContainer {
-  transition: opacity .25s ease;
-}
-.fade {
-  opacity: 0;
-}
+    #pageContainer { transition: opacity .25s ease }
+    .fade { opacity: 0 }
   </style>
 </head>
 <body>
@@ -157,48 +90,36 @@
   <div class="bg-video-overlay"></div>
   <script src="./common-settings.js" defer></script>
 
-
-
   <!-- 🧩 เนื้อหาหลัก -->
   <div class="page-title">📜 Room List</div>
-      <div>
-        <button class="icon-btn" title="Settings" id="btnSettingsTop" aria-label="Settings">
-          <svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 1-4 4 4 4 0 0 1 4-4Zm9 4a7.43 7.43 0 0 0-.09-1l2.09-1.64-2-3.46-2.49.63a7.51 7.51 0 0 0-1.73-1L14.5 2h-5l-.28 2.53a7.51 7.51 0 0 0-1.73 1l-2.49-.63-2 3.46L4.09 11a7.43 7.43 0 0 0 0 2l-2.09 1.64 2 3.46 2.49-.63a7.51 7.51 0 0 0 1.73 1L9.5 22h5l.28-2.53a7.51 7.51 0 0 0 1.73-1l2.49.63 2-3.46L20.91 13a7.43 7.43 0 0 0 .09-1Z"/></svg>
-        </button>
-      </div>
 
-      <!-- SETTINGS MODAL -->
-    <div class="modal" id="settingsModal" aria-hidden="true" role="dialog">
-      <div class="dialog">
-        <div class="dialog-head">
-          <h3>Settings</h3>
-          <button class="x" id="closeSettings">✖</button>
-        </div>
-        <div class="dialog-body">
-          <label class="row">
-            <span>Master Volume</span>
-            <input id="rangeMaster" type="range" min="0" max="1" step="0.01">
-          </label>
-          <label class="row">
-            <span>Music</span>
-            <input id="rangeMusic" type="range" min="0" max="1" step="0.01">
-          </label>
-          <label class="row">
-            <span>SFX</span>
-            <input id="rangeSfx" type="range" min="0" max="1" step="0.01">
-          </label>
-          <label class="row">
-            <span>Region</span>
-            <select id="regionSel">
-              <option value="asia">Asia</option>
-              <option value="na">North America</option>
-              <option value="eu">Europe</option>
-            </select>
-          </label>
-          <div class="note">* ค่านี้จะถูกบันทึกลงในเบราว์เซอร์ (localStorage)</div>
-        </div>
+  <button class="icon-btn" title="Settings" id="btnSettingsTop" aria-label="Settings">
+    <svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 1-4 4 4 4 0 0 1 4-4Zm9 4a7.43 7.43 0 0 0-.09-1l2.09-1.64-2-3.46-2.49.63a7.51 7.51 0 0 0-1.73-1L14.5 2h-5l-.28 2.53a7.51 7.51 0 0 0-1.73-1l-2.49-.63-2 3.46L4.09 11a7.43 7.43 0 0 0 0 2l-2.09 1.64 2 3.46 2.49-.63a7.51 7.51 0 0 0 1.73 1L9.5 22h5l.28-2.53a7.51 7.51 0 0 0 1.73-1l2.49.63 2-3.46L20.91 13a7.43 7.43 0 0 0 .09-1Z"/></svg>
+  </button>
+
+  <!-- SETTINGS MODAL -->
+  <div class="modal" id="settingsModal" aria-hidden="true" role="dialog">
+    <div class="dialog">
+      <div class="dialog-head">
+        <h3>Settings</h3>
+        <button class="x" id="closeSettings">✖</button>
+      </div>
+      <div class="dialog-body">
+        <label class="row"><span>Master Volume</span><input id="rangeMaster" type="range" min="0" max="1" step="0.01"></label>
+        <label class="row"><span>Music</span><input id="rangeMusic" type="range" min="0" max="1" step="0.01"></label>
+        <label class="row"><span>SFX</span><input id="rangeSfx" type="range" min="0" max="1" step="0.01"></label>
+        <label class="row">
+          <span>Region</span>
+          <select id="regionSel">
+            <option value="asia">Asia</option>
+            <option value="na">North America</option>
+            <option value="eu">Europe</option>
+          </select>
+        </label>
+        <div class="note">* ค่านี้จะถูกบันทึกลงในเบราว์เซอร์ (localStorage)</div>
       </div>
     </div>
+  </div>
 
   <div class="lobby-container">
     <button id="backBtn" class="back-btn" onclick="window.location.href='index.html'">⬅ กลับ</button>
@@ -214,122 +135,99 @@
     </div>
   </div>
 
-  <!-- สคริปต์พื้นหลัง (ไม่ต้องเป็น module) -->
+  <!-- BG animation -->
   <script src="./room-bg.js" defer></script>
-  <!-- สคริปต์ settings (ไม่ต้องเป็น module) -->
-  <script type="module" src="./roomlist.js" defer></script>
 
-  <!-- ✅ สคริปต์ดึงลิสต์ห้อง (มี fallback 3 ชั้น + debug) -->
+  <!-- ✅ ROOM LIST: RTDB only (รวมโค้ดในไฟล์เดียว) -->
   <script type="module">
-    import { db } from "./firebase.js";
-    import { getApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-    import {
-      collection, query, where, orderBy, onSnapshot, getDocs
-    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { rtdb, ref, onValue, get } from "./firebase.js";
 
-    const $ = (id) => document.getElementById(id);
+    // --------- Settings modal (เปิด/ปิด) ----------
+    const modal = document.getElementById('settingsModal');
+    document.getElementById('btnSettingsTop').onclick = ()=> modal.setAttribute('aria-hidden','false');
+    document.getElementById('closeSettings').onclick  = ()=> modal.setAttribute('aria-hidden','true');
+
+    // --------- BG canvas ----------
+    const canvas = document.getElementById("bgCanvas");
+    const ctx = canvas.getContext("2d");
+    function drawBackground(){
+      canvas.width = innerWidth; canvas.height = innerHeight;
+      const g = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, canvas.width*.6);
+      g.addColorStop(0,"#1e2130"); g.addColorStop(1,"#0b0d12");
+      ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+      for(let i=0;i<100;i++){
+        const x=Math.random()*canvas.width,y=Math.random()*canvas.height;
+        ctx.fillStyle=`rgba(255,255,255,${Math.random()*.5+.3})`;
+        ctx.beginPath();ctx.arc(x,y,Math.random()*1.5+.5,0,Math.PI*2);ctx.fill();
+      }
+    }
+    drawBackground(); setInterval(drawBackground,10000);
+
+    // --------- Helpers ----------
+    const $ = (id)=>document.getElementById(id);
     const listEl = $("roomList");
     const emptyEl = $("emptyState");
     const infoEl = $("info");
 
-    // debug: ให้แน่ใจว่าหน้านี้ชี้ project เดียวกับหน้า create
-    try { console.log("[roomlist] projectId =", getApp().options.projectId); } catch {}
+    const playerName =
+      localStorage.getItem("ggd.name") ||
+      localStorage.getItem("playerName") ||
+      `Player_${Math.random().toString(36).slice(2,7)}`;
 
     const createdCode = new URLSearchParams(location.search).get("code");
     if (createdCode) infoEl.textContent = `เข้ามาจากห้องที่เพิ่งสร้าง: ${createdCode}`;
 
-    // ---------- renderer ----------
-    function renderSnapshot(snap){
-      listEl.innerHTML = "";
-      if (snap.empty) {
-        emptyEl.style.display = "block";
-        return;
-      }
-      emptyEl.style.display = "none";
+    function renderRooms(roomsObj){
+      const rooms = Object.values(roomsObj||{})
+        .filter(r => (r.type??"public")==="public" && (r.status??"lobby")==="lobby")
+        .sort((a,b)=>(b.lastActivity||0)-(a.lastActivity||0));
 
-      snap.forEach(docSnap => {
-        const r = docSnap.data();
-        const code = r.code || docSnap.id;
-        const card = document.createElement("div");
-        card.className = "room-card";
-        card.innerHTML = `
+      listEl.innerHTML = "";
+      if(!rooms.length){ emptyEl.style.display="block"; return; }
+      emptyEl.style.display="none";
+
+      rooms.forEach(r=>{
+        const div = document.createElement("div");
+        div.className = "room-card";
+        div.innerHTML = `
           <div class="room-info">
-            <div class="room-name">ห้อง ${r.name}</div>
-            <div class="room-detail">
-              ${r.type || "public"} · host: ${r.host || "-"}
-            </div>
+            <div class="room-name">${r.name || "(no name)"} </div>
+            <div class="room-detail">👥 ${r.playerCount || 0}/${r.maxPlayers ?? "?"} • 🔒 ${r.type || "-"}</div>
           </div>
-          <button class="join-btn">Join</button>
+          <button class="join-btn" data-code="${r.code}">Join</button>
         `;
-        card.querySelector(".join-btn").onclick = () => location.href = `lobby.html?code=${code}`;
-        if (createdCode && code === createdCode) {
-          card.style.outline = "2px solid #76f7b1";
-          card.style.boxShadow = "0 0 0 3px rgba(118,247,177,.25)";
+        div.querySelector(".join-btn").onclick = async (e)=>{
+          const code = e.currentTarget.dataset.code;
+          const snap = await get(ref(rtdb, `rooms/${code}`));
+          const room = snap.val();
+          if(!room || room.status!=="lobby"){ alert("ห้องนี้ไม่พร้อมเข้าหรือถูกลบแล้ว"); return; }
+          if(room.playerCount >= (room.maxPlayers || 999)){ alert("ห้องเต็มแล้ว"); return; }
+
+          // เซฟ context → lobby
+          localStorage.setItem("currentRoom", JSON.stringify({
+            code: room.code, name: room.name, maxPlayers: room.maxPlayers,
+            type: room.type, isHost: false
+          }));
+          if(!localStorage.getItem("playerName")) localStorage.setItem("playerName", playerName);
+          if(!localStorage.getItem("ggd.name"))   localStorage.setItem("ggd.name", playerName);
+
+          location.href = `lobby.html?code=${code}`;
+        };
+
+        if(createdCode && r.code===createdCode){
+          div.style.outline = "2px solid #76f7b1";
+          div.style.boxShadow = "0 0 0 3px rgba(118,247,177,.25)";
         }
-        listEl.appendChild(card);
+        listEl.appendChild(div);
       });
     }
 
-    // ---------- Fallback logic ----------
-    async function attachRealtimeWithFallback() {
-      // Q1: status + createdAt (สวยสุด ถ้ามี index)
-      try {
-        const q1 = query(collection(db, "rooms"),
-          where("status","==","lobby"),
-          orderBy("createdAt","desc")
-        );
-        console.log("[roomlist] try Q1 (status==lobby + orderBy createdAt)");
-        // ลองครั้งเดียว (ให้เห็นผลเร็ว)
-        const once = await getDocs(q1);
-        renderSnapshot(once);
-        // แล้วค่อย subscribe
-        onSnapshot(q1, renderSnapshot, onRealtimeError);
-        return;
-      } catch (e) {
-        console.warn("[roomlist] Q1 failed:", e?.code || e);
-      }
-
-      // Q2: แค่ orderBy(createdAt) (ไม่ต้องมี indexร่วม)
-      try {
-        const q2 = query(collection(db, "rooms"), orderBy("createdAt","desc"));
-        console.log("[roomlist] try Q2 (orderBy createdAt)");
-        const once = await getDocs(q2);
-        renderSnapshot(once);
-        onSnapshot(q2, renderSnapshot, onRealtimeError);
-        return;
-      } catch (e) {
-        console.warn("[roomlist] Q2 failed:", e?.code || e);
-      }
-
-      // Q3: ดึงดิบๆ (ไม่มี where/orderBy) — เห็นแน่
-      try {
-        const q3 = collection(db, "rooms");
-        console.log("[roomlist] try Q3 (raw collection)");
-        const once = await getDocs(q3);
-        renderSnapshot(once);
-        onSnapshot(q3, renderSnapshot, onRealtimeError);
-        return;
-      } catch (e) {
-        console.error("[roomlist] Q3 failed:", e?.code || e);
-        listEl.innerHTML = "";
-        emptyEl.style.display = "block";
-        emptyEl.textContent =
-          e?.code === "permission-denied"
-            ? "โหลดรายการห้องไม่ได้: permission-denied (เช็ก Firestore rules ให้ allow read ที่ /rooms)"
-            : "เกิดข้อผิดพลาดในการโหลดรายการห้อง (ดู Console)";
-      }
-    }
-
-    function onRealtimeError(err){
-      console.error("[roomlist] onSnapshot error:", err);
-      emptyEl.style.display = "block";
-      emptyEl.textContent =
-        err?.code === "permission-denied"
-          ? "โหลดรายการห้องไม่ได้: permission-denied (เช็ก Firestore rules: allow read ที่ /rooms)"
-          : (err?.message || "เกิดข้อผิดพลาดในการโหลดรายการห้อง");
-    }
-
-    attachRealtimeWithFallback();
+    // --------- subscribe realtime จาก RTDB ----------
+    onValue(ref(rtdb,"rooms"), snap => renderRooms(snap.val()), err=>{
+      console.error("[roomlist] onValue error:", err);
+      emptyEl.style.display="block";
+      emptyEl.textContent = "โหลดรายการห้องไม่ได้ (ตรวจ RTDB rules)";
+    });
   </script>
 </body>
 </html>

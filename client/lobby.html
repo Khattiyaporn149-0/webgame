@@ -17,256 +17,98 @@
       align-items: center;
       justify-content: center;
     }
+    canvas#bgCanvas { position: fixed; inset: 0; z-index: -1; }
 
-    canvas#bgCanvas {
-      position: fixed;
-      inset: 0;
-      z-index: -1;
-    }
-
-    /* 🔙 ปุ่มกลับ */
     .back-btn {
-      position: fixed;
-      top: 20px;
-      left: 20px;
+      position: fixed; top: 20px; left: 20px;
       background: linear-gradient(135deg, #54f4a8, #25c07d);
-      color: #0b1324;
-      border: none;
-      padding: 10px 18px;
-      border-radius: 50px;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 4px 10px #0007;
-      transition: all 0.2s ease;
+      color: #0b1324; border: none; padding: 10px 18px; border-radius: 50px;
+      font-weight: 700; cursor: pointer; box-shadow: 0 4px 10px #0007; transition: all 0.2s ease;
     }
     .back-btn:hover { transform: translateY(-2px); }
 
-    /* ⚠️ Warning Box */
     .warning-box {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
       background: rgba(255, 230, 120, 0.15);
       border: 1px solid rgba(255, 220, 80, 0.4);
-      color: #fff9c4;
-      font-weight: 700;
-      padding: 10px 18px;
-      border-radius: 12px;
-      box-shadow: 0 6px 20px rgba(255,255,0,0.15);
-      backdrop-filter: blur(10px);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.6s ease;
-      z-index: 5;
+      color: #fff9c4; font-weight: 700; padding: 10px 18px; border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(255,255,0,0.15); backdrop-filter: blur(10px);
+      opacity: 0; pointer-events: none; transition: opacity 0.6s ease; z-index: 5;
     }
     .warning-box.show { opacity: 1; }
 
-    /* 🎮 Countdown Overlay */
     .countdown-overlay {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: rgba(0,0,0,0.6);
-      backdrop-filter: blur(8px);
-      color: #fff;
-      font-size: 72px;
-      font-weight: 900;
-      letter-spacing: 2px;
-      text-shadow: 0 0 40px #00ffcc;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      z-index: 10;
+      position: fixed; inset: 0; display: flex; justify-content: center; align-items: center;
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); color: #fff;
+      font-size: 72px; font-weight: 900; letter-spacing: 2px; text-shadow: 0 0 40px #00ffcc;
+      opacity: 0; transition: opacity 0.3s ease; z-index: 10;
     }
     .countdown-overlay.show { opacity: 1; }
 
-    /* 🧍 ตัวละคร */
-    .char-section {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      flex-direction: column;
-    }
-
-    .char-box {
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 18px;
-    }
-
-    .char-btn {
-      font-size: 36px;
-      background: none;
-      border: none;
-      color: #fff;
-      cursor: pointer;
-      transition: transform 0.1s;
-    }
+    .char-section { display: flex; align-items: center; justify-content: center; gap: 20px; flex-direction: column; }
+    .char-box { position: relative; display: flex; align-items: center; justify-content: center; gap: 18px; }
+    .char-btn { font-size: 36px; background: none; border: none; color: #fff; cursor: pointer; transition: transform 0.1s; }
     .char-btn:hover { transform: scale(1.2); }
 
     .char-img {
-      width: clamp(180px, 28vw, 300px);
-      height: clamp(180px, 28vw, 300px);
-      object-fit: contain;
-      image-rendering: pixelated;
+      width: clamp(180px, 28vw, 300px); height: clamp(180px, 28vw, 300px);
+      object-fit: contain; image-rendering: pixelated;
       filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.6));
       animation: bob 2.8s ease-in-out infinite;
     }
-    @keyframes bob {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
-    }
+    @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
 
-    /* 🔘 เงากลมๆ ใต้ตัวละคร */
-    .shadow {
-      width: 150px;
-      height: 32px;
-      border-radius: 50%;
-      background: radial-gradient(ellipse at center, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 70%);
-      margin-top: -14px;
-      filter: blur(2px);
-    }
+    .shadow { width: 150px; height: 32px; border-radius: 50%; background: radial-gradient(ellipse at center, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 70%); margin-top: -14px; filter: blur(2px); }
 
-    /* 🟩 ปุ่ม Ready */
     .ready-btn {
-      background: linear-gradient(135deg,#E02F2F,#C04125);
-      border: none;
-      padding: 12px 28px;
-      border-radius: 12px;
-      color: #fff;
-      font-weight: 800;
-      font-size: 18px;
-      cursor: pointer;
-      margin-top: 10px;
-      box-shadow: 0 8px 20px #0007;
-      transition: transform 0.1s;
+      background: linear-gradient(135deg,#E02F2F,#C04125); border: none; padding: 12px 28px;
+      border-radius: 12px; color: #fff; font-weight: 800; font-size: 18px; cursor: pointer; margin-top: 10px;
+      box-shadow: 0 8px 20px #0007; transition: transform 0.1s;
     }
     .ready-btn:hover { transform: translateY(-2px); }
+    .ready-char { animation: pulse 0.6s ease-in-out infinite alternate; }
+    @keyframes pulse { 0% { transform: scale(1) translateY(0); } 100% { transform: scale(1.05) translateY(-3px); } }
 
-    .ready-char {
-      animation: pulse 0.6s ease-in-out infinite alternate;
-    }
-    @keyframes pulse {
-      0% { transform: scale(1) translateY(0); }
-      100% { transform: scale(1.05) translateY(-3px); }
-    }
-
-    /* 📋 รายชื่อผู้เล่น */
     .player-list {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      width: 220px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 14px;
-      padding: 12px;
-      box-shadow: 0 8px 30px #0008;
+      position: fixed; top: 20px; right: 20px; width: 240px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px; padding: 12px; box-shadow: 0 8px 30px #0008;
     }
-    .player-list h3 {
-      margin: 0 0 8px;
-      font-size: 16px;
-      color: #8be9fd;
-      text-align: center;
-    }
-    .player-list ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      max-height: 200px;
-      overflow-y: auto;
-    }
-    .player-list li {
-      padding: 4px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      font-size: 14px;
-      text-align: center;
-    }
+    .player-list h3 { margin: 0 0 8px; font-size: 16px; color: #8be9fd; text-align: center; }
+    .player-list ul { list-style: none; padding: 0; margin: 0; max-height: 220px; overflow-y: auto; }
+    .player-list li { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 14px; text-align: center; }
+    .player-list .count { display:block; text-align:center; margin-top:6px; font-size:13px; opacity:.9 }
 
-    /* 💬 กล่องแชท */
     .chat-box {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 280px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 14px;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 8px 30px #0008;
+      position: fixed; bottom: 20px; right: 20px; width: 280px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px; padding: 12px; display: flex; flex-direction: column; box-shadow: 0 8px 30px #0008;
     }
-    .chat-messages {
-      flex: 1;
-      overflow-y: auto;
-      max-height: 180px;
-      font-size: 14px;
-    }
-    .chat-input {
-      margin-top: 8px;
-      display: flex;
-      gap: 6px;
-    }
-    .chat-input input {
-      flex: 1;
-      padding: 6px 8px;
-      border-radius: 8px;
-      border: none;
-      background: rgba(255,255,255,0.15);
-      color: white;
-      outline: none;
-    }
-    .chat-input button {
-      padding: 6px 10px;
-      background: #54f4a8;
-      border: none;
-      border-radius: 8px;
-      color: #0b1324;
-      cursor: pointer;
-      font-weight: 700;
-    }
-    #pageContainer {
-  transition: opacity .25s ease;
-}
-.fade {
-  opacity: 0;
-}
+    .chat-messages { flex: 1; overflow-y: auto; max-height: 180px; font-size: 14px; }
+    .chat-input { margin-top: 8px; display: flex; gap: 6px; }
+    .chat-input input { flex: 1; padding: 6px 8px; border-radius: 8px; border: none; background: rgba(255,255,255,0.15); color: white; outline: none; }
+    .chat-input button { padding: 6px 10px; background: #54f4a8; border: none; border-radius: 8px; color: #0b1324; cursor: pointer; font-weight: 700; }
 
+    #pageContainer { transition: opacity .25s ease; }
+    .fade { opacity: 0; }
   </style>
 </head>
 <body>
   <canvas id="bgCanvas"></canvas>
 
-  <!-- ⚠️ Warning -->
-  <div class="warning-box" id="warningBox">
-    ⚠️ เกมจะเริ่มอัตโนมัติเมื่อผู้เล่นทุกคนกด Ready
-  </div>
-
-  <!-- 🕹️ Countdown -->
+  <div class="warning-box" id="warningBox">⚠️ เกมจะเริ่มอัตโนมัติเมื่อผู้เล่นทุกคนกด Ready</div>
   <div class="countdown-overlay" id="countdownOverlay">3</div>
-
   <button class="back-btn" id="btnBack">⬅ Home</button>
 
-  <!-- รายชื่อผู้เล่น -->
   <div class="player-list">
     <h3>👥 Players</h3>
-    <ul id="playerList">
-      <li>YOU</li>
-      <li>Guest_1</li>
-      <li>Guest_2</li>
-    </ul>
+    <ul id="playerList"></ul>
+    <span class="count" id="playerCount">0 player</span>
   </div>
 
-  <!-- ตัวละคร -->
   <div class="char-section">
     <h1>🎮 Lobby</h1>
-    <p>Room: <span id="roomName">My Room</span> | Code: <span id="roomCode">XXXX</span></p>
+    <p>Room: <span id="roomName">-</span> | Code: <span id="roomCode">-</span></p>
 
     <div class="char-box">
       <button class="char-btn" id="prevChar">⬅</button>
@@ -279,7 +121,6 @@
     <button class="ready-btn" id="readyBtn">UNREADY ✖</button>
   </div>
 
-  <!-- แชท -->
   <div class="chat-box">
     <div class="chat-messages" id="chatMessages"></div>
     <div class="chat-input">
@@ -288,79 +129,84 @@
     </div>
   </div>
 
-  <!-- ปุ่มกลับ -->
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-  <script>
-    // 📦 ดึงข้อมูลห้องจาก localStorage
+  <!-- ✅ Firebase RTDB version (no socket.io) -->
+  <script type="module">
+    import { rtdb, ref, set, update, onValue, onDisconnect, push, get } from "./firebase.js";
+    import { serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+
+    // ---------- Room & player context ----------
+    const params = new URLSearchParams(location.search);
+    const roomCode = params.get('code');
     const savedRoom = JSON.parse(localStorage.getItem('currentRoom') || '{}');
-    document.getElementById("roomName").textContent = savedRoom.name || "My Room";
-    document.getElementById("roomCode").textContent = savedRoom.code || "XXXX";
+    const displayName = localStorage.getItem('ggd.name') || localStorage.getItem('playerName') || `Player_${Math.random().toString(36).slice(2,7)}`;
 
-    // 🌐 เชื่อมต่อ Socket.IO (Render / Local)
-    const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
-    const socket = io(
-      isLocal
-        ? "http://localhost:3000"                 // ✅ ถ้ารันในเครื่อง
-        : "https://webgame-25n5.onrender.com",    // ✅ ถ้ารันบน Render
-      {
-        transports: ["websocket"],
-        withCredentials: false,
-      }
-    );
+    // uid ต่อ "แท็บ"
+    const uid = sessionStorage.getItem('ggd.uid') || (()=>{ const v = (crypto?.randomUUID?.() || ('uid_'+Math.random().toString(36).slice(2,10))); sessionStorage.setItem('ggd.uid', v); return v; })();
 
-    // =========================
-    // Debug Connection
-    // =========================
-    socket.on("connect", () => console.log("✅ Connected:", socket.id));
-    socket.on("connect_error", (err) => console.error("❌ Connect error:", err.message));
-    socket.on("disconnect", () => console.warn("⚠️ Disconnected from server"));
+    document.getElementById("roomName").textContent = savedRoom.name || "Room";
+    document.getElementById("roomCode").textContent = roomCode || savedRoom.code || "-";
 
-    // 🌌 พื้นหลัง
+    // ---------- BG ----------
     const canvas = document.getElementById("bgCanvas");
     const ctx = canvas.getContext("2d");
     function drawBackground() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      const gradient = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, canvas.width*0.6);
-      gradient.addColorStop(0, "#1e2130");
-      gradient.addColorStop(1, "#0b0d12");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      canvas.width = innerWidth; canvas.height = innerHeight;
+      const g = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, canvas.width*.6);
+      g.addColorStop(0,"#1e2130"); g.addColorStop(1,"#0b0d12");
+      ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
       for (let i=0;i<100;i++){
-        const x = Math.random()*canvas.width, y = Math.random()*canvas.height;
-        ctx.fillStyle = `rgba(255,255,255,${Math.random()*0.5+0.3})`;
-        ctx.beginPath(); ctx.arc(x,y,Math.random()*1.5+0.5,0,Math.PI*2); ctx.fill();
+        const x=Math.random()*canvas.width,y=Math.random()*canvas.height;
+        ctx.fillStyle=`rgba(255,255,255,${Math.random()*.5+.3})`;
+        ctx.beginPath(); ctx.arc(x,y,Math.random()*1.5+.5,0,Math.PI*2); ctx.fill();
       }
     }
     drawBackground(); setInterval(drawBackground, 10000);
 
-    // ตัวละคร
+    // ---------- Ensure room exists ----------
+    const roomRef = ref(rtdb, `rooms/${roomCode}`);
+    try {
+      const rs = await get(roomRef);
+      if (!rs.exists()) {
+        await set(roomRef, {
+          code: roomCode, name: savedRoom.name || roomCode, maxPlayers: savedRoom.maxPlayers || 8,
+          type: savedRoom.type || 'public', host: displayName, status: 'lobby',
+          playerCount: 0, createdAt: serverTimestamp(), lastActivity: serverTimestamp()
+        });
+      }
+    } catch (e) { console.warn('ensure room error:', e); }
+
+    // ---------- Join (presence) ----------
+    const playerRef = ref(rtdb, `lobbies/${roomCode}/players/${uid}`);
+    await set(playerRef, {
+      uid, name: displayName, isHost: !!savedRoom.isHost, ready: false, online: true,
+      char: "mini_brown", joinTime: serverTimestamp()
+    });
+    onDisconnect(playerRef).remove();
+    await update(roomRef, { lastActivity: serverTimestamp() });
+
+    // ---------- Character select ----------
     const characters=["mini_brown","mini_coral","mini_gray","mini_lavender","mini_mint","mini_pink","mini_sky_blue","mini_yellow"];
     let currentCharIndex=0, isReady=false;
     const img=document.getElementById("charImage"), label=document.getElementById("charLabel");
-    function updateChar(){
+    function renderChar(){
       const f=characters[currentCharIndex];
       img.src=`./assets/Characters/${f}/idle_1.png`;
       label.textContent=f.replace("mini_","").toUpperCase();
-      socket.emit("changeChar",{room:savedRoom.code,char:f});
     }
-    const prev=document.getElementById("prevChar"), next=document.getElementById("nextChar");
-    prev.onclick=()=>{if(!isReady){currentCharIndex=(currentCharIndex-1+characters.length)%characters.length;updateChar();}};
-    next.onclick=()=>{if(!isReady){currentCharIndex=(currentCharIndex+1)%characters.length;updateChar();}};
-    updateChar();
+    async function changeChar(delta){
+      if(isReady) return;
+      currentCharIndex=(currentCharIndex+delta+characters.length)%characters.length;
+      renderChar();
+      try { await update(playerRef, { char: characters[currentCharIndex] }); } catch {}
+    }
+    document.getElementById("prevChar").onclick=()=>changeChar(-1);
+    document.getElementById("nextChar").onclick=()=>changeChar(+1);
+    renderChar();
 
-    // ปุ่ม READY
+    // ---------- Ready / Leave ----------
     const readyBtn=document.getElementById("readyBtn");
     const warning=document.getElementById("warningBox");
     const overlay=document.getElementById("countdownOverlay");
-    readyBtn.onclick=()=>{
-      isReady=!isReady;
-      readyBtn.textContent=isReady?"READY ✔":"UNREADY ✖";
-      readyBtn.style.background=isReady?"linear-gradient(135deg,#77FF6B,#4AFF59)":"linear-gradient(135deg,#E02F2F,#C04125)";
-      img.classList.toggle("ready-char",isReady);
-      showWarning();
-      socket.emit("playerReady",{room:savedRoom.code,ready:isReady});
-    }
 
     function showWarning(){
       warning.classList.add("show");
@@ -368,60 +214,87 @@
       warning._t=setTimeout(()=>warning.classList.remove("show"),4000);
     }
 
-    // 🕹️ Countdown (triggered by server)
-    function startCountdown(){
-      let count=3;
-      overlay.textContent=count;
-      overlay.classList.add("show");
-      const timer=setInterval(()=>{
-        count--;
-        overlay.textContent=count>0?count:"GO!";
-        if(count<0){
-          clearInterval(timer);
-          overlay.classList.remove("show");
-          window.location.href="game.html";
-        }
-      },1000);
-    }
-
-    // 💬 แชท
-    const chatInput=document.getElementById("chatInput"),
-          sendBtn=document.getElementById("sendBtn"),
-          box=document.getElementById("chatMessages");
-    function addMsg(s,t){
-        const p=document.createElement("p");
-        p.innerHTML=`<b>${s}:</b> ${t}`;
-        box.appendChild(p);box.scrollTop=box.scrollHeight;
-    }
-    sendBtn.onclick=()=>{
-      const msg=chatInput.value.trim();
-      if(!msg)return;
-      socket.emit("chatMessage",{room:savedRoom.code,text:msg});
-      chatInput.value="";
+    readyBtn.onclick = async ()=>{
+      isReady = !isReady;
+      readyBtn.textContent = isReady ? "READY ✔" : "UNREADY ✖";
+      readyBtn.style.background = isReady ? "linear-gradient(135deg,#77FF6B,#4AFF59)" : "linear-gradient(135deg,#E02F2F,#C04125)";
+      img.classList.toggle("ready-char", isReady);
+      showWarning();
+      try { await update(playerRef, { ready: isReady }); await update(roomRef, { lastActivity: serverTimestamp() }); } catch {}
     };
-    chatInput.addEventListener("keydown",e=>{
-      if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendBtn.click();}
-    });
-    socket.on("chatMessage",(data)=>addMsg(data.sender,data.text));
 
-    // 👥 รายชื่อผู้เล่น
-    socket.on("updatePlayers",(playerList)=>{
-      const list=document.getElementById("playerList");
-      list.innerHTML="";
-      playerList.forEach(p=>{
-        const li=document.createElement("li");
-        li.textContent=`${p.name} ${p.ready?"✔️":"⌛"}`;
-        list.appendChild(li);
-      });
-      const allReady=playerList.every(p=>p.ready);
-      if(allReady && playerList.length>1){
-        showWarning();
+    document.getElementById("btnBack").onclick = async ()=>{
+      try { await update(roomRef, { lastActivity: serverTimestamp() }); } catch {}
+      try { await set(playerRef, null); } catch {}
+      location.href = 'roomlist.html';
+    };
+
+    // ---------- Players list sync ----------
+    const playerListEl = document.getElementById("playerList");
+    const playerCountEl = document.getElementById("playerCount");
+    const lobbyPlayersRef = ref(rtdb, `lobbies/${roomCode}/players`);
+
+    let countdownStarted = false;
+    onValue(lobbyPlayersRef, async (snap)=>{
+      const obj = snap.val() || {};
+      const players = Object.values(obj);
+      // render list
+      playerListEl.innerHTML = players.map(p=>{
+        const meMark = p.uid===uid ? ' (You)' : '';
+        const host = p.isHost ? '👑' : '';
+        const rd = p.ready ? '✅' : '⌛';
+        return `<li>${p.name}${meMark} ${host} ${rd}</li>`;
+      }).join('');
+      // count + update room
+      playerCountEl.textContent = `${players.length} player${players.length>1?'s':''}`;
+      try { await update(roomRef, { playerCount: players.length, lastActivity: serverTimestamp() }); } catch {}
+
+      // auto-start countdown if everyone ready and >=2
+      const allReady = players.length>=2 && players.every(p=>p.ready);
+      if (allReady && !countdownStarted) {
+        countdownStarted = true;
         startCountdown();
       }
     });
 
-    // ปุ่มกลับ
-    document.getElementById("btnBack").onclick=()=>window.location.href="createroom.html";
+    function startCountdown(){
+      let count=3;
+      overlay.textContent=count;
+      overlay.classList.add("show");
+      const t=setInterval(()=>{
+        count--;
+        overlay.textContent = count>0 ? count : "GO!";
+        if(count<0){ clearInterval(t); overlay.classList.remove("show"); location.href="game.html"; }
+      },1000);
+    }
+
+    // ---------- Chat via RTDB ----------
+    const chatInput=document.getElementById("chatInput");
+    const sendBtn=document.getElementById("sendBtn");
+    const box=document.getElementById("chatMessages");
+
+    function addMsg(sender,text,ts){
+      const p=document.createElement("p");
+      const time = ts ? new Date(ts).toLocaleTimeString() : '';
+      p.innerHTML=`<b>${sender}</b> <small style="opacity:.7">${time}</small>: ${text}`;
+      box.appendChild(p); box.scrollTop = box.scrollHeight;
+    }
+
+    const chatRef = ref(rtdb, `lobbies/${roomCode}/chat`);
+    onValue(chatRef, (snap)=>{
+      const data = snap.val() || {};
+      const arr = Object.values(data).sort((a,b)=>(a.ts||0)-(b.ts||0)).slice(-100);
+      box.innerHTML = "";
+      arr.forEach(m=> addMsg(m.sender, m.text, m.ts));
+    });
+
+    sendBtn.onclick = async ()=>{
+      const msg = chatInput.value.trim();
+      if(!msg) return;
+      chatInput.value="";
+      try { await push(chatRef, { sender: displayName, text: msg, ts: Date.now() }); } catch(e){ console.warn('chat push fail', e); }
+    };
+    chatInput.addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); sendBtn.click(); }});
   </script>
 </body>
 </html>

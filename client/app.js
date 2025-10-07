@@ -301,12 +301,12 @@ document.getElementById('regionSel').addEventListener('change', e => {
 
 // Primary actions (hook here)
 document.getElementById('btnJoin').addEventListener('click', () => {
-  window.location.href = 'roomlist.html';
+  window.location.href = '/client/roomlist.html';
 
   // TODO: window.startGame && window.startGame({ mode: 'quick', ...state });
 });
 document.getElementById('btnCreate').addEventListener('click', () => {
-  window.location.href = 'createroom.html';
+  window.location.href = '/client/createroom.html';
 });
 
 // Extra buttons
