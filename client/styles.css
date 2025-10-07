@@ -51,13 +51,51 @@ body {
 .login-tag .clan { opacity: .8 }
 .login-tag .ver { opacity: .6; margin-left: 6px; }
 
-.top-icons { display: flex; gap: 12px }
-.icon-btn {
-  width: 40px; height: 40px; display: grid; place-items: center;
-  background: var(--panel); border: 1px solid var(--stroke); border-radius: 50%;
-  cursor: pointer; box-shadow: 0 6px 20px #0006;
+/* ===================== 🔝 TOP ICONS ===================== */
+.top-icons {
+  display: flex;
+  gap: 14px;
+  align-items: center;
 }
-.icon-btn svg { width: 22px; height: 22px; fill: var(--fg); opacity: .9 }
+
+/* ปุ่มแต่ละอัน */
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: rgba(93, 93, 93, 0.08);     /* โปร่งนิด ๆ */
+  border: 1px solid rgba(255, 255, 255, 0.089);
+  border-radius: 50%;
+  box-shadow: 0 8px 30px #0006; 
+  color: #E6E6FA; /* ✅ เพิ่มสีตัวอักษร */
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
+  transition: all 0.25s ease;
+}
+
+/* เอฟเฟกต์เมื่อ hover */
+.icon-btn:hover {
+  background: #2c3e50;   /* ✅ พื้นหลังเปลี่ยนเมื่อ hover */
+  color: #ffffff;        /* ✅ ตัวอักษรเปลี่ยนเป็นขาว */
+  transform: translateY(-2px); /* ✅ ขยับขึ้นนิดๆ ดู interactive */
+}
+
+/* Icon ข้างใน (Font Awesome) */
+.icon-btn i {
+  font-size: 18px;
+  color: #ffffff;             /* ✅ ทำให้ icon ขาว */
+  opacity: 0.95;
+  transition: color 0.25s ease, transform 0.25s ease;
+}
+
+/* เมื่อ hover ให้ icon สว่างขึ้นนิด */
+.icon-btn:hover i {
+  color: #ffffff;
+  opacity: 1;
+  transform: scale(1.1);
+}
+
 
 /* ---------- Layout ---------- */
 .wrap {
@@ -168,15 +206,15 @@ body {
 }
 
 
-/* ---------- Moda
-l ---------- */
+/* ---------- Modal ---------- */
 .modal { position: fixed; inset: 0; display: none; place-items: center; background: #0008 }
-.modal.show { display: grid }
+.modal[aria-hidden="false"], .modal.show { display: grid }
 .dialog { width: min(92vw, 680px); background: var(--panel); border:1px solid var(--stroke); border-radius: 16px; box-shadow: 0 20px 60px #000a }
 .dialog-head { display:flex; justify-content: space-between; align-items:center; padding: 12px 16px; border-bottom:1px solid var(--stroke) }
 .dialog-head h3 { margin:0 }
 .dialog-head .x { background: var(--panel-2); border:1px solid var(--stroke); color: var(--fg); padding: 6px 10px; border-radius: 10px; cursor:pointer }
 .dialog-body { padding: 16px; display:grid; gap: 12px }
+.dialog-body.center { text-align: center }
 .row { display:flex; gap:12px; align-items:center; justify-content:space-between }
 .row input[type=range] { width: 260px }
 .note { opacity: .8; font-size: 13px; margin-top: 6px }
@@ -272,74 +310,11 @@ l ---------- */
 .btroom:active {
   transform: scale(0.95);
 } 
-/* ---------- Start Screen ---------- */
-.start-screen {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(180deg, #0a0f1c, #060a14);
-  z-index: 9999; /* อยู่บนสุด */
-}
-
-.start-panel {
-  background: var(--panel);
-  padding: 32px;
-  border-radius: 20px;
-  text-align: center;
-  box-shadow: 0 20px 60px #000a;
-  width: min(90%, 400px);
-}
-
-.start-panel h1 {
-  font-size: 2.5rem;
-  margin-bottom: 12px;
-}
-
-.start-panel p {
-  font-size: 1.2rem;
-  color: var(--muted);
-  margin-bottom: 20px;
-}
-
-.start-panel input {
-  width: 100%;
-  padding: 12px;
-  font-size: 1.2rem;
-  border: 2px solid var(--stroke);
-  border-radius: 12px;
-  background: #0f1729;
-  color: #fff;
-  text-align: center;
-}
-
-.start-panel button {
-  margin-top: 20px;
-  width: 100%;
-  padding: 14px;
-  font-size: 1.3rem;
-  font-weight: bold;
-  background: linear-gradient(180deg, #ffd86b, #ffb347);
-  border: none;
-  border-radius: 14px;
-  color: #000;
-  cursor: pointer;
-  transition: transform 0.1s;
-}
-
-.start-panel button:active {
-  transform: translateY(2px);
-}
-
 /* ===== Transition เข้าเมนู ===== */
 .wrap {
-  opacity: 0;
-  transform: translateY(30px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
-}
-.wrap.show {
   opacity: 1;
-  transform: translateY(0);
+  transform: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .back-btn {
@@ -580,4 +555,208 @@ option {
 #pageContainer.fade-in {
   opacity: 1;
 }
+/* ===================== 🎮 ACCOUNT MODAL REWORK ===================== */
+#accountModal {
+  display: none; /* 🔥 ต้องเริ่มจาก none เพื่อให้ซ่อนไว้ */
+  justify-content: center;
+  align-items: center;
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 10, 25, 0.85);
+  backdrop-filter: blur(10px);
+  z-index: 9999;
+}
 
+/* ✅ ใช้ .show class เพื่อเปิดแทน */
+#accountModal.show {
+  display: flex;
+}
+
+
+/* ✅ ตัวกล่อง account */
+.profile-dialog {
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* ✅ center เนื้อหาภายใน */
+  align-items: center;
+  background: linear-gradient(145deg, rgba(20,28,48,0.95), rgba(10,16,28,0.9));
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 25px rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  width: min(90%, 380px);
+  padding: 32px 28px;
+  color: var(--fg);
+  animation: popIn 0.25s ease;
+}
+
+/* ✅ เนื้อหาภายใน จัดให้อยู่กึ่งกลาง column ทั้งหมด */
+.dialog-body.center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* ✅ เนื้อหาอยู่กลางกล่อง */
+  align-items: center;
+  text-align: center;
+  gap: 14px; /* ระยะห่างเท่ากัน */
+}
+
+
+/* header */
+.profile-dialog .dialog-head {
+  border-bottom: 1px solid rgba(251, 251, 251, 0.25);
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+}
+
+/* ✅ ปรับภาพโปรไฟล์ให้ตรงกลางแน่นอน */
+.dialog-body.center img.avatar {
+  display: block;
+  margin: 0 auto 12px; /* จัดให้อยู่ตรงกลางแนวนอน */
+  border-radius: 50%;
+  width: 90px;
+  height: 90px;
+  border: 2px solid rgba(90,255,180,0.4);
+  object-fit: cover;
+  box-shadow: 0 0 12px rgba(229, 229, 229, 0.25);
+}
+
+.profile-dialog .dialog-head h3 {
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.4rem;
+  letter-spacing: 0.5px;
+}
+
+.profile-dialog .dialog-head .x {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 20px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.profile-dialog .dialog-head .x:hover {
+  color: #fff;
+}
+
+/* avatar */
+.profile-dialog .avatar {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  object-fit: cover;
+  margin: 8px 0 12px;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.25);
+}
+
+/* input */
+.profile-dialog input[type="text"] {
+  width: 85%;
+  padding: 10px 12px;
+  font-size: 15px;
+  border: 1px solid rgba(100,255,200,0.4);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  text-align: center;
+  outline: none;
+  transition: 0.2s;
+}
+.profile-dialog input[type="text"]:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+}
+
+/* start button */
+#startBtn {
+  width: 85%;
+  padding: 12px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #54f4a8, #25c07d);
+  color: #0b1324;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+#startBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.4);
+}
+#startBtn:active {
+  transform: scale(0.96);
+}
+
+/* divider */
+.divider-text {
+  margin: 16px 0 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.2px;
+}
+
+/* ✅ ปุ่ม Google */
+.google-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(90deg, #3BE289, #00B775);
+  color: #0b1324;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  
+  width: 85%;
+  max-width: 280px;      /* ✅ จำกัดความกว้างให้ดูบาลานซ์ */
+  margin: 0 auto;        /* ✅ บังคับให้อยู่กลางแนวนอน */
+  text-align: center;
+}
+.google-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+}
+
+/* logged-in view */
+#userView {
+  display: none;
+}
+#userView h3 {
+  color: var(--green);
+  margin-bottom: 4px;
+}
+#userView p {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+#btnLogout {
+  margin-top: 14px;
+  background: linear-gradient(135deg, #ff5c5c, #c81919);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+#btnLogout:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 10px rgba(255,80,80,0.4);
+}
+
+/* animations */
+@keyframes popIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

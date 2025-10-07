@@ -1,6 +1,17 @@
 // Common Settings and Audio Utility
 // Unifies settings across pages and keeps BGM seamless between pages
 
+window.addEventListener("DOMContentLoaded", () => {
+  safe('btnTutorial', btn => {
+    console.log("✅ listener added after DOM load");
+    btn.addEventListener('click', ()=> {
+      console.log("🎯 clicked!");
+      openModal('tutorialModal');
+    });
+  });
+});
+
+
 (function(){
   const KEY = 'gameSettings';
   const TIME_KEY = 'bgmTime';
@@ -74,6 +85,7 @@
     }
   };
 
+
   // Public API: GameAudio
   const GameAudio = {
     bgm: null,
@@ -122,8 +134,16 @@
     },
     applyVolumes() {
       const s = readSettings();
-      if (this.bgm)   this.bgm.volume   = Math.max(0, Math.min(1, s.master * s.music));
-      if (this.click) this.click.volume = Math.max(0, Math.min(1, s.master * s.sfx));
+      const musicVol = Math.max(0, Math.min(1, s.master * s.music));
+      const sfxVol   = Math.max(0, Math.min(1, s.master * s.sfx));
+      if (this.bgm) {
+        this.bgm.volume = musicVol;
+        this.bgm.muted = musicVol === 0;
+      }
+      if (this.click) {
+        this.click.volume = sfxVol;
+        this.click.muted = sfxVol === 0;
+      }
     },
     playClick() {
       if (!this.click) return;
