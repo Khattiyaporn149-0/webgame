@@ -1,377 +1,286 @@
-// Tiny animated background + UI logic + persistence
-// ==============================
-// 🎵 SOUND (Persistent across pages)
-// ==============================
+/* ===========================================================
+ 🎮 THE HEIST - MAIN FRONT SCRIPT (Clean & Stable)
+    Features:
+    - Persistent BGM + SFX
+    - Universal Settings system
+    - Popup Modals (Settings / Tutorial / Login / Profile)
+    - Firebase Auth integration
+    - Start screen gate
+    - Animated background
+=========================================================== */
 
-// ✅ ใช้ global ตัวเดียวตลอด tab
-if (!window.bgm) {
-  window.bgm = new Audio("assets/sounds/galaxy-283941.mp3");
-  window.bgm.loop = true;
-  window.bgm.volume = 0.5;
+// ============ 🧭 UTILITIES ============
+function $(id) { return document.getElementById(id); }
+function safe(id, fn) { const el = $(id); if (el) fn(el); return el; }
 
-  // เล่นหลัง user interaction ครั้งแรก (จำเป็นตาม policy browser)
-  document.addEventListener("click", () => {
-    window.bgm.play().catch(() => {});
-  }, { once: true });
-}
+// ============ 🎵 AUDIO SYSTEM ============
+if (window.GameAudio) window.GameAudio.init();
 
-if (!window.clickSound) {
-  window.clickSound = new Audio("assets/sounds/click.mp3");
-  window.clickSound.volume = 0.8;
-}
-
-// 👇 ใช้ reference เดิม (ไม่สร้างใหม่)
 const bgm = window.bgm;
 const clickSound = window.clickSound;
 
-// ✅ เก็บเวลาปัจจุบันก่อนออกจากหน้า
+// Resume bgm point
+window.addEventListener("DOMContentLoaded", () => {
+  const last = parseFloat(localStorage.getItem("bgmTime") || "0");
+  if (bgm && !isNaN(last)) bgm.currentTime = last;
+});
+
+// Save bgm point before leave
 window.addEventListener("beforeunload", () => {
   if (bgm && !bgm.paused) {
     localStorage.setItem("bgmTime", bgm.currentTime);
   }
 });
 
-// ✅ กลับมาเล่นต่อจุดเดิมตอนโหลดใหม่
-window.addEventListener("DOMContentLoaded", () => {
-  const last = parseFloat(localStorage.getItem("bgmTime") || "0");
-  if (bgm && !isNaN(last)) bgm.currentTime = last;
-});
-
-
-// 🧠 โหลดค่าที่บันทึกไว้
-const settings = JSON.parse(localStorage.getItem("gameSettings")) || {
-  master: 1.0,
-  music: 0.8,
-  sfx: 0.8,
-  region: "asia"
+// ============ ⚙️ SETTINGS ============
+window.GameSettings = window.GameSettings || {
+  data: JSON.parse(localStorage.getItem("gameSettings") || '{"master":1,"music":0.8,"sfx":0.8,"region":"asia"}'),
+  get() { return this.data; },
+  set(newData) {
+    Object.assign(this.data, newData);
+    localStorage.setItem("gameSettings", JSON.stringify(this.data));
+    updateAudioVolumes();
+  }
 };
 
-// 🧮 ฟังก์ชันอัปเดตเสียง
-function updateVolumes() {
-  bgm.volume = settings.master * settings.music;
-  clickSound.volume = settings.master * settings.sfx;
+function updateAudioVolumes() {
+  const s = GameSettings.get();
+  if (bgm) bgm.volume = s.master * s.music;
+  if (clickSound) clickSound.volume = s.master * s.sfx;
 }
+updateAudioVolumes();
 
-// 💾 ฟังก์ชันบันทึก
-function saveSettings() {
-  localStorage.setItem("gameSettings", JSON.stringify(settings));
-  updateVolumes();
-}
-
-// 🌍 อัปเดต region
-function updateRegion() {
-  console.log("🌐 Region set to:", settings.region);
-}
-
-// เรียกตอนเริ่ม
-updateVolumes();
-updateRegion();
-
-/* ==============================
- ⚙️ SETTINGS MODAL
-============================== */
-
-const btnSettingsTop = document.getElementById("btnSettingsTop");
-const rangeMaster = document.getElementById("rangeMaster");
-const rangeMusic = document.getElementById("rangeMusic");
-const rangeSfx = document.getElementById("rangeSfx");
-const regionSel = document.getElementById("regionSel");
-
-// ตั้งค่าตามที่บันทึกไว้
-rangeMaster.value = settings.master;
-rangeMusic.value = settings.music;
-rangeSfx.value = settings.sfx;
-regionSel.value = settings.region;
-
-// 🎚 ปรับค่าระหว่างเล่น
-rangeMaster.addEventListener("input", e => {
-  settings.master = parseFloat(e.target.value);
-  saveSettings();
-});
-
-rangeMusic.addEventListener("input", e => {
-  settings.music = parseFloat(e.target.value);
-  saveSettings();
-});
-
-rangeSfx.addEventListener("input", e => {
-  settings.sfx = parseFloat(e.target.value);
-  saveSettings();
-});
-
-regionSel.addEventListener("change", e => {
-  settings.region = e.target.value;
-  saveSettings();
-  updateRegion();
-});
-
-/* ==============================
- 🪟 OPEN / CLOSE MODAL
-============================== */
-
-// ปุ่มเปิด (เพิ่มเองใน UI เช่น <button id="openSettings">⚙️ Settings</button>)
-const btnOpen = document.getElementById("openSettings");
-const btnClose = document.getElementById("closeSettings");
-
-if (btnOpen) {
-  btnOpen.addEventListener("click", () => {
-    btnSettingsTop.style.display = "flex";
-    btnSettingsTop.setAttribute("aria-hidden", "false");
-  });
-}
-
-btnClose.addEventListener("click", () => {
-  const modal = document.getElementById("settingsModal");
-  modal.style.display = "none"; // แค่ซ่อน popup
-  modal.setAttribute("aria-hidden", "true");
-});
-document.getElementById("settingsModal").addEventListener("click", e => {
-  if (e.target === e.currentTarget) {
-    e.currentTarget.style.display = "none"; // แค่ซ่อน popup
-    e.currentTarget.setAttribute("aria-hidden", "true");
+// ============ 🪟 MODAL CONTROL ============
+function openModal(id) {
+  const el = $(id);
+  if (!el) return;
+  el.style.display = "flex";
+  el.style.zIndex = "10001";
+  el.style.pointerEvents = "auto";
+  el.setAttribute("aria-hidden", "false");
+  if (id === 'accountModal') {
+    const start = $('startScreen');
+    if (start && start.style.display !== 'none') start.style.display = 'none';
   }
-});
-
-/* ==============================
- 🧩 ตัวอย่างการใช้เสียง
-============================== */
-
-// กด Start แล้วเริ่มเพลง
-document.addEventListener("click", () => {
-  bgm.play().catch(()=>{});
-}, { once: true });
-
-// กดปุ่มใดๆ แล้วเล่นเสียงคลิก
-document.addEventListener("click", () => {
-  if (window.GameAudio) window.GameAudio.playClick();
-  else { try { clickSound.currentTime = 0; clickSound.play(); } catch {} }
-});
-
-// ---- Background canvas particles (lightweight) ----
-const canvas = document.getElementById('bg-canvas');
-const ctx = canvas.getContext('2d');
-let w, h, stars;
-function resize() {
-  w = canvas.width = window.innerWidth;
-  h = canvas.height = window.innerHeight;
-  stars = Array.from({length: Math.min(140, Math.floor(w*h/12000))}, () => ({
-    x: Math.random()*w,
-    y: Math.random()*h,
-    r: Math.random()*1.8 + 0.2,
-    s: Math.random()*0.5 + 0.1
-  }));
 }
-window.addEventListener('resize', resize);
-resize();
-(function loop(){
-  ctx.clearRect(0,0,w,h);
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  for (const st of stars) {
-    ctx.globalAlpha = 0.4 + Math.sin((performance.now()/1000 + st.x)*st.s)*0.4;
-    ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2); ctx.fill();
-  }
-  requestAnimationFrame(loop);
-})();
+function closeModal(id) {
+  const el = $(id);
+  if (!el) return;
+  el.style.display = "none";
+  el.style.pointerEvents = "none";
+  el.setAttribute("aria-hidden", "true");
+}
 
-// ---- State & persistence ----
+// ============ 🧱 BACKGROUND CANVAS ============
+const canvas = $('bg-canvas');
+if (canvas) {
+  const ctx = canvas.getContext('2d');
+  let w, h, stars;
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+    stars = Array.from({length: Math.min(140, Math.floor(w*h/12000))}, () => ({
+      x: Math.random()*w,
+      y: Math.random()*h,
+      r: Math.random()*1.8 + 0.2,
+      s: Math.random()*0.5 + 0.1
+    }));
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  (function loop(){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    for (const st of stars) {
+      ctx.globalAlpha = 0.4 + Math.sin((performance.now()/1000 + st.x)*st.s)*0.4;
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2); ctx.fill();
+    }
+    requestAnimationFrame(loop);
+  })();
+}
+
+// ============ 🧠 STATE ============
 const state = {
   name: localStorage.getItem('ggd.name') || 'Guest',
-  volume: parseFloat(localStorage.getItem('ggd.vol') || '0.8'),
-  music: parseFloat(localStorage.getItem('ggd.music') || '0.6'),
-  sfx: parseFloat(localStorage.getItem('ggd.sfx') || '0.9'),
-  region: localStorage.getItem('ggd.region') || 'asia',
-  version: 'V.test1.2.0' // เปลี่ยนเวอร์ชันตรงนี้เมื่ออัปเดตเกม
+  version: 'V.test1.2.0'
 };
-document.getElementById('playerNameTop').textContent = state.name;
-document.getElementById('ver').textContent = state.version;
+safe('playerNameTop', el => el.textContent = state.name);
+safe('ver', el => el.textContent = state.version);
 
-// ---- Countdown (left rail) ----
-let remaining = 24*60*60; // 24h demo
-const elCountdown = document.getElementById('countdown');
-setInterval(() => {
-  remaining = Math.max(0, remaining-1);
-  const hh = String(Math.floor(remaining/3600)).padStart(2,'0');
-  const mm = String(Math.floor((remaining%3600)/60)).padStart(2,'0');
-  const ss = String(remaining%60).padStart(2,'0');
-  elCountdown.textContent = `${hh}:${mm}:${ss}`;
-}, 1000);
+// ============ ⏰ COUNTDOWN ============
+let remaining = 24*60*60;
+const elCountdown = $('countdown');
+if (elCountdown) {
+  setInterval(() => {
+    remaining = Math.max(0, remaining-1);
+    const hh = String(Math.floor(remaining/3600)).padStart(2,'0');
+    const mm = String(Math.floor((remaining%3600)/60)).padStart(2,'0');
+    const ss = String(remaining%60).padStart(2,'0');
+    elCountdown.textContent = `${hh}:${mm}:${ss}`;
+  }, 1000);
+}
 
-// -------------- Name Gate (Start Screen) --------------
-const startScreen = document.getElementById("startScreen");
-const startBtn = document.getElementById("startBtn");
-const playerNameInput = document.getElementById("playerNameInput");
+// ============ 🪪 START SCREEN ============
+const startScreen = $('startScreen');
+const playerNameInput = $('playerNameInput');
+const startBtn = $('startBtn');
 
-// rule: 3–16 chars, allow Thai/English/digits/space/_/-
-const nameOk = (n) => {
-  if (!n) return false;
-  const t = n.trim();
-  if (t.length < 3 || t.length > 16) return false;
-  // อนุญาตทั่วไป ถ้าจะเข้มงวดขึ้นใช้ regex: /^[\\p{L}\\p{N} _-]+$/u
-  return true;
-};
-
+const nameOk = (n) => n && n.trim().length >= 3 && n.trim().length <= 16;
 function applyName(t) {
   state.name = t.trim();
   localStorage.setItem("ggd.name", state.name);
-  document.getElementById("playerNameTop").textContent = state.name;
+  $('playerNameTop').textContent = state.name;
 }
-
 function showStartScreen() {
   startScreen.style.display = "grid";
   document.querySelector(".wrap").style.display = "none";
   playerNameInput.value = (state.name && state.name !== 'Guest') ? state.name : '';
-  playerNameInput.focus();
 }
-
 function hideStartScreen() {
   startScreen.style.display = "none";
   const wrap = document.querySelector(".wrap");
   wrap.style.display = "grid";
-  requestAnimationFrame(() => wrap.classList.add("show")); // ✨ เพิ่มตรงนี้
+  requestAnimationFrame(() => wrap.classList.add("show"));
 }
 
-
-startBtn.addEventListener("click", () => {
+safe('startBtn', el => el.addEventListener("click", () => {
   const name = playerNameInput.value.trim();
-  if (!nameOk(name)) {
-    alert("❗ กรุณากรอกชื่อยาว 3–16 ตัวอักษร");
-    return;
-  }
-  clickSound.currentTime = 0; clickSound.volume = state.sfx * state.volume; clickSound.play();
+  if (!nameOk(name)) return alert("❗ กรุณากรอกชื่อยาว 3–16 ตัวอักษร");
+  if (window.GameAudio) window.GameAudio.playClick();
   applyName(name);
   hideStartScreen();
-});
+}));
+safe('playerNameInput', el => el.addEventListener("keydown", e => {
+  if (e.key === "Enter") $('startBtn').click();
+}));
 
-// Enter เพื่อยืนยันชื่อ
-playerNameInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") startBtn.click();
-});
-
-// แสดง start screen ถ้ายังไม่มีชื่อจริง ๆ
 window.addEventListener("DOMContentLoaded", () => {
-  const savedName = localStorage.getItem("ggd.name");
-  if (savedName && nameOk(savedName)) {
-    applyName(savedName);
-    hideStartScreen();
-  } else {
-    showStartScreen();
-  }
-});
-
-// helper: บังคับให้มีชื่อก่อน ถึงจะทำ action
-const requireNameThen = (fn) => (...args) => {
   const saved = localStorage.getItem("ggd.name");
-  if (!saved || !nameOk(saved)) {
-    showStartScreen();
-    return;
-  }
-  applyName(saved);
-  fn(...args);
-};
-
-// ---- Buttons ----
-const settingsModal = document.getElementById('settingsModal');
-document.getElementById('btnSettingsTop').addEventListener('click', () => {
-  settingsModal.classList.add('show');
-  // sync sliders
-  if (window.GameSettings) {
-    const s = window.GameSettings.get();
-    document.getElementById('rangeMaster').value = s.master;
-    document.getElementById('rangeMusic').value = s.music;
-    document.getElementById('rangeSfx').value = s.sfx;
-    document.getElementById('regionSel').value = s.region;
-  }
-});
-document.getElementById('closeSettings').addEventListener('click', () => {
-  settingsModal.classList.remove('show');
+  if (saved && nameOk(saved)) {
+    applyName(saved);
+    hideStartScreen();
+  } else showStartScreen();
 });
 
-document.getElementById('rangeMaster').addEventListener('input', e => {
-  state.volume = +e.target.value; localStorage.setItem('ggd.vol', state.volume);
-});
-document.getElementById('rangeMusic').addEventListener('input', e => {
-  state.music = +e.target.value; localStorage.setItem('ggd.music', state.music);
-});
-document.getElementById('rangeSfx').addEventListener('input', e => {
-  state.sfx = +e.target.value; localStorage.setItem('ggd.sfx', state.sfx);
-});
-document.getElementById('regionSel').addEventListener('change', e => {
-  state.region = e.target.value; localStorage.setItem('ggd.region', state.region);
-});
+// ============ ⚙️ SETTINGS POPUP ============
+safe('btnSettingsTop', btn => btn.addEventListener('click', ()=> openModal('settingsModal')));
+safe('closeSettings', btn => btn.addEventListener('click', ()=> closeModal('settingsModal')));
 
-// Primary actions (hook here)
-document.getElementById('btnJoin').addEventListener('click', () => {
-  window.location.href = 'roomlist.html';
-
-  // TODO: window.startGame && window.startGame({ mode: 'quick', ...state });
+['rangeMaster','rangeMusic','rangeSfx'].forEach(id=>{
+  safe(id, el => el.addEventListener('input', e => GameSettings.set({ 
+    [id.replace('range','').toLowerCase()]: +e.target.value 
+  })));
 });
-document.getElementById('btnCreate').addEventListener('click', () => {
-  window.location.href = 'createroom.html';
+safe('regionSel', el => el.addEventListener('change', e => GameSettings.set({ region: e.target.value })));
+// Support new suffixed controls in index.html
+['rangeMaster_s','rangeMusic_s','rangeSfx_s'].forEach(id=>{
+  safe(id, el => el.addEventListener('input', e => GameSettings.set({ 
+    [id.replace('range','').replace('_s','').toLowerCase()]: +e.target.value 
+  })));
 });
+safe('regionSel_s', el => el.addEventListener('change', e => GameSettings.set({ region: e.target.value })));
 
-// Extra buttons
-document.getElementById('btnClassic').addEventListener('click', ()=> alert('สลับเพลงธีม/โหมดคลาสสิก'));
-document.getElementById('btnFriends').addEventListener('click', ()=> alert('เปิดรายชื่อเพื่อน'));
+// ============ 🧩 TUTORIAL ============
+safe('btnTutorial', btn => btn.addEventListener('click', ()=> openModal('tutorialModal')));
+safe('closeTutorial', btn => btn.addEventListener('click', ()=> closeModal('tutorialModal')));
+safe('tutorialModal', modal => modal.addEventListener('click', e => { if (e.target===modal) closeModal('tutorialModal'); }));
 
-// ปุ่มรูปคน: ให้เปลี่ยนชื่อเมื่อไรก็ได้
-document.getElementById('btnProfile').addEventListener('click', ()=> {
-  showStartScreen(); // เปิดหน้าตั้งชื่อเหมือนตอนเริ่มเกม
-});
-
-document.getElementById('btnWorld').addEventListener('click', ()=> alert('เลือกภูมิภาค/ภาษา'));
-
-// Keyboard shortcut: ถ้าหน้า start ยังเปิดอยู่ ให้ Enter เป็นยืนยันชื่อ
-window.addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-    if (startScreen.style.display !== 'none') {
-      startBtn.click();
-    } else {
-      document.getElementById('btnCreate').click();
-    }
-  }
-});
-
-// sound
-function hideStartScreen() {
-  startScreen.style.display = "none";
-  const wrap = document.querySelector(".wrap");
-  wrap.style.display = "grid";
-  requestAnimationFrame(() => wrap.classList.add("show")); // ✨ เพิ่มตรงนี้
-}
-
-const btnTutorial = document.getElementById('btnTutorial');
-const tutorialModal = document.getElementById('tutorialModal');
-const closeTutorial = document.getElementById('closeTutorial');
+// Tabs
 const tabButtons = document.querySelectorAll('.tab-btn');
 const tabPanes = document.querySelectorAll('.tab-pane');
-
-// เปิด Popup
-btnTutorial.addEventListener('click', () => {
-  tutorialModal.classList.add('active');
-});
-
-// ปิด Popup
-closeTutorial.addEventListener('click', () => {
-  tutorialModal.classList.remove('active');
-});
-
-// ปิดเมื่อคลิกข้างนอก
-tutorialModal.addEventListener('click', (e) => {
-  if (e.target === tutorialModal) tutorialModal.classList.remove('active');
-});
-
-// สลับแท็บ
 tabButtons.forEach(btn => {
   btn.addEventListener('click', () => {
-    // เอา active ออกจากทุกปุ่มและ pane
     tabButtons.forEach(b => b.classList.remove('active'));
     tabPanes.forEach(p => p.classList.remove('active'));
-
-    // ใส่ active ในแท็บที่เลือก
     btn.classList.add('active');
-    document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+    $('tab-' + btn.dataset.tab).classList.add('active');
   });
-
-  
 });
 
+// ============ 🪩 BUTTON ACTIONS ============
+safe('btnJoin', btn => btn.addEventListener('click', () => window.location.href='roomlist.html'));
+safe('btnCreate', btn => btn.addEventListener('click', () => window.location.href='createroom.html'));
+safe('btnClassic', btn => btn.addEventListener('click', ()=> alert('🎵 สลับเพลงธีม/โหมดคลาสสิก')));
+safe('btnFriends', btn => btn.addEventListener('click', ()=> alert('👥 เปิดรายชื่อเพื่อน')));
+safe('btnWorld', btn => btn.addEventListener('click', ()=> alert('🌍 เลือกภูมิภาค/ภาษา')));
+
+// Profile button -> unified account modal
+safe('btnProfile', btn => btn.addEventListener('click', () => {
+  openModal('accountModal');
+  if (typeof updateAccountView === 'function') updateAccountView();
+}));
+
+// ============ 🔐 FIREBASE LOGIN ============
+import { auth, provider, signInWithPopup, signOut, onAuthStateChanged, db, doc, setDoc } from "./firebase.js";
+
+const playerNameTop = $('playerNameTop');
+const btnLoginGoogle = $('btnLoginGoogle');
+// unified account modal elements
+const accountModal = $('accountModal');
+const closeAccount = $('closeAccount');
+const profileName = $('profileName');
+const profileEmail = $('profileEmail');
+const profilePic = $('profilePic');
+const btnLogout = $('btnLogout');
+const guestView = $('guestView');
+const userView = $('userView');
+const playerNameInput2 = $('playerNameInput2');
+const startBtn2 = $('startBtn2');
+
+function updateAccountView() {
+  const user = auth.currentUser;
+  if (user) {
+    if (guestView) guestView.style.display = 'none';
+    if (userView) userView.style.display = 'block';
+    if (profileName) profileName.textContent = user.displayName || 'Unknown';
+    if (profileEmail) profileEmail.textContent = user.email || '';
+    if (profilePic) profilePic.src = user.photoURL || 'assets/default-avatar.png';
+  } else {
+    if (guestView) guestView.style.display = 'block';
+    if (userView) userView.style.display = 'none';
+  }
+}
+
+safe('closeAccount', el => el.addEventListener('click', ()=> closeModal('accountModal')));
+safe('startBtn2', el => el.addEventListener('click', ()=> {
+  if (playerNameInput2 && playerNameInput2.value && nameOk(playerNameInput2.value)) {
+    applyName(playerNameInput2.value);
+    closeModal('accountModal');
+  }
+}));
+
+safe('btnLoginGoogle', el => el.addEventListener("click", async () => {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+    await setDoc(doc(db, "users", user.uid), {
+      name: user.displayName,
+      email: user.email,
+      coins: 0,
+      lastLogin: new Date()
+    }, { merge: true });
+    if (playerNameTop) playerNameTop.textContent = user.displayName || 'Guest';
+    updateAccountView();
+    closeModal('accountModal');
+  } catch (err) {
+    console.error("❌ Login failed:", err);
+    alert("เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
+  }
+}));
+
+onAuthStateChanged(auth, (user) => {
+  playerNameTop.textContent = user ? user.displayName : "Guest";
+});
+
+safe('btnLogout', el => el.addEventListener("click", async () => {
+  await signOut(auth);
+  closeModal('profileModal');
+  playerNameTop.textContent = "Guest";
+  alert("ออกจากระบบเรียบร้อยแล้ว");
+}));
+
+// Gift button forces login
+safe('btnGift', el => el.addEventListener("click", () => {
+  if (!auth.currentUser) openModal('loginModal');
+  else alert("🎁 คุณได้รับ 50 Coins!");
+}));

@@ -1,8 +1,15 @@
-// ใช้ CDN + ES Modules (ไม่ต้องมี bundler)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getFirestore, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+// ================================
+// 🔥 FIREBASE CONFIG - FRONTEND MODULE
+// ================================
 
-// ใส่ config จาก Project settings → General → Your apps (Web)
+// ✅ CDN + ES Modules (no bundler)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getFirestore, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+// ================================
+// 🧩 CONFIGURATION
+// ================================
 const firebaseConfig = {
   apiKey: "AIzaSyC68MpIXzvlcloyhweqy3vHIGy_sPYJWQA",
   authDomain: "theheist-6a6fb.firebaseapp.com",
@@ -13,6 +20,35 @@ const firebaseConfig = {
   measurementId: "G-N0YPDY0VSK"
 };
 
-const app = initializeApp(firebaseConfig);
+// ================================
+// 🚀 INITIALIZE
+// ================================
+export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+export const auth = getAuth(app);
+export const provider = new GoogleAuthProvider();
 export const ts = serverTimestamp;
+
+// ================================
+// ✏️ UPDATE DISPLAY NAME FUNCTION
+// ================================
+export async function updateFirebaseName(newName) {
+  const user = auth.currentUser;
+  if (!user) { console.error("Cannot update name: User is not logged in."); return false; }
+  try {
+    await updateProfile(user, { displayName: newName });
+    await setDoc(doc(db, "users", user.uid), { name: newName, lastUpdated: ts() }, { merge: true });
+    console.log(`✅ Updated Firebase name to: ${newName}`);
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to update Firebase name:", error);
+    return false;
+  }
+}
+
+// ================================
+// ✅ EXPORTS (helpers)
+// ================================
+export { signInWithPopup, signOut, onAuthStateChanged, doc, setDoc };
+
+console.log("✅ firebase.js loaded successfully");

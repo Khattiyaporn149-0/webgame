@@ -122,8 +122,16 @@
     },
     applyVolumes() {
       const s = readSettings();
-      if (this.bgm)   this.bgm.volume   = Math.max(0, Math.min(1, s.master * s.music));
-      if (this.click) this.click.volume = Math.max(0, Math.min(1, s.master * s.sfx));
+      const musicVol = Math.max(0, Math.min(1, s.master * s.music));
+      const sfxVol   = Math.max(0, Math.min(1, s.master * s.sfx));
+      if (this.bgm) {
+        this.bgm.volume = musicVol;
+        this.bgm.muted = musicVol === 0;
+      }
+      if (this.click) {
+        this.click.volume = sfxVol;
+        this.click.muted = sfxVol === 0;
+      }
     },
     playClick() {
       if (!this.click) return;

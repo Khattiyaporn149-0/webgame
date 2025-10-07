@@ -257,3 +257,12 @@ function playClick() {
     lastClick = now;
   }
 }
+
+// Centralize audio + settings
+try {
+  if (window.GameAudio) window.GameAudio.init();
+  if (window.GameSettings) {
+    window.GameSettings.bindUI({});
+    window.GameSettings.onChange(() => { if (window.GameAudio) window.GameAudio.applyVolumes(); });
+  }
+} catch {}

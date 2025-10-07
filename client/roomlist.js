@@ -134,6 +134,14 @@ function playClick() {
 }
 document.addEventListener("click", () => bgm.play().catch(() => {}), { once: true });
 
+// Centralize settings sliders to shared settings if available
+if (window.GameSettings) {
+  try {
+    window.GameSettings.bindUI({});
+    window.GameSettings.onChange(() => { if (window.GameAudio) window.GameAudio.applyVolumes(); });
+  } catch {}
+}
+
 // ===============================
 // 🧱 FIRESTORE ROOM LIST
 // ===============================
