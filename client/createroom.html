@@ -41,120 +41,31 @@
     }
     .btn:hover{ transform: translateY(-2px) }
 
-    /* SETTINGS MODAL */
-.modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.7);
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-.dialog {
-  background: #1e1e2f;
-  color: #fff;
-  padding: 24px;
-  border-radius: 16px;
-  width: 320px;
-  box-shadow: 0 0 20px rgba(0,0,0,0.5);
-}
-.dialog-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-.dialog-body label.row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 8px 0;
-}
-.dialog-body input[type=range],
-.dialog-body select {
-  width: 160px;
-}
-.dialog-body .note {
-  margin-top: 10px;
-  font-size: 0.85em;
-  color: #ccc;
-}
-.x {
-  background: none;
-  border: none;
-  color: #fff;
-  font-size: 18px;
-  cursor: pointer;
-}
+    .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7);
+      align-items:center; justify-content:center; z-index:9999; }
+    .dialog { background:#1e1e2f; color:#fff; padding:24px; border-radius:16px; width:320px; box-shadow:0 0 20px rgba(0,0,0,.5) }
+    .dialog-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px }
+    .dialog-body label.row { display:flex; justify-content:space-between; align-items:center; margin:8px 0 }
+    .dialog-body input[type=range], .dialog-body select { width:160px }
+    .dialog-body .note { margin-top:10px; font-size:.85em; color:#ccc }
+    .x { background:none; border:none; color:#fff; font-size:18px; cursor:pointer }
 
-/* ปุ่ม settings */
-.icon-btn {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  background: rgba(255,255,255,0.1);
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  cursor: pointer;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s ease;
-}
-.icon-btn:hover {
-  background: rgba(255,255,255,0.25);
-}
-.icon-btn svg {
-  width: 22px;
-  height: 22px;
-  fill: #fff; }
+    .icon-btn { position:absolute; top:18px; right:18px; background:rgba(255,255,255,.1);
+      border:none; border-radius:50%; width:40px; height:40px; cursor:pointer; color:#fff;
+      display:flex; align-items:center; justify-content:center; transition:background .2s }
+    .icon-btn:hover { background:rgba(255,255,255,.25) }
+    .icon-btn svg { width:22px; height:22px; fill:#fff }
 
-.modal[aria-hidden="false"] {
-  display: flex;
-  animation: fadeIn 0.25s ease;
-}
+    .modal[aria-hidden="false"]{ display:flex; animation:fadeIn .25s ease }
+    @keyframes fadeIn{ from{ opacity:0; transform:scale(.96) } to{ opacity:1; transform:scale(1) } }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.96); }
-  to   { opacity: 1; transform: scale(1); }
-}
+    select{ appearance:none; -webkit-appearance:none; -moz-appearance:none; background:#2b2d42; color:#E6E6FA;
+      border:1px solid rgba(100,200,255,.3); border-radius:8px; padding:10px 12px }
+    select option{ background:#1a1a2e; color:#E6E6FA }
+    select option:hover, select option:checked, select option:focus{ background:#25c07d; color:#0b1324 }
 
-select {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  background-color: #2b2d42; /* สีพื้นหลัง dropdown box */
-  color: #E6E6FA;            /* สีข้อความ */
-  border: 1px solid rgba(100,200,255,0.3);
-  border-radius: 8px;
-  padding: 10px 12px;
-}
-
-/* สำหรับ option ตอนยังไม่ hover */
-select option {
-  background-color: #1a1a2e;
-  color: #E6E6FA;
-}
-
-/* สำหรับ option ที่ hover หรือถูกเลือก */
-select option:hover,
-select option:checked,
-select option:focus {
-  background-color: #25c07d;
-  color: #0b1324;
-}
-
-#pageContainer {
-  transition: opacity .25s ease;
-}
-.fade {
-  opacity: 0;
-}
-
+    #pageContainer { transition: opacity .25s ease }
+    .fade { opacity: 0 }
   </style>
 </head>
 <body>
@@ -164,44 +75,35 @@ select option:focus {
   <main class="room-container" id="setup">
     <button class="back-btn" id="btnBack">⬅ Leave</button>
     <h1 class="title">CREATE ROOM</h1>
-    <div>
-      <button class="icon-btn" title="Settings" id="btnSettingsTop" aria-label="Settings">
-        <svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 1-4 4 4 4 0 0 1 4-4Zm9 4a7.43 7.43 0 0 0-.09-1l2.09-1.64-2-3.46-2.49.63a7.51 7.51 0 0 0-1.73-1L14.5 2h-5l-.28 2.53a7.51 7.51 0 0 0-1.73 1l-2.49-.63-2 3.46L4.09 11a7.43 7.43 0 0 0 0 2l-2.09 1.64 2 3.46 2.49-.63a7.51 7.51 0 0 0 1.73 1L9.5 22h5l.28-2.53a7.51 7.51 0 0 0 1.73-1l2.49.63 2-3.46L20.91 13a7.43 7.43 0 0 0 .09-1Z"/></svg>
-      </button>
+
+    <button class="icon-btn" title="Settings" id="btnSettingsTop" aria-label="Settings">
+      <svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 1-4 4 4 4 0 0 1 4-4Zm9 4a7.43 7.43 0 0 0-.09-1l2.09-1.64-2-3.46-2.49.63a7.51 7.51 0 0 0-1.73-1L14.5 2h-5l-.28 2.53a7.51 7.51 0 0 0-1.73-1l-2.49-.63-2 3.46L4.09 11a7.43 7.43 0 0 0 0 2l-2.09 1.64 2 3.46 2.49-.63a7.51 7.51 0 0 0 1.73-1L9.5 22h5l.28-2.53a7.51 7.51 0 0 0 1.73-1l2.49.63 2-3.46L20.91 13a7.43 7.43 0 0 0 .09-1Z"/></svg>
+    </button>
+
+    <!-- SETTINGS MODAL -->
+    <div class="modal" id="settingsModal" aria-hidden="true" role="dialog">
+      <div class="dialog">
+        <div class="dialog-head">
+          <h3>Settings</h3>
+          <button class="x" id="closeSettings">✖</button>
+        </div>
+        <div class="dialog-body">
+          <label class="row"><span>Master Volume</span><input id="rangeMaster" type="range" min="0" max="1" step="0.01"></label>
+          <label class="row"><span>Music</span><input id="rangeMusic" type="range" min="0" max="1" step="0.01"></label>
+          <label class="row"><span>SFX</span><input id="rangeSfx" type="range" min="0" max="1" step="0.01"></label>
+          <label class="row">
+            <span>Region</span>
+            <select id="regionSel">
+              <option value="asia">Asia</option>
+              <option value="na">North America</option>
+              <option value="eu">Europe</option>
+            </select>
+          </label>
+          <div class="note">* ค่านี้จะถูกบันทึกลงในเบราว์เซอร์ (localStorage)</div>
+        </div>
+      </div>
     </div>
 
-     <!-- SETTINGS MODAL -->
-  <div class="modal" id="settingsModal" aria-hidden="true" role="dialog">
-    <div class="dialog">
-      <div class="dialog-head">
-        <h3>Settings</h3>
-        <button class="x" id="closeSettings">✖</button>
-      </div>
-      <div class="dialog-body">
-        <label class="row">
-          <span>Master Volume</span>
-          <input id="rangeMaster" type="range" min="0" max="1" step="0.01">
-        </label>
-        <label class="row">
-          <span>Music</span>
-          <input id="rangeMusic" type="range" min="0" max="1" step="0.01">
-        </label>
-        <label class="row">
-          <span>SFX</span>
-          <input id="rangeSfx" type="range" min="0" max="1" step="0.01">
-        </label>
-        <label class="row">
-          <span>Region</span>
-          <select id="regionSel">
-            <option value="asia">Asia</option>
-            <option value="na">North America</option>
-            <option value="eu">Europe</option>
-          </select>
-        </label>
-        <div class="note">* ค่านี้จะถูกบันทึกลงในเบราว์เซอร์ (localStorage)</div>
-      </div>
-    </div>
-  </div>
     <label for="roomName">📛 Room Name</label>
     <input id="roomName" placeholder="ตั้งชื่อห้องของคุณ…">
     <div id="nameError" style="color:#ff6b6b; font-size:14px; margin-top:4px; min-height:18px;"></div>
@@ -220,19 +122,165 @@ select option:focus {
       <option value="private">Private (ล็อกห้อง)</option>
     </select>
 
+    <!-- 🔑 รหัสห้อง (เฉพาะ Private) -->
+    <div id="roomPassRow" style="display:none; margin-top:8px">
+      <label for="roomPass">🔑 Room Password (อย่างน้อย 4 ตัว)</label>
+      <input id="roomPass" type="password" placeholder="ตั้งรหัสสำหรับห้อง Private">
+    </div>
+
     <button class="btn" id="btnCreate">🚀 CREATE ROOM</button>
   </main>
 
-  <!-- สคริปต์พื้นหลังยังเป็น defer ได้ -->
+  <!-- พื้นหลัง -->
   <script src="./room-bg.js" defer></script>
 
-  <!-- สำคัญ: ใช้ ES module เพื่อให้ import ใน createroom.js ทำงาน -->
-  <script type="module" src="./createroom.js"></script>
+  <!-- สคริปต์สร้างห้อง (ESM) -->
+  <script type="module">
+    import { rtdb, ref, set, update, onDisconnect, get } from "./firebase.js";
+    import { serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
-  <!-- (ออปชัน) ตัวช่วยโชว์ error ใน console เป็น alert ชั่วคราวเวลา dev -->
+    // ----- UI: settings modal -----
+    const modal = document.getElementById('settingsModal');
+    document.getElementById('btnSettingsTop').onclick = ()=> modal.setAttribute('aria-hidden','false');
+    document.getElementById('closeSettings').onclick = ()=> modal.setAttribute('aria-hidden','true');
+
+    // ----- BG -----
+    const canvas = document.getElementById("bgCanvas");
+    const ctx = canvas.getContext("2d");
+    function drawBackground(){
+      canvas.width = innerWidth; canvas.height = innerHeight;
+      const g = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, canvas.width*.6);
+      g.addColorStop(0,"#1e2130"); g.addColorStop(1,"#0b0d12");
+      ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+      for(let i=0;i<100;i++){
+        const x=Math.random()*canvas.width,y=Math.random()*canvas.height;
+        ctx.fillStyle=`rgba(255,255,255,${Math.random()*.5+.3})`;
+        ctx.beginPath();ctx.arc(x,y,Math.random()*1.5+.5,0,Math.PI*2);ctx.fill();
+      }
+    }
+    drawBackground(); setInterval(drawBackground, 10000);
+
+    // ----- Helpers -----
+    const $ = (id)=>document.getElementById(id);
+    const nameInput = $("roomName"), nameError = $("nameError");
+    $("btnBack").onclick = ()=> location.href = "index.html";
+
+    // โชว์/ซ่อนช่องรหัสเมื่อเลือก Private
+    const roomTypeSel = $("roomType");
+    const passRow = $("roomPassRow");
+    roomTypeSel.addEventListener("change", () => {
+      passRow.style.display = roomTypeSel.value === "private" ? "block" : "none";
+    });
+
+    function genCode(len=4){
+      const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+      let s = ""; for(let i=0;i<len;i++) s += chars[Math.floor(Math.random()*chars.length)];
+      return s;
+    }
+    function getPlayerName(){
+      return localStorage.getItem('ggd.name')
+          || localStorage.getItem('playerName')
+          || `Player_${Math.floor(Math.random()*1000)}`;
+    }
+    // uid ต่อแท็บ (กันทับเวลาเปิดหลายแท็บ)
+    const uid = sessionStorage.getItem('ggd.uid') || (()=>{ 
+      const v = (crypto?.randomUUID?.() || ('uid_'+Math.random().toString(36).slice(2,10)));
+      sessionStorage.setItem('ggd.uid', v);
+      return v;
+    })();
+
+    // SHA-256 → hex
+    async function sha256Hex(s){
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+      return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+
+    async function createRoom(){
+      const roomName = (nameInput.value || "").trim();
+      const maxPlayers = parseInt($("maxPlayers").value,10);
+      const roomType = $("roomType").value;
+      const hostName = getPlayerName();
+
+      if(!roomName){
+        nameError.textContent = "กรุณาตั้งชื่อห้อง";
+        nameInput.focus();
+        return;
+      }
+      nameError.textContent = "";
+
+      let joinHash = null;
+      if (roomType === "private") {
+        const pass = (document.getElementById('roomPass').value || '').trim();
+        if (pass.length < 4) {
+          alert('รหัสห้องต้องอย่างน้อย 4 ตัว');
+          document.getElementById('roomPass').focus();
+          return;
+        }
+        joinHash = await sha256Hex(pass);
+      }
+
+      // สุ่ม code จนกว่าจะไม่ชน
+      let code = genCode(4);
+      let tries = 0;
+      while (tries < 6) {
+        const snap = await get(ref(rtdb, `rooms/${code}`));
+        if (!snap.exists()) break;
+        code = genCode(4);
+        tries++;
+      }
+
+      // 1) rooms/{code}
+      const roomRef = ref(rtdb, `rooms/${code}`);
+      await set(roomRef, {
+        code, name: roomName, maxPlayers, type: roomType,
+        host: hostName, status: "lobby",
+        playerCount: 1,
+        joinHash: joinHash || null,     // <— เก็บ hash ไว้เทียบตอน join (private)
+        createdAt: serverTimestamp(), lastActivity: serverTimestamp()
+      });
+
+      // 2) lobbies/{code}/players/{uid}  (ใช้ uid แทนชื่อ กันทับ)
+      const meRef = ref(rtdb, `lobbies/${code}/players/${uid}`);
+      await set(meRef, {
+        uid,
+        name: hostName, isHost: true, ready: false, online: true,
+        char: "mini_brown", joinTime: serverTimestamp()
+      });
+      onDisconnect(meRef).remove();
+
+      // 3) bump activity
+      await update(roomRef, { lastActivity: serverTimestamp() });
+
+      // 4) context → ไป lobby
+      localStorage.setItem("currentRoom", JSON.stringify({
+        code, name: roomName, maxPlayers, type: roomType, isHost: true
+      }));
+      localStorage.setItem("playerName", hostName);
+      localStorage.setItem("ggd.name", hostName);
+
+      // เก็บ token ว่าเรา “ผ่านรหัสแล้ว” (เผื่อหน้า lobby จะตรวจ)
+      if (roomType === "private") {
+        localStorage.setItem(`roomAuth:${code}`, 'ok');
+      }
+
+      location.href = `lobby.html?code=${code}`;
+    }
+
+    document.getElementById("btnCreate").onclick = ()=> {
+      createRoom().catch(err=>{
+        console.error(err);
+        alert("สร้างห้องไม่สำเร็จ: " + (err.message || err));
+      });
+    };
+    nameInput.addEventListener("keydown", e=>{
+      if(e.key==="Enter") document.getElementById("btnCreate").click();
+    });
+  </script>
+
+  <!-- Dev helper -->
   <script>
-    window.addEventListener('error', e => alert('Script error: ' + e.message));
-    window.addEventListener('unhandledrejection', e => alert('Promise error: ' + (e.reason?.message || e.reason)));
+    window.addEventListener('error', e => console.warn('Script error:', e.message));
+    window.addEventListener('unhandledrejection', e => console.warn('Promise error:', (e.reason?.message || e.reason)));
   </script>
 </body>
 </html>
