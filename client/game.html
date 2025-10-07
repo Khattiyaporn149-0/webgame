@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🎮 Multiplayer Game - Among Us Style</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0b1324;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            display: flex;
+            height: 100vh;
+        }
+        
+        #gameArea {
+            flex: 1;
+            position: relative;
+        }
+        
+        #gameCanvas {
+            border: 2px solid #444;
+            background: #1a1a2e;
+            display: block;
+        }
+        
+        #sidebar {
+            width: 300px;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #playerInfo {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        #chatArea {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #chatMessages {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+        
+        #chatInput {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+        }
+        
+        #chatInput::placeholder {
+            color: #aaa;
+        }
+        
+        #playersList {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .player {
+            padding: 5px;
+            margin: 3px 0;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .player-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid white;
+        }
+        
+        .message {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .system-message {
+            color: #4CAF50;
+            font-style: italic;
+        }
+        
+        #gameControls {
+            text-align: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+        
+        .status {
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="gameArea">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+            <div id="gameControls">
+                <div>🎮 Use WASD or Arrow Keys to move</div>
+                <div class="status" id="gameStatus">Connecting...</div>
+            </div>
+        </div>
+        
+        <div id="sidebar">
+            <div id="playerInfo">
+                <h3>👤 Player Info</h3>
+                <div>Name: <span id="playerName">Loading...</span></div>
+                <div>Room: <span id="roomCode">Loading...</span></div>
+                <div>Position: <span id="playerPos">0, 0</span></div>
+            </div>
+            
+            <div id="playersList">
+                <h3>👥 Players Online</h3>
+                <div id="playersContainer">Loading...</div>
+            </div>
+            
+            <div id="chatArea">
+                <h3>💬 Chat</h3>
+                <div id="chatMessages"></div>
+                <input type="text" id="chatInput" placeholder="Type your message..." maxlength="100">
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        console.log('🎮 Starting multiplayer game...');
+        
+        // ===============================
+        // 🎯 GAME SETUP
+        // ===============================
+        
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Player setup
+        const playerName = localStorage.getItem('ggd.name') || `Player_${Math.random().toString(36).substring(2, 7)}`;
+        localStorage.setItem('ggd.name', playerName);
+        
+        // Get room code from URL or use default
+        const params = new URLSearchParams(window.location.search);
+        const roomCode = params.get('code') || 'GAME001';
+        
+        document.getElementById('playerName').textContent = playerName;
+        document.getElementById('roomCode').textContent = roomCode;
+        
+        // Player colors
+        const playerColors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+            '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+        ];
+        
+        // Game state
+        let gameState = {
+            players: {},
+            messages: [],
+            myPlayer: {
+                x: 400,
+                y: 300,
+                color: playerColors[0],
+                name: playerName
+            }
+        };
+        
+        let keys = {};
+        let lastUpdate = Date.now();
+        
+        // ===============================
+        // 🚀 FIREBASE SETUP
+        // ===============================
+        
+        let firebase = null;
+        let gameRef = null;
+        let unsubscribe = null;
+        
+        async function initFirebase() {
+            try {
+                document.getElementById('gameStatus').textContent = '🔄 Connecting to server...';
+                
+                firebase = await import('./firebase.js');
+                console.log('✅ Firebase loaded');
+                
+                // Initialize game room in Realtime Database
+                const { ref, set, onValue, push, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js');
+                
+                gameRef = ref(firebase.rtdb, `games/${roomCode}`);
+                
+                // Set initial player data
+                const playerRef = ref(firebase.rtdb, `games/${roomCode}/players/${playerName}`);
+                await set(playerRef, {
+                    name: playerName,
+                    x: gameState.myPlayer.x,
+                    y: gameState.myPlayer.y,
+                    color: gameState.myPlayer.color,
+                    online: true,
+                    lastUpdate: serverTimestamp()
+                });
+                
+                // Listen for game state changes
+                const gameDataRef = ref(firebase.rtdb, `games/${roomCode}`);
+                onValue(gameDataRef, (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        updateGameState(data);
+                    }
+                });
+                
+                document.getElementById('gameStatus').textContent = '✅ Connected!';
+                addMessage('🎮 Connected to game room!', 'system');
+                
+            } catch (error) {
+                console.error('Firebase error:', error);
+                document.getElementById('gameStatus').textContent = '❌ Connection failed';
+                addMessage('❌ Failed to connect to server', 'system');
+            }
+        }
+        
+        // ===============================
+        // 🎮 GAME LOGIC
+        // ===============================
+        
+        function updateGameState(data) {
+            if (data.players) {
+                gameState.players = data.players;
+                updatePlayersList();
+            }
+            
+            if (data.messages) {
+                // Update messages (only show last 50)
+                const messages = Object.values(data.messages).slice(-50);
+                updateChatMessages(messages);
+            }
+        }
+        
+        function updatePlayersList() {
+            const container = document.getElementById('playersContainer');
+            const players = Object.values(gameState.players).filter(p => p.online);
+            
+            container.innerHTML = players.map(player => `
+                <div class="player">
+                    <div class="player-color" style="background: ${player.color}"></div>
+                    <span>${player.name}${player.name === playerName ? ' (You)' : ''}</span>
+                </div>
+            `).join('') || '<div>No players online</div>';
+        }
+        
+        async function updatePlayerPosition() {
+            if (!firebase || !gameRef) return;
+            
+            const { ref, set, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js');
+            
+            const playerRef = ref(firebase.rtdb, `games/${roomCode}/players/${playerName}`);
+            await set(playerRef, {
+                name: playerName,
+                x: gameState.myPlayer.x,
+                y: gameState.myPlayer.y,
+                color: gameState.myPlayer.color,
+                online: true,
+                lastUpdate: serverTimestamp()
+            });
+            
+            document.getElementById('playerPos').textContent = 
+                `${Math.round(gameState.myPlayer.x)}, ${Math.round(gameState.myPlayer.y)}`;
+        }
+        
+        // ===============================
+        // 💬 CHAT SYSTEM
+        // ===============================
+        
+        async function sendMessage(message) {
+            if (!firebase || !message.trim()) return;
+            
+            const { ref, push, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js');
+            
+            const messagesRef = ref(firebase.rtdb, `games/${roomCode}/messages`);
+            await push(messagesRef, {
+                player: playerName,
+                message: message.trim(),
+                timestamp: serverTimestamp(),
+                color: gameState.myPlayer.color
+            });
+        }
+        
+        function updateChatMessages(messages) {
+            const container = document.getElementById('chatMessages');
+            container.innerHTML = messages.map(msg => {
+                if (msg.player) {
+                    return `<div class="message">
+                        <span style="color: ${msg.color}; font-weight: bold;">${msg.player}:</span> 
+                        ${msg.message}
+                    </div>`;
+                } else {
+                    return `<div class="message system-message">${msg.message}</div>`;
+                }
+            }).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function addMessage(message, type = 'system') {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = type === 'system' ? 'message system-message' : 'message';
+            div.textContent = message;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // ===============================
+        // 🎨 RENDER SYSTEM
+        // ===============================
+        
+        function drawGame() {
+            // Clear canvas
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // Draw all players
+            Object.values(gameState.players).forEach(player => {
+                if (player.online) {
+                    drawPlayer(player);
+                }
+            });
+            
+            // Draw my player (highlight)
+            drawPlayer(gameState.myPlayer, true);
+        }
+        
+        function drawPlayer(player, isMe = false) {
+            ctx.fillStyle = player.color;
+            ctx.strokeStyle = isMe ? '#FFD700' : '#fff';
+            ctx.lineWidth = isMe ? 3 : 2;
+            
+            // Draw player circle
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, 20, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Draw player name
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(player.name, player.x, player.y - 30);
+        }
+        
+        // ===============================
+        // ⌨️ INPUT HANDLING
+        // ===============================
+        
+        function handleMovement() {
+            const speed = 3;
+            let moved = false;
+            
+            if (keys['w'] || keys['ArrowUp']) {
+                if (gameState.myPlayer.y > 20) {
+                    gameState.myPlayer.y -= speed;
+                    moved = true;
+                }
+            }
+            if (keys['s'] || keys['ArrowDown']) {
+                if (gameState.myPlayer.y < canvas.height - 20) {
+                    gameState.myPlayer.y += speed;
+                    moved = true;
+                }
+            }
+            if (keys['a'] || keys['ArrowLeft']) {
+                if (gameState.myPlayer.x > 20) {
+                    gameState.myPlayer.x -= speed;
+                    moved = true;
+                }
+            }
+            if (keys['d'] || keys['ArrowRight']) {
+                if (gameState.myPlayer.x < canvas.width - 20) {
+                    gameState.myPlayer.x += speed;
+                    moved = true;
+                }
+            }
+            
+            // Update server if moved
+            if (moved) {
+                const now = Date.now();
+                if (now - lastUpdate > 50) { // Limit updates to 20 FPS
+                    updatePlayerPosition();
+                    lastUpdate = now;
+                }
+            }
+        }
+        
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            keys[e.code] = true;
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+            keys[e.code] = false;
+        });
+        
+        document.getElementById('chatInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const message = e.target.value;
+                if (message.trim()) {
+                    sendMessage(message);
+                    e.target.value = '';
+                }
+            }
+        });
+        
+        // ===============================
+        // 🔄 GAME LOOP
+        // ===============================
+        
+        function gameLoop() {
+            handleMovement();
+            drawGame();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // ===============================
+        // 🚀 INITIALIZE
+        // ===============================
+        
+        // Start game
+        initFirebase();
+        gameLoop();
+        
+        // Assign random color
+        gameState.myPlayer.color = playerColors[Math.floor(Math.random() * playerColors.length)];
+        
+        console.log('🎮 Game initialized!');
+    </script>
+</body>
+</html>

@@ -1,209 +1,65 @@
-// ===============================
-// 🧩 Room List Logic + Settings + Sound
-// ===============================
+// RTDB Room List (แทนที่ของเดิม)
+import { rtdb, ref, onValue, get } from "./firebase.js";
 
-import { db } from "./firebase.js";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  getDocs
-} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+const $ = (id)=>document.getElementById(id);
+const listEl = $("roomList");
+const emptyEl = $("emptyState");
+const infoEl = $("info");
 
-// ===============================
-// 🎵 SOUND SETUP (persistent across pages)
-// ===============================
-if (window.GameAudio) window.GameAudio.init();
-const bgm = window.bgm;
-const clickSound = window.clickSound;
+const playerName =
+  localStorage.getItem("ggd.name") ||
+  localStorage.getItem("playerName") ||
+  `Player_${Math.random().toString(36).slice(2,7)}`;
 
-// ===============================
-// ⚙️ SETTINGS (load + save)
-// ===============================
-let settings = JSON.parse(localStorage.getItem("settings") || "{}");
-settings = {
-  master: settings.master ?? 0.8,
-  music: settings.music ?? 0.6,
-  sfx: settings.sfx ?? 0.8,
-  region: settings.region ?? "asia",
-};
+const createdCode = new URLSearchParams(location.search).get("code");
+if (createdCode) infoEl.textContent = `เข้ามาจากห้องที่เพิ่งสร้าง: ${createdCode}`;
 
-function applyVolume() {
-  bgm.volume = settings.music * settings.master;
-  clickSound.volume = settings.sfx * settings.master;
-}
-function saveSettings() {
-  localStorage.setItem("settings", JSON.stringify(settings));
-  applyVolume();
-}
-applyVolume();
+function renderRooms(roomsObj){
+  const rooms = Object.values(roomsObj || {})
+    .filter(r => (r.type ?? "public")==="public" && (r.status ?? "lobby")==="lobby")
+    .sort((a,b)=>(b.lastActivity||0)-(a.lastActivity||0));
 
-// ===============================
-// 🎛️ SETTINGS MODAL UI
-// ===============================
-const rangeMaster = document.getElementById("rangeMaster");
-const rangeMusic = document.getElementById("rangeMusic");
-const rangeSfx = document.getElementById("rangeSfx");
-const regionSel = document.getElementById("regionSel");
+  listEl.innerHTML = "";
+  if (!rooms.length){ emptyEl.style.display="block"; return; }
+  emptyEl.style.display="none";
 
-if (rangeMaster && rangeMusic && rangeSfx && regionSel) {
-  // ตั้งค่าตามค่าเดิม
-  rangeMaster.value = settings.master;
-  rangeMusic.value = settings.music;
-  rangeSfx.value = settings.sfx;
-  regionSel.value = settings.region;
-
-  // อัปเดตเมื่อผู้ใช้เลื่อน
-  rangeMaster.addEventListener("input", e => {
-    settings.master = parseFloat(e.target.value);
-    saveSettings();
-  });
-  rangeMusic.addEventListener("input", e => {
-    settings.music = parseFloat(e.target.value);
-    saveSettings();
-  });
-  rangeSfx.addEventListener("input", e => {
-    settings.sfx = parseFloat(e.target.value);
-    saveSettings();
-  });
-  regionSel.addEventListener("change", e => {
-    settings.region = e.target.value;
-    saveSettings();
-  });
-}
-
-// ✅ Sync settings ระหว่างหลายหน้า (index ↔ roomlist ↔ lobby)
-window.addEventListener("storage", (e) => {
-  if (e.key === "settings" && e.newValue) {
-    try {
-      const newSettings = JSON.parse(e.newValue);
-      settings = newSettings;
-      applyVolume();
-      console.log("🔄 Settings updated from another page:", newSettings);
-
-      // ถ้ามี UI slider → อัปเดตให้ตรง
-      if (rangeMaster && rangeMusic && rangeSfx && regionSel) {
-        rangeMaster.value = settings.master;
-        rangeMusic.value = settings.music;
-        rangeSfx.value = settings.sfx;
-        regionSel.value = settings.region;
-      }
-    } catch (err) {
-      console.warn("⚠️ Failed to parse updated settings:", err);
-    }
-  }
-});
-
-// ===============================
-// 🪟 MODAL OPEN/CLOSE LOGIC
-// ===============================
-const btnSettingsTop = document.getElementById("btnSettingsTop");
-const settingsModal = document.getElementById("settingsModal");
-const closeSettings = document.getElementById("closeSettings");
-
-if (btnSettingsTop && settingsModal && closeSettings) {
-  btnSettingsTop.addEventListener("click", () => {
-    settingsModal.classList.add("show");
-    playClick();
-  });
-  closeSettings.addEventListener("click", () => {
-    settingsModal.classList.remove("show");
-    playClick();
-  });
-  settingsModal.addEventListener("click", e => {
-    if (e.target === settingsModal) {
-      settingsModal.classList.remove("show");
-      playClick();
-    }
-  });
-}
-
-// ===============================
-// 🔊 SOUND CONTROL
-// ===============================
-let lastClick = 0;
-function playClick() {
-  const now = Date.now();
-  if (now - lastClick > 120) {
-    clickSound.currentTime = 0;
-    clickSound.play();
-    lastClick = now;
-  }
-}
-document.addEventListener("click", () => bgm.play().catch(() => {}), { once: true });
-
-// ===============================
-// 🧱 FIRESTORE ROOM LIST
-// ===============================
-const q = query(
-  collection(db, "rooms"),
-  where("type", "==", "public"),
-  orderBy("createdAt", "desc")
-);
-
-onSnapshot(q, (snap) => {
-  const list = document.getElementById("roomList");
-  const empty = document.getElementById("emptyState");
-  list.innerHTML = "";
-
-  if (snap.empty) {
-    empty.style.display = "block";
-    return;
-  }
-  empty.style.display = "none";
-
-  snap.forEach(docSnap => {
-    const room = docSnap.data();
+  rooms.forEach(r=>{
     const div = document.createElement("div");
     div.className = "room-card";
     div.innerHTML = `
       <div class="room-info">
-        <div class="room-name">📛 ${room.name}</div>
-        <div class="room-detail">👥 ${room.maxPlayers ?? "?"} • 🔒 ${room.type}</div>
+        <div class="room-name">📛 ${r.name || "(no name)"} <small>#${r.code}</small></div>
+        <div class="room-detail">👥 ${r.playerCount || 0}/${r.maxPlayers ?? "?"} • 🔒 ${r.type || "-"}</div>
       </div>
-      <button class="join-btn" data-roomcode="${room.code}">Join</button>
+      <button class="join-btn" data-code="${r.code}">Join</button>
     `;
-    list.appendChild(div);
-  });
+    div.querySelector(".join-btn").onclick = async (e)=>{
+      const code = e.currentTarget.dataset.code;
+      const snap = await get(ref(rtdb, `rooms/${code}`));
+      const room = snap.val();
+      if(!room || room.status!=="lobby"){ alert("ห้องนี้ไม่พร้อมเข้าหรือถูกลบแล้ว"); return; }
+      if(room.playerCount >= (room.maxPlayers || 999)){ alert("ห้องเต็มแล้ว"); return; }
 
-  document.querySelectorAll(".join-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const roomCode = btn.dataset.roomcode;
-      const roomCard = btn.closest(".room-card");
-      const type = roomCard.querySelector(".room-detail").textContent.includes("public") ? "public" : "private";
-      playClick();
-      if (type === "public") {
-        window.location.href = `lobby.html?code=${roomCode}`;
-      } else {
-        showCodePrompt(roomCode);
-      }
-    });
-  });
-});
+      localStorage.setItem("currentRoom", JSON.stringify({
+        code: room.code, name: room.name, maxPlayers: room.maxPlayers,
+        type: room.type, isHost: false
+      }));
+      if(!localStorage.getItem("playerName")) localStorage.setItem("playerName", playerName);
+      if(!localStorage.getItem("ggd.name"))   localStorage.setItem("ggd.name", playerName);
 
-// ===============================
-// 🔑 JOIN WITH CODE PROMPT
-// ===============================
-async function showCodePrompt(correctCode) {
-  const input = prompt("🔑 กรุณาใส่โค้ด 4 ตัวเพื่อเข้าห้องนี้:");
-  if (input === null) return;
-  const code = input.trim().toUpperCase();
-  if (!/^[A-Z0-9]{4}$/.test(code)) {
-    alert("⚠️ กรุณาใส่โค้ด 4 ตัว (A-Z หรือ 0-9)");
-    return;
-  }
-  if (code !== correctCode) {
-    alert("❌ โค้ดไม่ถูกต้อง ลองใหม่อีกครั้ง");
-    return;
-  }
-  const q = query(collection(db, "rooms"), where("code", "==", code));
-  const snap = await getDocs(q);
-  if (snap.empty) {
-    alert("❌ ไม่พบห้องนี้ หรือห้องถูกลบไปแล้ว");
-    return;
-  }
-  playClick();
-  window.location.href = `lobby.html?code=${code}`;
+      location.href = `lobby.html?code=${code}`;
+    };
+
+    if(createdCode && r.code===createdCode){
+      div.style.outline = "2px solid #76f7b1";
+      div.style.boxShadow = "0 0 0 3px rgba(118,247,177,.25)";
+    }
+    listEl.appendChild(div);
+  });
 }
+
+onValue(ref(rtdb,"rooms"), snap => renderRooms(snap.val()), err=>{
+  console.error("[roomlist] onValue error:", err);
+  emptyEl.style.display="block";
+  emptyEl.textContent = "โหลดรายการห้องไม่ได้ (ตรวจ RTDB rules)";
+});
