@@ -523,3 +523,60 @@ option {
 }
 
 
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.dialog {
+  background: #1e1e2f;
+  color: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  width: 320px;
+}
+.dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.dialog-body label.row {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0;
+}
+.dialog-body input[type=range] {
+  width: 150px;
+}
+.dialog-body select {
+  width: 150px;
+}
+.dialog-body .note {
+  margin-top: 10px;
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+.x {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+}
+.modal.show {
+  display: flex;
+}
+
+#pageContainer {
+  transition: opacity .25s ease;
+}
+.fade {
+  opacity: 0;
+}
+#pageContainer.fade-in {
+  opacity: 1;
+}

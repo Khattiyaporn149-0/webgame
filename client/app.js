@@ -1,4 +1,151 @@
 // Tiny animated background + UI logic + persistence
+// ==============================
+// 🎵 SOUND (Persistent across pages)
+// ==============================
+
+// ✅ ใช้ global ตัวเดียวตลอด tab
+if (!window.bgm) {
+  window.bgm = new Audio("assets/sounds/galaxy-283941.mp3");
+  window.bgm.loop = true;
+  window.bgm.volume = 0.5;
+
+  // เล่นหลัง user interaction ครั้งแรก (จำเป็นตาม policy browser)
+  document.addEventListener("click", () => {
+    window.bgm.play().catch(() => {});
+  }, { once: true });
+}
+
+if (!window.clickSound) {
+  window.clickSound = new Audio("assets/sounds/click.mp3");
+  window.clickSound.volume = 0.8;
+}
+
+// 👇 ใช้ reference เดิม (ไม่สร้างใหม่)
+const bgm = window.bgm;
+const clickSound = window.clickSound;
+
+// ✅ เก็บเวลาปัจจุบันก่อนออกจากหน้า
+window.addEventListener("beforeunload", () => {
+  if (bgm && !bgm.paused) {
+    localStorage.setItem("bgmTime", bgm.currentTime);
+  }
+});
+
+// ✅ กลับมาเล่นต่อจุดเดิมตอนโหลดใหม่
+window.addEventListener("DOMContentLoaded", () => {
+  const last = parseFloat(localStorage.getItem("bgmTime") || "0");
+  if (bgm && !isNaN(last)) bgm.currentTime = last;
+});
+
+
+// 🧠 โหลดค่าที่บันทึกไว้
+const settings = JSON.parse(localStorage.getItem("gameSettings")) || {
+  master: 1.0,
+  music: 0.8,
+  sfx: 0.8,
+  region: "asia"
+};
+
+// 🧮 ฟังก์ชันอัปเดตเสียง
+function updateVolumes() {
+  bgm.volume = settings.master * settings.music;
+  clickSound.volume = settings.master * settings.sfx;
+}
+
+// 💾 ฟังก์ชันบันทึก
+function saveSettings() {
+  localStorage.setItem("gameSettings", JSON.stringify(settings));
+  updateVolumes();
+}
+
+// 🌍 อัปเดต region
+function updateRegion() {
+  console.log("🌐 Region set to:", settings.region);
+}
+
+// เรียกตอนเริ่ม
+updateVolumes();
+updateRegion();
+
+/* ==============================
+ ⚙️ SETTINGS MODAL
+============================== */
+
+const btnSettingsTop = document.getElementById("btnSettingsTop");
+const rangeMaster = document.getElementById("rangeMaster");
+const rangeMusic = document.getElementById("rangeMusic");
+const rangeSfx = document.getElementById("rangeSfx");
+const regionSel = document.getElementById("regionSel");
+
+// ตั้งค่าตามที่บันทึกไว้
+rangeMaster.value = settings.master;
+rangeMusic.value = settings.music;
+rangeSfx.value = settings.sfx;
+regionSel.value = settings.region;
+
+// 🎚 ปรับค่าระหว่างเล่น
+rangeMaster.addEventListener("input", e => {
+  settings.master = parseFloat(e.target.value);
+  saveSettings();
+});
+
+rangeMusic.addEventListener("input", e => {
+  settings.music = parseFloat(e.target.value);
+  saveSettings();
+});
+
+rangeSfx.addEventListener("input", e => {
+  settings.sfx = parseFloat(e.target.value);
+  saveSettings();
+});
+
+regionSel.addEventListener("change", e => {
+  settings.region = e.target.value;
+  saveSettings();
+  updateRegion();
+});
+
+/* ==============================
+ 🪟 OPEN / CLOSE MODAL
+============================== */
+
+// ปุ่มเปิด (เพิ่มเองใน UI เช่น <button id="openSettings">⚙️ Settings</button>)
+const btnOpen = document.getElementById("openSettings");
+const btnClose = document.getElementById("closeSettings");
+
+if (btnOpen) {
+  btnOpen.addEventListener("click", () => {
+    btnSettingsTop.style.display = "flex";
+    btnSettingsTop.setAttribute("aria-hidden", "false");
+  });
+}
+
+btnClose.addEventListener("click", () => {
+  const modal = document.getElementById("settingsModal");
+  modal.style.display = "none"; // แค่ซ่อน popup
+  modal.setAttribute("aria-hidden", "true");
+});
+document.getElementById("settingsModal").addEventListener("click", e => {
+  if (e.target === e.currentTarget) {
+    e.currentTarget.style.display = "none"; // แค่ซ่อน popup
+    e.currentTarget.setAttribute("aria-hidden", "true");
+  }
+});
+
+/* ==============================
+ 🧩 ตัวอย่างการใช้เสียง
+============================== */
+
+// กด Start แล้วเริ่มเพลง
+document.addEventListener("click", () => {
+  bgm.play().catch(()=>{});
+}, { once: true });
+
+// กดปุ่มใดๆ แล้วเล่นเสียงคลิก
+document.addEventListener("click", () => {
+  if (window.GameAudio) window.GameAudio.playClick();
+  else { try { clickSound.currentTime = 0; clickSound.play(); } catch {} }
+});
 
 // ---- Background canvas particles (lightweight) ----
 const canvas = document.getElementById('bg-canvas');
@@ -90,6 +237,7 @@ startBtn.addEventListener("click", () => {
     alert("❗ กรุณากรอกชื่อยาว 3–16 ตัวอักษร");
     return;
   }
+  clickSound.currentTime = 0; clickSound.volume = state.sfx * state.volume; clickSound.play();
   applyName(name);
   hideStartScreen();
 });
@@ -126,10 +274,13 @@ const settingsModal = document.getElementById('settingsModal');
 document.getElementById('btnSettingsTop').addEventListener('click', () => {
   settingsModal.classList.add('show');
   // sync sliders
-  document.getElementById('rangeMaster').value = state.volume;
-  document.getElementById('rangeMusic').value = state.music;
-  document.getElementById('rangeSfx').value = state.sfx;
-  document.getElementById('regionSel').value = state.region;
+  if (window.GameSettings) {
+    const s = window.GameSettings.get();
+    document.getElementById('rangeMaster').value = s.master;
+    document.getElementById('rangeMusic').value = s.music;
+    document.getElementById('rangeSfx').value = s.sfx;
+    document.getElementById('regionSel').value = s.region;
+  }
 });
 document.getElementById('closeSettings').addEventListener('click', () => {
   settingsModal.classList.remove('show');
@@ -220,4 +371,7 @@ tabButtons.forEach(btn => {
     btn.classList.add('active');
     document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
   });
+
+  
 });
+

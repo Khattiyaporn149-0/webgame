@@ -122,4 +122,138 @@ export async function deleteRoomIfHost(code) {
     await deleteDoc(roomRef);
     console.log(`✅ Room ${code} deleted because host left.`);
   }
+}// ===============================
+// 🎵 GLOBAL SOUND (Persistent across pages)
+// ===============================
+
+// ✅ โหลดค่าที่บันทึกไว้
+const settings = JSON.parse(localStorage.getItem("gameSettings")) || {
+  master: 1.0,
+  music: 0.8,
+  sfx: 0.8,
+  region: "asia"
+};
+
+// 🔊 ฟังก์ชันจัดการเสียง
+function updateVolumes() {
+  if (window.bgm) window.bgm.volume = settings.master * settings.music;
+  if (window.clickSound) window.clickSound.volume = settings.master * settings.sfx;
+}
+function saveSettings() {
+  localStorage.setItem("gameSettings", JSON.stringify(settings));
+  updateVolumes();
+}
+
+// 🔸 สร้าง bgm ครั้งเดียว
+if (!window.bgm) {
+  window.bgm = new Audio("assets/sounds/galaxy-283941.mp3");
+  window.bgm.loop = true;
+  window.bgm.volume = settings.master * settings.music;
+
+  // เล่นหลังคลิกแรก (ตาม policy browser)
+  document.addEventListener("click", () => {
+    window.bgm.play().catch(() => {});
+  }, { once: true });
+}
+
+// 🔸 สร้าง click sound ครั้งเดียว
+if (!window.clickSound) {
+  window.clickSound = new Audio("assets/sounds/click.mp3");
+  window.clickSound.volume = settings.master * settings.sfx;
+}
+
+// สร้าง shortcut ตัวแปร
+const bgm = window.bgm;
+const clickSound = window.clickSound;
+
+// 🪄 apply volume ตอนโหลด
+updateVolumes();
+
+// 🌍 region debug
+function updateRegion() {
+  console.log("🌐 Region set to:", settings.region);
+}
+updateRegion();
+
+// ✅ Resume จากเวลาเดิมถ้ามี (ตอน refresh)
+window.addEventListener("beforeunload", () => {
+  if (bgm && !bgm.paused) {
+    localStorage.setItem("bgmTime", bgm.currentTime);
+  }
+});
+window.addEventListener("DOMContentLoaded", () => {
+  const last = parseFloat(localStorage.getItem("bgmTime") || "0");
+  if (bgm && !isNaN(last)) bgm.currentTime = last;
+});
+
+// ===============================
+// 🎛️ SETTINGS MODAL
+// ===============================
+const rangeMaster = document.getElementById("rangeMaster");
+const rangeMusic = document.getElementById("rangeMusic");
+const rangeSfx = document.getElementById("rangeSfx");
+const regionSel = document.getElementById("regionSel");
+
+if (rangeMaster && rangeMusic && rangeSfx && regionSel) {
+  rangeMaster.value = settings.master;
+  rangeMusic.value = settings.music;
+  rangeSfx.value = settings.sfx;
+  regionSel.value = settings.region;
+
+  rangeMaster.addEventListener("input", e => {
+    settings.master = parseFloat(e.target.value);
+    saveSettings();
+  });
+  rangeMusic.addEventListener("input", e => {
+    settings.music = parseFloat(e.target.value);
+    saveSettings();
+  });
+  rangeSfx.addEventListener("input", e => {
+    settings.sfx = parseFloat(e.target.value);
+    saveSettings();
+  });
+  regionSel.addEventListener("change", e => {
+    settings.region = e.target.value;
+    saveSettings();
+    updateRegion();
+  });
+}
+
+// ===============================
+// 🪟 SETTINGS MODAL TOGGLE
+// ===============================
+const btnSettingsTop = document.getElementById("btnSettingsTop");
+const settingsModal = document.getElementById("settingsModal");
+const closeSettings = document.getElementById("closeSettings");
+
+if (btnSettingsTop && settingsModal && closeSettings) {
+  btnSettingsTop.addEventListener("click", () => {
+    settingsModal.setAttribute("aria-hidden", "false");
+    playClick();
+  });
+
+  closeSettings.addEventListener("click", () => {
+    settingsModal.setAttribute("aria-hidden", "true");
+    playClick();
+  });
+
+  settingsModal.addEventListener("click", (e) => {
+    if (e.target === settingsModal) {
+      settingsModal.setAttribute("aria-hidden", "true");
+      playClick();
+    }
+  });
+}
+
+// ===============================
+// 🔉 PLAY CLICK SOUND (debounced)
+// ===============================
+let lastClick = 0;
+function playClick() {
+  const now = Date.now();
+  if (now - lastClick > 100) {
+    clickSound.currentTime = 0;
+    clickSound.play();
+    lastClick = now;
+  }
 }

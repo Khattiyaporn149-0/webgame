@@ -24,6 +24,15 @@ window.addEventListener("load", () => {
 
   let isReady = false;
 
+  //sounds
+  const bgm = new Audio("assets/sounds/galaxy-283941.mp3");
+  const clickSound = new Audio("assets/sounds/click.mp3");
+
+    bgm.loop = true; // ให้เล่นวนลูป
+    bgm.volume = 0.5; // ปรับระดับเสียง 0.0 - 1.0
+    bgm.play();
+
+
   // =====================
   // ⚠️ กล่องเตือน
   // =====================
@@ -69,6 +78,7 @@ window.addEventListener("load", () => {
 
     img.classList.toggle("ready-char", isReady);
 
+    clickSound.currentTime = 0; clickSound.volume = state.sfx * state.volume; clickSound.play();
     prevBtn.disabled = nextBtn.disabled = isReady;
     prevBtn.style.opacity = nextBtn.style.opacity = isReady ? 0.3 : 1;
     prevBtn.style.cursor = nextBtn.style.cursor = isReady
