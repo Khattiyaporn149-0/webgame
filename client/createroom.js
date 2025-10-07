@@ -2,6 +2,14 @@
 // ใช้กับหน้า createroom.html (RTDB ล้วน)
 // ต้องมี firebase.js ที่ export: rtdb, ref, set, update, onDisconnect, get
 
+if (window.hasOwnProperty("AccountCheck")) {
+  console.log("⏭️ AccountCheck already initialized — skipping duplicate import");
+} else {
+  window.AccountCheck = true;
+}
+
+// 📌 อ่านชื่อผู้เล่นจากระบบเดิม (ถ้ามี)
+const playerName = localStorage.getItem('ggd.name') || 'Guest';
 import { rtdb, ref, set, update, onDisconnect, get } from "./firebase.js";
 import { serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
@@ -156,3 +164,88 @@ btnBack.onclick = ()=> location.href = "index.html";
 nameInput.addEventListener("keydown", e=>{
   if (e.key === "Enter") btnCreate.click();
 });
+window.addEventListener("DOMContentLoaded", () => {
+  const last = parseFloat(localStorage.getItem("bgmTime") || "0");
+  if (bgm && !isNaN(last)) bgm.currentTime = last;
+});
+
+// ===============================
+// 🎛️ SETTINGS MODAL
+// ===============================
+const rangeMaster = document.getElementById("rangeMaster");
+const rangeMusic = document.getElementById("rangeMusic");
+const rangeSfx = document.getElementById("rangeSfx");
+const regionSel = document.getElementById("regionSel");
+
+if (rangeMaster && rangeMusic && rangeSfx && regionSel) {
+  rangeMaster.value = settings.master;
+  rangeMusic.value = settings.music;
+  rangeSfx.value = settings.sfx;
+  regionSel.value = settings.region;
+
+  rangeMaster.addEventListener("input", e => {
+    settings.master = parseFloat(e.target.value);
+    saveSettings();
+  });
+  rangeMusic.addEventListener("input", e => {
+    settings.music = parseFloat(e.target.value);
+    saveSettings();
+  });
+  rangeSfx.addEventListener("input", e => {
+    settings.sfx = parseFloat(e.target.value);
+    saveSettings();
+  });
+  regionSel.addEventListener("change", e => {
+    settings.region = e.target.value;
+    saveSettings();
+    updateRegion();
+  });
+}
+
+// ===============================
+// 🪟 SETTINGS MODAL TOGGLE
+// ===============================
+const btnSettingsTop = document.getElementById("btnSettingsTop");
+const settingsModal = document.getElementById("settingsModal");
+const closeSettings = document.getElementById("closeSettings");
+
+if (btnSettingsTop && settingsModal && closeSettings) {
+  btnSettingsTop.addEventListener("click", () => {
+    settingsModal.setAttribute("aria-hidden", "false");
+    playClick();
+  });
+
+  closeSettings.addEventListener("click", () => {
+    settingsModal.setAttribute("aria-hidden", "true");
+    playClick();
+  });
+
+  settingsModal.addEventListener("click", (e) => {
+    if (e.target === settingsModal) {
+      settingsModal.setAttribute("aria-hidden", "true");
+      playClick();
+    }
+  });
+}
+
+// ===============================
+// 🔉 PLAY CLICK SOUND (debounced)
+// ===============================
+let lastClick = 0;
+function playClick() {
+  const now = Date.now();
+  if (now - lastClick > 100) {
+    clickSound.currentTime = 0;
+    clickSound.play();
+    lastClick = now;
+  }
+}
+
+// Centralize audio + settings
+try {
+  if (window.GameAudio) window.GameAudio.init();
+  if (window.GameSettings) {
+    window.GameSettings.bindUI({});
+    window.GameSettings.onChange(() => { if (window.GameAudio) window.GameAudio.applyVolumes(); });
+  }
+} catch {}
