@@ -7,6 +7,15 @@ const joinCodeInput = document.getElementById("joinCodeInput")
 btnCreate.addEventListener("click", () => createRoom())
 btnJoin.addEventListener("click", () => joinRoom(joinCodeInput.value))
 
+//sounds
+const bgm = new Audio("assets/sounds/galaxy-283941.mp3");
+const clickSound = new Audio("assets/sounds/click.mp3");
+
+  bgm.loop = true; // ให้เล่นวนลูป
+  bgm.volume = 0.5; // ปรับระดับเสียง 0.0 - 1.0
+  bgm.play();
+
+
 // ======== ตัวแปรเก็บสถานะ ========
 let currentRoom = null
 
@@ -28,11 +37,13 @@ function askRoomCode() {
 btnJoin.addEventListener("click", () => {
   // Quick play = สร้างห้องใหม่เลย
   createRoom()
+  clickSound.currentTime = 0; clickSound.volume = state.sfx * state.volume; clickSound.play();
 })
 
 btnCreate.addEventListener("click", () => {
   // Custom = เลือกว่าจะสร้างหรือ join
   askRoomCode()
+  clickSound.currentTime = 0; clickSound.volume = state.sfx * state.volume; clickSound.play();
 })
 
 // ======== ฟังก์ชัน Create / Join ห้อง ========

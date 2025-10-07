@@ -40,15 +40,168 @@
       box-shadow:0 8px 24px rgba(47,224,147,.35); transition:transform .15s ease;
     }
     .btn:hover{ transform: translateY(-2px) }
+
+    /* SETTINGS MODAL */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.dialog {
+  background: #1e1e2f;
+  color: #fff;
+  padding: 24px;
+  border-radius: 16px;
+  width: 320px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+.dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.dialog-body label.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8px 0;
+}
+.dialog-body input[type=range],
+.dialog-body select {
+  width: 160px;
+}
+.dialog-body .note {
+  margin-top: 10px;
+  font-size: 0.85em;
+  color: #ccc;
+}
+.x {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* ปุ่ม settings */
+.icon-btn {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+.icon-btn:hover {
+  background: rgba(255,255,255,0.25);
+}
+.icon-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: #fff; }
+
+.modal[aria-hidden="false"] {
+  display: flex;
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: #2b2d42; /* สีพื้นหลัง dropdown box */
+  color: #E6E6FA;            /* สีข้อความ */
+  border: 1px solid rgba(100,200,255,0.3);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+/* สำหรับ option ตอนยังไม่ hover */
+select option {
+  background-color: #1a1a2e;
+  color: #E6E6FA;
+}
+
+/* สำหรับ option ที่ hover หรือถูกเลือก */
+select option:hover,
+select option:checked,
+select option:focus {
+  background-color: #25c07d;
+  color: #0b1324;
+}
+
+#pageContainer {
+  transition: opacity .25s ease;
+}
+.fade {
+  opacity: 0;
+}
+
   </style>
 </head>
 <body>
   <canvas id="bgCanvas"></canvas>
+  <script src="./common-settings.js" defer></script>
 
   <main class="room-container" id="setup">
     <button class="back-btn" id="btnBack">⬅ Leave</button>
     <h1 class="title">CREATE ROOM</h1>
+    <div>
+      <button class="icon-btn" title="Settings" id="btnSettingsTop" aria-label="Settings">
+        <svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 1-4 4 4 4 0 0 1 4-4Zm9 4a7.43 7.43 0 0 0-.09-1l2.09-1.64-2-3.46-2.49.63a7.51 7.51 0 0 0-1.73-1L14.5 2h-5l-.28 2.53a7.51 7.51 0 0 0-1.73 1l-2.49-.63-2 3.46L4.09 11a7.43 7.43 0 0 0 0 2l-2.09 1.64 2 3.46 2.49-.63a7.51 7.51 0 0 0 1.73 1L9.5 22h5l.28-2.53a7.51 7.51 0 0 0 1.73-1l2.49.63 2-3.46L20.91 13a7.43 7.43 0 0 0 .09-1Z"/></svg>
+      </button>
+    </div>
 
+     <!-- SETTINGS MODAL -->
+  <div class="modal" id="settingsModal" aria-hidden="true" role="dialog">
+    <div class="dialog">
+      <div class="dialog-head">
+        <h3>Settings</h3>
+        <button class="x" id="closeSettings">✖</button>
+      </div>
+      <div class="dialog-body">
+        <label class="row">
+          <span>Master Volume</span>
+          <input id="rangeMaster" type="range" min="0" max="1" step="0.01">
+        </label>
+        <label class="row">
+          <span>Music</span>
+          <input id="rangeMusic" type="range" min="0" max="1" step="0.01">
+        </label>
+        <label class="row">
+          <span>SFX</span>
+          <input id="rangeSfx" type="range" min="0" max="1" step="0.01">
+        </label>
+        <label class="row">
+          <span>Region</span>
+          <select id="regionSel">
+            <option value="asia">Asia</option>
+            <option value="na">North America</option>
+            <option value="eu">Europe</option>
+          </select>
+        </label>
+        <div class="note">* ค่านี้จะถูกบันทึกลงในเบราว์เซอร์ (localStorage)</div>
+      </div>
+    </div>
+  </div>
     <label for="roomName">📛 Room Name</label>
     <input id="roomName" placeholder="ตั้งชื่อห้องของคุณ…">
     <div id="nameError" style="color:#ff6b6b; font-size:14px; margin-top:4px; min-height:18px;"></div>
