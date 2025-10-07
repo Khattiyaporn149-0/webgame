@@ -231,11 +231,17 @@
       cursor: pointer;
       font-weight: 700;
     }
+    #pageContainer {
+  transition: opacity .25s ease;
+}
+.fade {
+  opacity: 0;
+}
+
   </style>
 </head>
 <body>
   <canvas id="bgCanvas"></canvas>
-  <script src="./common-settings.js" defer></script>
 
   <!-- ⚠️ Warning -->
   <div class="warning-box" id="warningBox">
