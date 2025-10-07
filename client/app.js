@@ -180,7 +180,7 @@ const state = {
   music: parseFloat(localStorage.getItem('ggd.music') || '0.6'),
   sfx: parseFloat(localStorage.getItem('ggd.sfx') || '0.9'),
   region: localStorage.getItem('ggd.region') || 'asia',
-  version: 'V.test1.0.0' // เปลี่ยนเวอร์ชันตรงนี้เมื่ออัปเดตเกม
+  version: 'V.test1.2.0' // เปลี่ยนเวอร์ชันตรงนี้เมื่ออัปเดตเกม
 };
 document.getElementById('playerNameTop').textContent = state.name;
 document.getElementById('ver').textContent = state.version;
