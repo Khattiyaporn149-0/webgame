@@ -1,18 +1,22 @@
 // ======== เชื่อมต่อกับ Socket.IO Server ========
-const socket = io("https://webgame-25n5.onrender.com") // เปลี่ยน URL เป็นของนายบน Render
-
-
-const joinCodeInput = document.getElementById("joinCodeInput")
-
-btnCreate.addEventListener("click", () => createRoom())
-btnJoin.addEventListener("click", () => joinRoom(joinCodeInput.value))
-
-// ======== ตัวแปรเก็บสถานะ ========
-let currentRoom = null
+const socket = io("https://webgame-25n5.onrender.com")
 
 // ======== อ้างอิง element จากหน้า HTML ========
 const btnJoin = document.getElementById("btnJoin")
 const btnCreate = document.getElementById("btnCreate")
+const joinCodeInput = document.getElementById("joinCodeInput")
+
+// ======== ตัวแปรเก็บสถานะ ========
+let currentRoom = null
+
+// ======== Event ปุ่มหลัก ========
+btnJoin.addEventListener("click", () => {
+  createRoom()
+})
+
+btnCreate.addEventListener("click", () => {
+  askRoomCode()
+})
 
 // สร้าง modal หรือ prompt ให้กรอกโค้ด (แบบง่ายก่อน)
 function askRoomCode() {

@@ -170,8 +170,26 @@ body {
 
 /* ---------- Moda
 l ---------- */
-.modal { position: fixed; inset: 0; display: none; place-items: center; background: #0008 }
-.modal.show { display: grid }
+/* 🌌 Global modal base */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+  transition: all 0.3s ease;
+  opacity: 0;
+  visibility: hidden;
+}
+.modal.show {
+  display: flex;
+  opacity: 1;
+  visibility: visible;
+}
+
 .dialog { width: min(92vw, 680px); background: var(--panel); border:1px solid var(--stroke); border-radius: 16px; box-shadow: 0 20px 60px #000a }
 .dialog-head { display:flex; justify-content: space-between; align-items:center; padding: 12px 16px; border-bottom:1px solid var(--stroke) }
 .dialog-head h3 { margin:0 }
@@ -272,63 +290,148 @@ l ---------- */
 .btroom:active {
   transform: scale(0.95);
 } 
+
 /* ---------- Start Screen ---------- */
 .start-screen {
   position: fixed;
   inset: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: linear-gradient(180deg, #0a0f1c, #060a14);
-  z-index: 9999; /* อยู่บนสุด */
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
 }
-
+.start-screen.show {
+  opacity: 1;
+  visibility: visible;
+}
 .start-panel {
-  background: var(--panel);
-  padding: 32px;
-  border-radius: 20px;
+  background: rgba(20, 28, 48, 0.65);
+  backdrop-filter: blur(12px);
+  padding: 40px 36px;
+  border-radius: 22px;
   text-align: center;
-  box-shadow: 0 20px 60px #000a;
+  box-shadow: 0 0 40px rgba(0, 200, 255, 0.15);
   width: min(90%, 400px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .start-panel h1 {
-  font-size: 2.5rem;
-  margin-bottom: 12px;
+  font-size: 2.6rem;
+  margin-bottom: 10px;
+  background: linear-gradient(90deg, #ffe48f, #ffb347);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 1px;
 }
 
 .start-panel p {
-  font-size: 1.2rem;
-  color: var(--muted);
-  margin-bottom: 20px;
+  font-size: 1.1rem;
+  color: #b0b8d8;
+  margin-bottom: 22px;
 }
 
 .start-panel input {
   width: 100%;
   padding: 12px;
-  font-size: 1.2rem;
-  border: 2px solid var(--stroke);
+  font-size: 1.1rem;
+  border: 2px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px;
-  background: #0f1729;
+  background: rgba(10, 14, 25, 0.9);
   color: #fff;
   text-align: center;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.start-panel input:focus {
+  border-color: #00baff;
+  box-shadow: 0 0 10px rgba(0, 186, 255, 0.25);
 }
 
 .start-panel button {
   margin-top: 20px;
   width: 100%;
   padding: 14px;
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: bold;
   background: linear-gradient(180deg, #ffd86b, #ffb347);
   border: none;
   border-radius: 14px;
   color: #000;
   cursor: pointer;
-  transition: transform 0.1s;
+  transition: transform 0.1s, box-shadow 0.2s;
+}
+
+.start-panel button:hover {
+  box-shadow: 0 0 15px rgba(255, 200, 120, 0.5);
 }
 
 .start-panel button:active {
   transform: translateY(2px);
+}
+
+/* ---------- Divider ---------- */
+.or-line {
+  margin: 18px 0 10px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #777;
+  position: relative;
+}
+
+.or-line::before,
+.or-line::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 35%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.or-line::before {
+  left: 0;
+}
+
+.or-line::after {
+  right: 0;
+}
+
+/* ---------- Google Login Button ---------- */
+.google-btn {
+  margin-top: 10px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(90deg, #ffffff, #e8f5ff);
+  color: #222;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 0 12px rgba(0, 180, 255, 0.15);
+}
+
+.google-btn img {
+  width: 22px;
+  height: 22px;
+}
+
+.google-btn:hover {
+  transform: scale(1.04);
+  box-shadow: 0 0 18px rgba(0, 180, 255, 0.4);
+  background: linear-gradient(90deg, #fefefe, #e0f6ff);
+}
+.google-btn:active {
+  transform: scale(0.96);
 }
 
 /* ===== Transition เข้าเมนู ===== */
@@ -433,7 +536,7 @@ option {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 999;
+  z-index: 11000; /* above start-screen(9999) */
   visibility: hidden;
   opacity: 0;
   transition: all 0.3s ease;
@@ -475,41 +578,78 @@ option {
   cursor: pointer;
 }
 
-/* Tabs */
+/* 🎛️ Tabs (for tutorial / profile / settings etc.) */
 .tab-header {
   display: flex;
   justify-content: space-around;
-  margin-bottom: 10px;
-  border-bottom: 1px solid #333;
+  align-items: center;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px 10px 0 0;
+  overflow: hidden;
 }
 
 .tab-btn {
-  background: none;
+  flex: 1;
+  background: transparent;
   border: none;
-  color: #aaa;
-  font-weight: bold;
-  padding: 8px 12px;
+  color: #9db0d0;
+  font-weight: 700;
+  padding: 10px 0;
   cursor: pointer;
-  transition: color 0.2s, border-bottom 0.2s;
+  letter-spacing: 0.5px;
+  transition: all 0.25s ease;
+  position: relative;
+}
+
+.tab-btn:hover {
+  color: #54f4a8;
+  background: rgba(84, 244, 168, 0.08);
 }
 
 .tab-btn.active {
   color: #54f4a8;
-  border-bottom: 2px solid #54f4a8;
+}
+
+.tab-btn.active::after {
+  content: "";
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #76f7b1, #54f4a8, #2fe093);
+  box-shadow: 0 0 10px #54f4a8;
+  border-radius: 2px;
 }
 
 .tab-content {
-  max-height: 260px;
+  max-height: 280px;
   overflow-y: auto;
+  padding-top: 8px;
+  animation: fadeTab 0.3s ease;
 }
 
 .tab-pane {
   display: none;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: all 0.25s ease;
 }
 
 .tab-pane.active {
   display: block;
+  opacity: 1;
+  transform: translateY(0);
 }
+
+/* ✨ Animation */
+@keyframes fadeTab {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 
 .note {
   color: #999;
@@ -523,61 +663,348 @@ option {
 }
 
 
-.modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.7);
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
+/* 🪩 Dialog container */
 .dialog {
-  background: #1e1e2f;
+  background: linear-gradient(160deg, #20243a 0%, #1e1e2f 100%);
   color: #fff;
-  padding: 20px;
-  border-radius: 12px;
-  width: 320px;
+  padding: 22px 26px;
+  border-radius: 14px;
+  width: min(90%, 420px);
+  box-shadow: 0 0 40px rgba(0,0,0,0.6);
+  transform: scale(0.9);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  opacity: 0;
 }
+
+.modal.show .dialog {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* 🧠 Header */
 .dialog-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 8px;
+  margin-bottom: 14px;
 }
-.dialog-body label.row {
-  display: flex;
-  justify-content: space-between;
-  margin: 10px 0;
+
+.dialog-head h3 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #54f4a8;
+  margin: 0;
 }
-.dialog-body input[type=range] {
-  width: 150px;
-}
-.dialog-body select {
-  width: 150px;
-}
-.dialog-body .note {
-  margin-top: 10px;
-  font-size: 0.85em;
-  opacity: 0.8;
-}
-.x {
+
+.dialog-head .x {
   background: none;
   border: none;
   color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: 0.2s;
+}
+
+.dialog-head .x:hover {
+  opacity: 1;
+  transform: rotate(90deg);
+}
+
+/* 💬 Body */
+.dialog-body {
+  display: grid;
+  gap: 12px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.dialog-body label.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.dialog-body input[type=range],
+.dialog-body select {
+  width: 180px;
+}
+
+.dialog-body select {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px;
+  outline: none;
+}
+
+.dialog-body .note {
+  margin-top: 8px;
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+/* 🧊 Animation for fade */
+@keyframes modal-pop {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* 🌍 Responsive */
+@media (max-width: 480px) {
+  .dialog {
+    width: 90%;
+    padding: 18px;
+  }
+}
+
+/* ---------- Profile Modal ---------- */
+.profile-box {
+  display: grid;
+  gap: 16px;
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profile-row .label {
+  font-weight: 600;
+  color: #9db0d0;
+}
+
+.profile-row .value {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #fff;
+}
+
+.icon-btn.small {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.icon-btn.small:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.edit-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-group.hidden {
+  display: none;
+}
+
+.edit-group input {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  width: 140px;
+  outline: none;
+}
+
+.mini-btn {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  transition: 0.2s ease;
+}
+
+.mini-btn.save {
+  background: linear-gradient(90deg, #76f7b1, #54f4a8);
+  color: #0b1324;
+}
+
+.mini-btn.cancel {
+  background: rgba(255, 80, 80, 0.8);
+  color: #fff;
+}
+
+.mini-btn:hover {
+  transform: translateY(-2px);
+}
+.mini-btn:active {
+  transform: scale(0.95);
+}
+/* ---------- Header ---------- */
+#profileModal .dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 8px;
+}
+#profileModal .dialog-head h3 {
+  margin: 0;
+  font-weight: 800;
+  background: linear-gradient(90deg, #76f7b1, #54f4a8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+#profileModal .dialog-head .x {
+  background: none;
+  border: none;
+  color: #ccc;
   font-size: 18px;
   cursor: pointer;
+  transition: color 0.2s ease;
 }
-.modal.show {
+#profileModal .dialog-head .x:hover {
+  color: #fff;
+}
+
+/* ---------- Body ---------- */
+.profile-box {
   display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-#pageContainer {
-  transition: opacity .25s ease;
+.profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
-.fade {
+
+.profile-row .label {
+  font-weight: 600;
+  color: #b6c3de;
+}
+
+.profile-row .value {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+/* ---------- Edit Button ---------- */
+.icon-btn.small {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #76f7b1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.icon-btn.small:hover {
+  background: rgba(84,244,168,0.15);
+  transform: scale(1.05);
+}
+.icon-btn.small:active {
+  transform: scale(0.95);
+}
+
+/* ---------- Google Button ---------- */
+#googleLoginBtn {
+  margin-top: 6px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(90deg, #ffffff, #e8f5ff);
+  color: #222;
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 0 12px rgba(0, 180, 255, 0.15);
+}
+#googleLoginBtn img {
+  width: 22px;
+  height: 22px;
+}
+#googleLoginBtn:hover {
+  transform: scale(1.04);
+  box-shadow: 0 0 18px rgba(0, 180, 255, 0.4);
+  background: linear-gradient(90deg, #fefefe, #e0f6ff);
+}
+#googleLoginBtn:active {
+  transform: scale(0.96);
+}
+
+/* ---------- Disabled Google Button ---------- */
+#googleLoginBtn.disabled {
+  background: rgba(255,255,255,0.15);
+  color: #aaa;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+#googleLoginBtn.disabled img {
+  filter: grayscale(100%);
+  opacity: 0.6;
+}
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(30px);
+  background: rgba(20, 28, 48, 0.85);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
   opacity: 0;
-}
-#pageContainer.fade-in {
-  opacity: 1;
+  pointer-events: none;
+  transition: all 0.4s ease;
+  z-index: 99999;
+  box-shadow: 0 0 20px rgba(0, 200, 255, 0.15);
 }
 
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.toast.success {
+  background: linear-gradient(90deg, #00c851, #007e33);
+}
+
+.toast.error {
+  background: linear-gradient(90deg, #ff4444, #cc0000);
+}
+
+.toast.info {
+  background: linear-gradient(90deg, #33b5e5, #0099cc);
+}
+.toast.warning {
+  background: linear-gradient(90deg, #ffbb33, #ff8800);
+}

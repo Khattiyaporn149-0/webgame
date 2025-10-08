@@ -1,7 +1,19 @@
 // client/firebase.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import {
-  getDatabase, ref, set, update, onValue, onDisconnect, push, get
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {
+  getDatabase,
+  ref,
+  set,
+  update,
+  onValue,
+  onDisconnect,
+  push,
+  get,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 const firebaseConfig = {
@@ -14,9 +26,14 @@ const firebaseConfig = {
   appId: "1:99426941589:web:67cd06c5e68cccbc34399c",
 };
 
+// 🧩 Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const rtdb = getDatabase(app);
 
-// re-export helpers
+// 🔐 Auth
+export const auth = getAuth(app);
+export const provider = new GoogleAuthProvider();
+export { signInWithPopup };
+
+// 💾 Realtime Database
+export const rtdb = getDatabase(app);
 export { ref, set, update, onValue, onDisconnect, push, get };
-export { serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
