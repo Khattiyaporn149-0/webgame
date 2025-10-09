@@ -98,8 +98,15 @@
     <button class="ready-btn" id="readyBtn">UNREADY ✖</button>
   </div>
 
-  <!-- แยก logic ไปไฟล์ module -->
-  <script type="module" src="./lobby.js"></script>
+  <div class="chat-box">
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input">
+      <input type="text" id="chatInput" placeholder="Type a message..." />
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>  
+<script type="module" src="lobby.js"></script>
+
 
   <!-- Dev helper (ไม่บังคลิก) -->
   <script>
