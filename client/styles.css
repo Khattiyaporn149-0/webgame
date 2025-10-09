@@ -1008,3 +1008,8 @@ option {
 .toast.warning {
   background: linear-gradient(90deg, #ffbb33, #ff8800);
 }
+#tutorialModal.active .dialog,
+#tutorialModal.show .dialog {
+  opacity: 1;
+  transform: scale(1);
+}
