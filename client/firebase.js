@@ -14,6 +14,7 @@ import {
   onDisconnect,
   push,
   get,
+  serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 const firebaseConfig = {
@@ -36,4 +37,4 @@ export { signInWithPopup };
 
 // 💾 Realtime Database
 export const rtdb = getDatabase(app);
-export { ref, set, update, onValue, onDisconnect, push, get };
+export { ref, set, update, onValue, onDisconnect, push, get, serverTimestamp };
