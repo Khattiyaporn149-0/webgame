@@ -12,21 +12,38 @@ const chatMessages = $("chatMessages");
 // Minimal toast fallback if none exists
 if (typeof window.showToast !== 'function') {
   window.showToast = function(msg, type = 'info') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      // Inline fallback styles to ensure visibility in game.html
+      container.style.position = 'fixed';
+      container.style.bottom = '24px';
+      container.style.right = '24px';
+      container.style.display = 'flex';
+      container.style.flexDirection = 'column';
+      container.style.alignItems = 'flex-end';
+      container.style.gap = '10px';
+      container.style.zIndex = '9999';
+      document.body.appendChild(container);
+    }
     const t = document.createElement('div');
+    t.className = `toast ${type}`;
     t.textContent = msg;
-    t.style.position = 'fixed';
-    t.style.left = '50%';
-    t.style.top = '20px';
-    t.style.transform = 'translateX(-50%)';
-    t.style.background = type === 'success' ? 'rgba(76,175,80,0.9)' : (type === 'warning' ? 'rgba(255,152,0,0.9)' : 'rgba(0,0,0,0.85)');
+    // Inline fallback for toast box
+    t.style.background = (type==='success'?'#2ecc71': type==='error'?'#e74c3c': type==='warning'?'#f39c12':'#34495e');
     t.style.color = '#fff';
-    t.style.padding = '8px 12px';
-    t.style.borderRadius = '6px';
-    t.style.zIndex = '9999';
-    t.style.fontSize = '14px';
-    document.body.appendChild(t);
-    setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0'; }, 1400);
-    setTimeout(()=> t.remove(), 1800);
+    t.style.padding = '10px 14px';
+    t.style.borderRadius = '8px';
+    t.style.boxShadow = '0 4px 14px rgba(0,0,0,.3)';
+    t.style.opacity = '0';
+    t.style.transition = 'opacity .2s ease, transform .2s ease';
+    t.style.transform = 'translateY(6px)';
+    container.appendChild(t);
+    const maxToasts = 5;
+    while (container.children.length > maxToasts) container.firstElementChild?.remove();
+    requestAnimationFrame(()=> { t.style.opacity = '1'; t.style.transform = 'translateY(0)'; });
+    setTimeout(()=>{ t.style.opacity = '0'; t.style.transform = 'translateY(6px)'; setTimeout(()=> t.remove(), 250); }, 2400);
   }
 }
 

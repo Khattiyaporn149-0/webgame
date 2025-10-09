@@ -316,13 +316,15 @@ btnCreate?.addEventListener("click", () => {
 // ========= ⚙️ SETTINGS =========
 const settingsModal = document.getElementById("settingsModal");
 document.getElementById("btnSettingsTop")?.addEventListener("click", () => {
+  settingsModal.setAttribute('aria-hidden','false');
   settingsModal.classList.add("show");
   document.getElementById("rangeMaster").value = state.master;
   document.getElementById("rangeMusic").value = state.music;
   document.getElementById("rangeSfx").value = state.sfx;
   document.getElementById("regionSel").value = state.region;
 });
-document.getElementById("closeSettings")?.addEventListener("click", () => settingsModal.classList.remove("show"));
+document.getElementById("closeSettings")?.addEventListener("click", () => { settingsModal.classList.remove("show"); settingsModal.setAttribute('aria-hidden','true'); });
+settingsModal?.addEventListener('click', (e)=>{ if (e.target === settingsModal) { settingsModal.classList.remove('show'); settingsModal.setAttribute('aria-hidden','true'); }});
 
 document.getElementById("rangeMaster")?.addEventListener("input", e => { state.master = +e.target.value; saveState(); });
 document.getElementById("rangeMusic")?.addEventListener("input", e => { state.music = +e.target.value; saveState(); });
@@ -336,9 +338,9 @@ const closeTutorial = document.getElementById("closeTutorial");
 const tabButtons = document.querySelectorAll(".tab-btn");
 const tabPanes = document.querySelectorAll(".tab-pane");
 
-btnTutorial?.addEventListener("click", () => tutorialModal.classList.add("active"));
-closeTutorial?.addEventListener("click", () => tutorialModal.classList.remove("active"));
-tutorialModal?.addEventListener("click", e => { if (e.target === tutorialModal) tutorialModal.classList.remove("active"); });
+btnTutorial?.addEventListener("click", () => { tutorialModal.setAttribute('aria-hidden','false'); tutorialModal.classList.add("show"); });
+closeTutorial?.addEventListener("click", () => { tutorialModal.classList.remove("show"); tutorialModal.setAttribute('aria-hidden','true'); });
+tutorialModal?.addEventListener("click", e => { if (e.target === tutorialModal) { tutorialModal.classList.remove("show"); tutorialModal.setAttribute('aria-hidden','true'); } });
 tabButtons.forEach(btn => btn.addEventListener("click", () => {
   tabButtons.forEach(b => b.classList.remove("active"));
   tabPanes.forEach(p => p.classList.remove("active"));
@@ -395,10 +397,24 @@ const fmtTime = (ms) => {
 
 // 🪄 SIMPLE POPUP (placeholder)
 function showminiToast(msg) {
+  const container = document.getElementById("toast-container") || (() => {
+    const div = document.createElement("div");
+    div.id = "toast-container";
+    div.style.position = "fixed";
+    div.style.bottom = "20px";
+    div.style.right = "20px";
+    div.style.display = "flex";
+    div.style.flexDirection = "column";
+    div.style.gap = "8px";
+    document.body.appendChild(div);
+    return div;
+  })();
+
   const toast = document.createElement("div");
   toast.className = "toast";
   toast.textContent = msg;
-  document.body.appendChild(toast);
+  container.appendChild(toast);
+
   setTimeout(() => toast.classList.add("show"), 10);
   setTimeout(() => toast.classList.remove("show"), 2000);
   setTimeout(() => toast.remove(), 2500);
@@ -520,24 +536,6 @@ document.addEventListener("DOMContentLoaded", () => {
   $(".rail-btn.missions").onclick = () => showminiToast("📋 Missions popup soon!");
   $(".rail-btn.calendar").onclick = () => showminiToast("📅 Streak popup soon!");
   $(".rail-btn.timer").onclick = () => showminiToast("⏰ Bonus active!");
-});
-
-
-const collection = [
-  { id: 1, name: "Golden Mask", rare: "legendary", owned: false },
-  { id: 2, name: "Silver Key", rare: "rare", owned: true },
-  { id: 3, name: "Museum Ticket", rare: "common", owned: true },
-];
-
-function openCollection() {
-  // TODO: แสดง modal หรือหน้ารวม item
-  console.log("🧳 Collection:", collection);
-  showToast("📦 Opened your collection!");
-}
-document.getElementById("btnCollection").addEventListener("click", openCollection);
-
-document.addEventListener("DOMContentLoaded", () => {
-  // ... ของระบบ Gift, Mission, Bonus เดิม ...
 
   // ✅ ปุ่ม Login ทำงานหลัง DOM โหลดครบ
   const loginBtn = document.getElementById("loginGoogleBtn");
@@ -550,4 +548,203 @@ document.addEventListener("DOMContentLoaded", () => {
   googleLoginBtn?.addEventListener("click", () => {
     if (!isGoogleLoggedIn()) handleGoogleLogin("profile");
   });
+
 });
+
+// Global stacked toast (override to stack instead of overlap)
+(function installStackedToast(){
+  const stacked = (message, type = 'info') => {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      document.body.appendChild(container);
+    }
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.textContent = message;
+    container.appendChild(t);
+    const maxToasts = 5;
+    while (container.children.length > maxToasts) container.firstElementChild?.remove();
+    requestAnimationFrame(()=> t.classList.add('show'));
+    setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=> t.remove(), 300); }, 2400);
+  };
+  window.showToast = stacked;
+})();
+
+
+const collection = [
+  { id: 1, name: "Golden Mask", rare: "legendary", owned: false },
+  { id: 2, name: "Silver Key", rare: "rare", owned: true },
+  { id: 3, name: "Museum Ticket", rare: "common", owned: true },
+  { id: 4, name: "Ancient Coin", rare: "epic", owned: false },
+  { id: 5, name: "Heist Blueprint", rare: "rare", owned: false },
+];
+
+// (Collection modal managed in enforceStandaloneCollectionModal)
+// Safety override: ensure Join/Create always navigate (auto-generate name if missing)
+(() => {
+  const bindSafeNav = (id, href) => {
+    const el = document.getElementById(id);
+    if (!el || el.dataset.navbound === '1') return;
+    el.dataset.navbound = '1';
+    el.addEventListener('click', () => {
+      let name = (typeof state?.name === 'string' ? state.name.trim() : '') || '';
+      if (!nameOk(name) || name === 'Guest' || name === '') {
+        name = localStorage.getItem('ggd.name') || localStorage.getItem('playerName') || `Player_${Math.random().toString(36).slice(2,7)}`;
+        if (state) state.name = name;
+        try { saveState && saveState(); } catch {}
+        try { hideStartScreen && hideStartScreen(); } catch {}
+      }
+      window.location.href = href;
+    });
+  };
+  bindSafeNav('btnJoin', 'roomlist.html');
+  bindSafeNav('btnCreate', 'createroom.html');
+})();
+
+// Strong override for Collection modal to be independent from tutorial
+(function enforceStandaloneCollectionModal(){
+  function ensureCollectionModal(){
+    let modal = document.getElementById('collectionModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'collectionModal';
+      modal.className = 'modal';
+      modal.setAttribute('aria-hidden','true');
+      modal.innerHTML = `
+        <div class="coll-dialog">
+          <div class="coll-head">
+            <h3>📦 COLLECTION</h3>
+            <button class="x" id="closeCollection">✕</button>
+          </div>
+          <div class="coll-body" id="collectionGrid"></div>
+        </div>`;
+      document.body.appendChild(modal);
+    } else {
+      try { if (modal.closest('#tutorialModal')) document.body.appendChild(modal); } catch {}
+    }
+    // Robust close handling: backdrop and close button via delegation
+    if (!modal.dataset.boundBackdrop) {
+      modal.dataset.boundBackdrop = '1';
+      modal.addEventListener('click', (e)=>{
+        if (e.target === modal) {
+          modal.classList.remove('show');
+          modal.setAttribute('aria-hidden','true');
+          return;
+        }
+        const isClose = (e.target.id === 'closeCollection') || (e.target.closest && e.target.closest('#closeCollection'));
+        if (isClose) {
+          modal.classList.remove('show');
+          modal.setAttribute('aria-hidden','true');
+        }
+      });
+    }
+  }
+
+  function renderCollectionGridLive(){
+    const grid = document.getElementById('collectionGrid');
+    if (!grid) return;
+    const badge = (rare) => {
+      const colors = { legendary:'#f1c40f', epic:'#9b59b6', rare:'#3498db', common:'#7f8c8d' };
+      const c = colors[rare] || '#7f8c8d';
+      return `<span class="rare" style="background:${c}20;border:1px solid ${c}55;color:${c}">${rare.toUpperCase()}</span>`;
+    };
+    grid.innerHTML = (Array.isArray(collection)?collection:[]).map(it => `
+      <div class="coll-card ${it.owned ? 'owned' : ''}" title="${it.name}">
+        <div class="thumb">${it.owned ? '★' : '☆'}</div>
+        <div class="meta">
+          <div class="name">${it.name}</div>
+          ${badge(it.rare)}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function openCollectionStandalone(){
+    const tut = document.getElementById('tutorialModal');
+    if (tut) { tut.classList.remove('active'); tut.classList.remove('show'); tut.setAttribute('aria-hidden','true'); }
+    ensureCollectionModal();
+    renderCollectionGridLive();
+    const modal = document.getElementById('collectionModal');
+    if (modal) {
+      modal.style.zIndex = '10000';
+      modal.setAttribute('aria-hidden','false');
+      modal.classList.add('show');
+    }
+  }
+
+  // Capture-phase handlers for all collection buttons
+  const bind = () => {
+    document.querySelectorAll('#btnCollection, #btnCollectionTop').forEach((btn)=>{
+      if (btn.dataset.collBound === '1') return;
+      btn.dataset.collBound = '1';
+      try { btn.onclick = null; } catch {}
+      btn.addEventListener('click', (e)=>{ e.stopImmediatePropagation(); e.preventDefault?.(); openCollectionStandalone(); }, true);
+    });
+  };
+  if (document.readyState === 'complete' || document.readyState === 'interactive') bind();
+  else document.addEventListener('DOMContentLoaded', bind, { once: true });
+})();
+
+// Harden Settings and Tutorial modal openers (bind all duplicates, unified behavior)
+(function hardenCoreModals(){
+  function openModal(modal){
+    if (!modal) return;
+    modal.setAttribute('aria-hidden','false');
+    modal.classList.add('show');
+  }
+  function closeModal(modal){
+    if (!modal) return;
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden','true');
+  }
+  function bindModalOpeners(buttonSelector, modalId, closeBtnId){
+    const nodes = document.querySelectorAll(buttonSelector);
+    const modal = document.getElementById(modalId);
+    if (!nodes.length || !modal) return;
+    // Close on backdrop
+    if (!modal.dataset.backdropBound){
+      modal.dataset.backdropBound = '1';
+      modal.addEventListener('click', (e)=>{ if (e.target === modal) closeModal(modal); });
+    }
+    // Close button
+    if (closeBtnId){
+      const x = document.getElementById(closeBtnId);
+      if (x && !x.dataset.xBound){ x.dataset.xBound='1'; x.addEventListener('click', ()=> closeModal(modal)); }
+    }
+    nodes.forEach((btn)=>{
+      if (btn.dataset.modalBound === modalId) return;
+      btn.dataset.modalBound = modalId;
+      try { btn.onclick = null; } catch {}
+      btn.addEventListener('click', (e)=>{
+        try { e.stopImmediatePropagation && e.stopImmediatePropagation(); } catch {}
+        try { e.preventDefault && e.preventDefault(); } catch {}
+        openModal(modal);
+      }, true);
+    });
+
+    // Global delegated fallback (handles late/duplicate DOM)
+    if (!modal.dataset.delegatedOpen){
+      modal.dataset.delegatedOpen = '1';
+      document.addEventListener('click', (e)=>{
+        const hit = e.target && (e.target.id === buttonSelector.replace('#','') || (e.target.closest && e.target.closest(buttonSelector)));
+        if (hit) {
+          try { e.stopImmediatePropagation && e.stopImmediatePropagation(); } catch {}
+          try { e.preventDefault && e.preventDefault(); } catch {}
+          openModal(modal);
+        }
+      }, true);
+    }
+  }
+  const init = ()=>{
+    bindModalOpeners('#btnSettingsTop', 'settingsModal', 'closeSettings');
+    bindModalOpeners('#btnTutorial', 'tutorialModal', 'closeTutorial');
+  };
+  if (document.readyState === 'complete' || document.readyState === 'interactive') init();
+  else document.addEventListener('DOMContentLoaded', init, { once: true });
+})();
+
+
+
+

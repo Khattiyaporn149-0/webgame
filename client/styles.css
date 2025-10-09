@@ -168,27 +168,20 @@ body {
 }
 
 
-/* ---------- Moda
-l ---------- */
-/* 🌌 Global modal base */
-.modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.6);
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  backdrop-filter: blur(4px);
-  transition: all 0.3s ease;
-  opacity: 0;
-  visibility: hidden;
-}
-.modal.show {
-  display: flex;
-  opacity: 1;
-  visibility: visible;
-}
+/* 🌌 Global modal base (unified across all popups) */
+:root { --overlay-bg: rgba(5,8,16,0.76); }
+.modal { display:none; position:fixed; inset:0; background: var(--overlay-bg); align-items:center; justify-content:center; z-index:9999; backdrop-filter: blur(6px) saturate(120%); transition: opacity .25s ease, visibility .25s ease; opacity:0; visibility:hidden }
+.modal.show, .modal[aria-hidden="false"] { display:flex; opacity:1; visibility:visible }
+
+.dialog { width:min(92vw,680px); background: var(--panel); border:1px solid var(--stroke); border-radius:16px; box-shadow:0 20px 60px #000a; transform: scale(.98); opacity:0; transition: transform .2s ease, opacity .2s ease }
+.dialog-head { display:flex; justify-content: space-between; align-items:center; padding: 12px 16px; border-bottom:1px solid var(--stroke) }
+.dialog-head h3 { margin:0 }
+.dialog-head .x { background: var(--panel-2); border:1px solid var(--stroke); color: var(--fg); padding: 6px 10px; border-radius: 10px; cursor:pointer }
+.dialog-body { padding: 16px; display:grid; gap: 12px }
+.row { display:flex; gap:12px; align-items:center; justify-content:space-between }
+.row input[type=range] { width: 260px }
+.note { opacity:.8; font-size:13px; margin-top:6px }
+
 
 .dialog { width: min(92vw, 680px); background: var(--panel); border:1px solid var(--stroke); border-radius: 16px; box-shadow: 0 20px 60px #000a }
 .dialog-head { display:flex; justify-content: space-between; align-items:center; padding: 12px 16px; border-bottom:1px solid var(--stroke) }
@@ -513,19 +506,6 @@ option {
   0% { opacity: 0; transform: translateY(10px); }
   30% { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(-5px); }
-}
-.toast {
-  position: fixed;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.8);
-  color: #fff;
-  padding: 12px 24px;
-  border-radius: 30px;
-  font-size: 14px;
-  opacity: 0;
-  pointer-events: none;
 }
 
 /* === Tutorial Modal === */
@@ -971,7 +951,18 @@ option {
 }
 
 /* ---------- Toast ---------- */
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  z-index: 9999;
+}
 .toast {
+  /* Default center style (fallback) */
   position: fixed;
   bottom: 24px;
   left: 50%;
@@ -994,6 +985,20 @@ option {
   transform: translateX(-50%) translateY(0);
 }
 
+/* When used inside the container, switch to stacked layout */
+#toast-container .toast {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  transform: none;
+  pointer-events: auto;
+}
+#toast-container .toast.show {
+  opacity: 1;
+  transform: none;
+}
+
 .toast.success {
   background: linear-gradient(90deg, #00c851, #007e33);
 }
@@ -1012,4 +1017,59 @@ option {
 #tutorialModal.show .dialog {
   opacity: 1;
   transform: scale(1);
+}
+/* Collection modal */
+#collectionModal .coll-dialog{ width:min(92vw,720px); background: var(--panel); border:1px solid var(--stroke); border-radius:16px; overflow:hidden; box-shadow:0 20px 60px #000a }
+#collectionModal .coll-head{ display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--stroke) }
+#collectionModal .coll-body{ padding:16px }
+#collectionGrid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap:12px }
+.coll-card{ background: rgba(255,255,255,.06); border:1px solid var(--stroke); border-radius:12px; padding:12px; display:flex; gap:10px; align-items:center }
+.coll-card.owned{ outline:2px solid #76f7b1 }
+.coll-card .thumb{ width:40px; height:40px; display:grid; place-items:center; background:#0006; border-radius:10px; font-size:20px }
+.coll-card .meta{ display:grid; gap:6px }
+.coll-card .name{ font-weight:800 }
+.coll-card .rare{ font-size:12px; padding:2px 8px; border-radius:999px; display:inline-block }
+
+/* Streak modal */
+#streakModal .streak-dialog{ width:min(92vw,720px); background: var(--panel); border:1px solid var(--stroke); border-radius:16px; overflow:hidden; box-shadow:0 20px 60px #000a }
+#streakModal .streak-head{ display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--stroke) }
+#streakModal .streak-body{ padding:16px; display:grid; gap:12px }
+.streak-grid{ display:grid; grid-template-columns: repeat(7, 1fr); gap:10px }
+.streak-card{ background: rgba(255,255,255,.06); border:1px solid var(--stroke); border-radius:12px; padding:10px; text-align:center; display:grid; gap:6px; align-content:center }
+.streak-card .day{ font-weight:800 }
+.streak-card .reward{ opacity:.9; font-size:13px }
+.streak-card .tag{ font-size:12px; padding:2px 8px; border-radius:999px; background:#2ecc71; color:#fff; justify-self:center }
+.streak-card.available .claim{ border:1px solid #54f4a8; background:#2fe09333; color:#54f4a8; padding:6px 10px; border-radius:10px; cursor:pointer }
+.streak-card.locked{ opacity:.6 }
+
+/* Missions modal */
+#missionsModal .missions-dialog{ width:min(92vw,720px); background: var(--panel); border:1px solid var(--stroke); border-radius:16px; overflow:hidden; box-shadow:0 20px 60px #000a }
+#missionsModal .missions-head{ display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--stroke) }
+#missionsModal .missions-body{ padding:16px; display:grid; gap:12px }
+.missions-progress .bar{ height:10px; background:#ffffff12; border:1px solid var(--stroke); border-radius:999px; overflow:hidden }
+.missions-progress .fill{ height:100%; background: linear-gradient(90deg,#76f7b1,#54f4a8) }
+.missions-progress .label{ font-size:13px; opacity:.9; margin-top:6px }
+.mission-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap:12px }
+.mission-card{ background: rgba(255,255,255,.06); border:1px solid var(--stroke); border-radius:12px; padding:12px; display:grid; gap:8px }
+.mission-card .text{ font-weight:800 }
+.mission-card .reward{ opacity:.9; font-size:13px }
+.mission-card .do{ justify-self:end; border:1px solid #76f7b1; background:#2fe09333; color:#54f4a8; padding:6px 10px; border-radius:10px; cursor:pointer }
+.mission-card.done{ opacity:.7 }
+.mission-card .tag{ font-size:12px; padding:2px 8px; border-radius:999px; background:#2ecc71; color:#fff; justify-self:start }
+
+/* Entrance for any dialog in active modal */
+.modal.show .dialog,
+.modal[aria-hidden="false"] .dialog,
+.modal.show .coll-dialog,
+.modal[aria-hidden="false"] .coll-dialog,
+.modal.show .streak-dialog,
+.modal[aria-hidden="false"] .streak-dialog,
+.modal.show .missions-dialog,
+.modal[aria-hidden="false"] .missions-dialog,
+.modal.show .tutorial-dialog,
+.modal[aria-hidden="false"] .tutorial-dialog,
+.modal.show .claw-dialog,
+.modal[aria-hidden="false"] .claw-dialog {
+  transform: scale(1);
+  opacity: 1;
 }
