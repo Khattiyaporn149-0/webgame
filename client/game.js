@@ -107,16 +107,21 @@ try {
 } catch {}
 
 // Join / presence
-await set(myPlayerRef, {
-  uid,
-  name: displayName,
-  x: gameState.myPlayer.x,
-  y: gameState.myPlayer.y,
-  color: gameState.myPlayer.color,
-  online: true,
-  lastUpdate: serverTimestamp(),
-});
-onDisconnect(myPlayerRef).remove();
+try {
+  await set(myPlayerRef, {
+    uid,
+    name: displayName,
+    x: gameState.myPlayer.x,
+    y: gameState.myPlayer.y,
+    color: gameState.myPlayer.color,
+    online: true,
+    lastUpdate: serverTimestamp(),
+  });
+  onDisconnect(myPlayerRef).remove();
+} catch (e) {
+  console.warn("RTDB set myPlayerRef failed", e);
+  $("gameStatus").textContent = '❌ Permission denied: update Firebase rules for /games';
+}
 
 // Sync players + messages
 let cachedOthers = [];
