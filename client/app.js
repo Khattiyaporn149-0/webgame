@@ -1,5 +1,16 @@
 import { auth, provider, signInWithPopup, rtdb, ref, set } from "./firebase.js";
 
+// 🧩 Auto-generate guest UID ถ้าไม่มี
+if (!localStorage.getItem("ggd.uid")) {
+  const guest = crypto.randomUUID ? crypto.randomUUID() : "uid_" + Math.random().toString(36).slice(2, 10);
+  localStorage.setItem("ggd.uid", guest);
+  localStorage.setItem("ggd.name", "Guest");
+  // ระบุสถานะ auth เป็น guest (กันสับสนว่าเป็น Google)
+  if (!localStorage.getItem("ggd.auth")) {
+    localStorage.setItem("ggd.auth", "guest");
+  }
+}
+
 // ============ 🎵 SOUND SYSTEM ============
 if (!window.bgm) {
   window.bgm = new Audio("assets/sounds/galaxy-283941.mp3");
@@ -14,6 +25,8 @@ if (!window.clickSound) {
 
 const bgm = window.bgm;
 const clickSound = window.clickSound;
+
+
 
 // ========= 🌐 GLOBAL STATE ==========
 const state = {
@@ -91,39 +104,6 @@ startBtn?.addEventListener("click", () => {
 });
 
 
-// 🔐 GOOGLE LOGIN
-loginBtn?.addEventListener("click", async () => {
-  try {
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-    state.name = user.displayName;
-    state.uid = user.uid;
-    localStorage.setItem("ggd.uid", user.uid);
-    saveState();
-
-    // 🧾 Save to RTDB
-    await set(ref(rtdb, `users/${user.uid}`), {
-      name: user.displayName,
-      email: user.email,
-      photo: user.photoURL,
-      lastLogin: new Date().toISOString()
-    });
-
-    alert(`🎉 Welcome ${user.displayName}`);
-    hideStartScreen();
-  } catch (err) {
-    console.error(err);
-    alert("❌ Login failed");
-  }
-});
-
-// ถ้ามีชื่อแล้ว ให้ข้าม
-window.addEventListener("DOMContentLoaded", () => {
-  if (nameOk(state.name)) hideStartScreen();
-  else showStartScreen();
-});
-
-
 // ========= 🧩 PROFILE MODAL =========
 const profileModal = document.getElementById("profileModal");
 const closeProfile = document.getElementById("closeProfile");
@@ -136,6 +116,47 @@ const editNameGroup = document.getElementById("editNameGroup");
 const editNameInput = document.getElementById("editNameInput");
 const saveNameBtn = document.getElementById("saveNameBtn");
 const cancelNameBtn = document.getElementById("cancelNameBtn");
+
+
+// Helper: ตรวจสอบสถานะว่าเป็น Google Login จริงไหม
+function isGoogleLoggedIn() {
+  return localStorage.getItem("ggd.auth") === "google";
+}
+
+// 🔐 GOOGLE LOGIN (รวม logic ไว้ที่เดียว ใช้ซ้ำได้)
+async function handleGoogleLogin(trigger = "start") {
+  try {
+    // ✅ popup login
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+
+    // ✅ บันทึกสถานะใน localStorage / state
+    state.name = user.displayName || "Unknown";
+    state.uid = user.uid;
+    localStorage.setItem("ggd.name", state.name);
+    localStorage.setItem("ggd.uid", state.uid);
+    // ระบุว่าเป็นการล็อกอินด้วย Google ชัดเจน
+    localStorage.setItem("ggd.auth", "google");
+    saveState();
+
+    // ✅ อัปเดต Realtime DB (เก็บข้อมูลผู้ใช้)
+    // แนะนำใช้ path /users_safe/ (กัน permission clash)
+    await set(ref(rtdb, `users_safe/${user.uid}`), {
+      name: state.name,
+      email: user.email,
+      photo: user.photoURL,
+      lastLogin: new Date().toISOString(),
+    });
+
+    showToast(`🎉 Welcome ${state.name}!`, "success");
+    updateProfileUI();
+    hideStartScreen();
+  } catch (err) {
+    console.error("❌ Login failed:", err);
+    showToast("⚠️ Google login failed", "error");
+  }
+}
+
 
 // เปิดโปรไฟล์
 btnProfile?.addEventListener("click", () => {
@@ -151,19 +172,29 @@ profileModal?.addEventListener("click", (e) => {
 
 // 🎯 อัปเดตข้อมูลในโปรไฟล์
 function updateProfileUI() {
+  // ✅ ป้องกันกรณี modal ยังไม่ render ตอนเรียก
+  if (!googleLoginBtn || !displayNameEl) return;
+
+  // ✅ อัปเดตชื่อในโปรไฟล์
   displayNameEl.textContent = state.name || "Guest";
 
-  if (state.uid) {
+  // ✅ อัปเดตปุ่ม Google Login ตามสถานะ (ดูจาก flag ไม่ใช่แค่มี guest uid)
+  if (isGoogleLoggedIn()) {
     googleLoginBtn.classList.add("disabled");
     googleLoginBtn.innerHTML = `<span>✅ You already logged in with Google</span>`;
   } else {
     googleLoginBtn.classList.remove("disabled");
     googleLoginBtn.innerHTML = `
-      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
+      <img 
+        src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
+        alt="Google" 
+        style="width:20px;height:20px;margin-right:8px;vertical-align:middle;"
+      />
       <span>Login with Google</span>
     `;
   }
 
+  // ✅ reset โหมดแก้ไขชื่อเสมอ (กันค้าง)
   resetEditMode();
 }
 
@@ -237,34 +268,6 @@ function resetEditMode() {
   }, 200);
 }
 
-// 🔐 กด login ด้วย Google (ซ้ำ logic เดิม)
-googleLoginBtn?.addEventListener("click", async () => {
-  if (state.uid) return; // ป้องกันกดซ้ำ
-
-  try {
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-    state.name = user.displayName;
-    state.uid = user.uid;
-    localStorage.setItem("ggd.uid", user.uid);
-    saveState();
-
-    await set(ref(rtdb, `users/${user.uid}`), {
-      name: user.displayName,
-      email: user.email,
-      photo: user.photoURL,
-      lastLogin: new Date().toISOString()
-    });
-
-    updateProfileUI();
-    alert(`🎉 Welcome ${user.displayName}`);
-  } catch (err) {
-    console.error(err);
-    alert("❌ Login failed");
-  }
-});
-
-
 // ========= main UI =========
 const btnJoin = document.getElementById("btnJoin");
 const btnCreate = document.getElementById("btnCreate");
@@ -314,14 +317,12 @@ document.getElementById("regionSel")?.addEventListener("change", e => { state.re
 
 // ========= ❓ TUTORIAL =========
 const btnTutorial = document.getElementById("btnTutorial");
-const btnTutorialStart = document.getElementById("btnTutorialStart");
 const tutorialModal = document.getElementById("tutorialModal");
 const closeTutorial = document.getElementById("closeTutorial");
 const tabButtons = document.querySelectorAll(".tab-btn");
 const tabPanes = document.querySelectorAll(".tab-pane");
 
 btnTutorial?.addEventListener("click", () => tutorialModal.classList.add("active"));
-btnTutorialStart?.addEventListener("click", () => tutorialModal.classList.add("active"));
 closeTutorial?.addEventListener("click", () => tutorialModal.classList.remove("active"));
 tutorialModal?.addEventListener("click", e => { if (e.target === tutorialModal) tutorialModal.classList.remove("active"); });
 tabButtons.forEach(btn => btn.addEventListener("click", () => {
@@ -520,3 +521,19 @@ function openCollection() {
   showToast("📦 Opened your collection!");
 }
 document.getElementById("btnCollection").addEventListener("click", openCollection);
+
+document.addEventListener("DOMContentLoaded", () => {
+  // ... ของระบบ Gift, Mission, Bonus เดิม ...
+
+  // ✅ ปุ่ม Login ทำงานหลัง DOM โหลดครบ
+  const loginBtn = document.getElementById("loginGoogleBtn");
+  const googleLoginBtn = document.getElementById("googleLoginBtn");
+
+  // ปุ่มหน้าเริ่มต้น: ให้กดเพื่อเข้าสู่ระบบ Google ได้ทันที
+  loginBtn?.addEventListener("click", () => handleGoogleLogin("start"));
+
+  // ปุ่มในโปรไฟล์: อนุญาตเฉพาะตอนยังไม่ได้ล็อกอินด้วย Google
+  googleLoginBtn?.addEventListener("click", () => {
+    if (!isGoogleLoggedIn()) handleGoogleLogin("profile");
+  });
+});
