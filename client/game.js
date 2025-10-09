@@ -1,8 +1,6 @@
 // client/game.js (ES module)
 // ใช้ Realtime Database อย่างเดียวให้สอดคล้องกับ lobby
-import {
-  rtdb, ref, set, update, onValue, onDisconnect, push, get, serverTimestamp
-} from "./firebase.js";
+import { rtdb, ref, set, update, onValue, onDisconnect, push, get, serverTimestamp } from "./firebase.js";
 
 // ---------- DOM ----------
 const $ = (id) => document.getElementById(id);
@@ -11,7 +9,30 @@ const ctx = canvas.getContext("2d");
 const chatInput = $("chatInput");
 const chatMessages = $("chatMessages");
 
+// Minimal toast fallback if none exists
+if (typeof window.showToast !== 'function') {
+  window.showToast = function(msg, type = 'info') {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    t.style.position = 'fixed';
+    t.style.left = '50%';
+    t.style.top = '20px';
+    t.style.transform = 'translateX(-50%)';
+    t.style.background = type === 'success' ? 'rgba(76,175,80,0.9)' : (type === 'warning' ? 'rgba(255,152,0,0.9)' : 'rgba(0,0,0,0.85)');
+    t.style.color = '#fff';
+    t.style.padding = '8px 12px';
+    t.style.borderRadius = '6px';
+    t.style.zIndex = '9999';
+    t.style.fontSize = '14px';
+    document.body.appendChild(t);
+    setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0'; }, 1400);
+    setTimeout(()=> t.remove(), 1800);
+  }
+}
+
 // ---------- Context ----------
+const USE_SOCKET = true; // feature flag: use Socket.IO for movement
+let socket = null;
 
 // ดึงข้อมูล room code จาก URL
 const params = new URLSearchParams(location.search);
@@ -112,13 +133,18 @@ const colorFromUid = (u) => {
 };
 
 let gameState = {
-  players: {},
-  myPlayer: { x: 400, y: 300, color: colorFromUid(uid), name: displayName },
+  players: {}, // { uid: {uid,name,x,y,color,online} }
+  myPlayer: { x: 400, y: 300, color: colorFromUid(uid), name: displayName, uid },
 };
 let keys = {};
 let lastNetUpdate = 0;
 let lastFrame = performance.now();
+let lastFpsUi = performance.now();
+let smoothedFps = 0;
 const NET_INTERVAL_MS = 80; // ~12.5 Hz network updates
+let inputSeq = 0;
+let myRole = 'crew';
+let phase = 'round';
 
 // ---------- RTDB paths ----------
 const gameRootRef = ref(rtdb, `games/${roomCode}`);
@@ -133,7 +159,7 @@ try {
   }
 } catch {}
 
-// Join / presence
+// Join / presence for RTDB (used for sidebar and chat)
 try {
   await set(myPlayerRef, {
     uid,
@@ -150,20 +176,20 @@ try {
   $("gameStatus").textContent = '❌ Permission denied: update Firebase rules for /games';
 }
 
-// Sync players + messages
+// Sync messages via RTDB (keep chat on RTDB)
 let cachedOthers = [];
-onValue(gameRootRef, (snap) => {
-  const data = snap.val() || {};
-  if (data.players) {
-    gameState.players = data.players;
-    cachedOthers = Object.values(data.players).filter((p) => p && p.uid !== uid && p.online);
-  }
-  renderPlayersList();
+onValue(ref(rtdb, `games/${roomCode}/messages`), (snap) => {
+  const messages = snap.val() || {};
+  const arr = Object.values(messages).slice(-50);
+  renderChat(arr);
+});
 
-  if (data.messages) {
-    const arr = Object.values(data.messages).slice(-50);
-    renderChat(arr);
-  }
+// For players list (RTDB presence only)
+onValue(ref(rtdb, `games/${roomCode}/players`), (snap) => {
+  const players = snap.val() || {};
+  // keep only presence info for sidebar; do not override render positions
+  gameState.players = { ...gameState.players, ...players };
+  renderPlayersList();
 });
 
 // ---------- Render ----------
@@ -190,9 +216,9 @@ function drawGame() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  // others
+  // others (from latest snapshot/RTDB presence)
   cachedOthers.forEach((p) => drawPlayer(p, false));
-  // me
+  // me (predicted)
   drawPlayer(gameState.myPlayer, true);
 }
 
@@ -220,6 +246,8 @@ function renderChat(messages) {
 
 // ---------- Input / movement ----------
 function handleMovement(dt) {
+  // freeze during meeting
+  if (phase === 'meeting') return;
   const speed = 220; // px/sec
   let moved = false;
   const dy = (keys['w'] || keys['ArrowUp'] ? -1 : 0) + (keys['s'] || keys['ArrowDown'] ? 1 : 0);
@@ -237,14 +265,24 @@ function handleMovement(dt) {
 
   if (moved) {
     const now = performance.now();
-    if (now - lastNetUpdate > NET_INTERVAL_MS) {
-      update(myPlayerRef, {
-        x: Math.round(gameState.myPlayer.x),
-        y: Math.round(gameState.myPlayer.y),
-        lastUpdate: serverTimestamp(),
-      }).catch(() => {});
-      $("playerPos").textContent = `${Math.round(gameState.myPlayer.x)}, ${Math.round(gameState.myPlayer.y)}`;
-      lastNetUpdate = now;
+    if (USE_SOCKET && socket) {
+      // send input at higher rate (prediction handled locally)
+      if (now - lastNetUpdate > 16) { // ~60 Hz
+        const ax = (keys['a'] || keys['ArrowLeft'] ? -1 : 0) + (keys['d'] || keys['ArrowRight'] ? 1 : 0);
+        const ay = (keys['w'] || keys['ArrowUp'] ? -1 : 0) + (keys['s'] || keys['ArrowDown'] ? 1 : 0);
+        socket.volatile.emit('input', { seq: ++inputSeq, t: Date.now(), ax, ay });
+        lastNetUpdate = now;
+      }
+    } else {
+      if (now - lastNetUpdate > NET_INTERVAL_MS) {
+        update(myPlayerRef, {
+          x: Math.round(gameState.myPlayer.x),
+          y: Math.round(gameState.myPlayer.y),
+          lastUpdate: serverTimestamp(),
+        }).catch(() => {});
+        $("playerPos").textContent = `${Math.round(gameState.myPlayer.x)}, ${Math.round(gameState.myPlayer.y)}`;
+        lastNetUpdate = now;
+      }
     }
   }
 }
@@ -265,14 +303,145 @@ chatInput.addEventListener('keypress', (e) => {
 // ---------- Game loop ----------
 function gameLoop(ts) {
   const now = ts ?? performance.now();
-  const dt = Math.min(0.05, (now - lastFrame) / 1000); // cap 50ms
+  const rawDt = Math.max(0.000001, (now - lastFrame) / 1000);
+  const dt = Math.min(0.05, rawDt); // cap physics step at 50ms
   lastFrame = now;
+
+  // FPS smoothing (EMA)
+  const instFps = 1 / rawDt;
+  smoothedFps = smoothedFps ? (smoothedFps * 0.9 + instFps * 0.1) : instFps;
+
   handleMovement(dt);
   drawGame();
+
+  // Update FPS UI at ~4Hz
+  if (now - lastFpsUi > 250) {
+    const el = document.getElementById('fpsCounter');
+    if (el) el.textContent = `FPS: ${Math.round(smoothedFps)}`;
+    lastFpsUi = now;
+  }
   requestAnimationFrame(gameLoop);
 }
 requestAnimationFrame(gameLoop);
 
-// UI status
-$("gameStatus").textContent = '✅ Connected!';
+// ---------- Socket.IO setup (movement) ----------
+try {
+  if (USE_SOCKET && typeof io !== 'undefined') {
+    socket = io({ transports: ['websocket'], upgrade: false, timeout: 5000 });
+    socket.on('connect', () => {
+      $("gameStatus").textContent = '✅ Connected (WS)';
+      // join game room
+      socket.emit('game:join', {
+        room: roomCode,
+        uid,
+        name: displayName,
+        color: gameState.myPlayer.color,
+        x: Math.round(gameState.myPlayer.x),
+        y: Math.round(gameState.myPlayer.y),
+      });
+    });
+
+    socket.on('snapshot', (payload) => {
+      // payload: { t, players: [{uid,x,y,name,color}], lastSeq }
+      if (!payload || !Array.isArray(payload.players)) return;
+      const map = {};
+      payload.players.forEach(p => { if (p && p.uid) map[p.uid] = p; });
+      // update others list and my position correction (light reconciliation)
+      const me = map[uid];
+      if (me) {
+        gameState.myPlayer.x = me.x;
+        gameState.myPlayer.y = me.y;
+      }
+      // update presence cache for rendering others (alive only)
+      cachedOthers = Object.values(map).filter(p => p.uid !== uid && (p.alive ?? true));
+      $("playerPos").textContent = `${Math.round(gameState.myPlayer.x)}, ${Math.round(gameState.myPlayer.y)}`;
+    });
+
+    // Gameplay events
+    socket.on('role', (data)=>{
+      myRole = data?.role === 'impostor' ? 'impostor' : 'crew';
+      $("playerRole").textContent = myRole === 'impostor' ? 'Impostor' : 'Crewmate';
+      // show kill button only for impostor
+      $("btnKill").style.display = (myRole==='impostor') ? 'inline-block' : 'none';
+    });
+
+    socket.on('phase', (data)=>{
+      phase = data?.phase || 'round';
+      $("roundStatus").textContent = `Phase: ${phase}`;
+      if (phase === 'ended' && data?.winner) {
+        showToast(`🏁 ${data.winner} win!`, 'success');
+      }
+    });
+
+    socket.on('meeting:start', (data)=>{
+      phase = 'meeting';
+      $("roundStatus").textContent = `Phase: meeting`;
+      const overlay = $("meetingOverlay");
+      const list = $("candidates");
+      const info = $("meetingInfo");
+      overlay.style.display = 'flex';
+      list.innerHTML = '';
+      info.textContent = data?.reason || 'Discuss and vote';
+      const candidates = data?.candidates || [];
+      candidates.forEach(c => {
+        const b = document.createElement('button');
+        b.textContent = `${c.name}` + (c.uid===uid?' (You)':'');
+        b.onclick = ()=>{
+          socket.emit('game:event', { type: 'vote', target: c.uid });
+          info.textContent = `You voted for ${c.name}`;
+        };
+        list.appendChild(b);
+      });
+    });
+
+    socket.on('meeting:result', (data)=>{
+      const overlay = $("meetingOverlay");
+      const info = $("meetingInfo");
+      if (data?.ejected) {
+        info.textContent = `🗳️ Ejected: ${data.ejectedName || data.ejected}`;
+      } else {
+        info.textContent = `🗳️ No one was ejected`;
+      }
+      setTimeout(()=>{ overlay.style.display='none'; }, 2000);
+    });
+
+    socket.on('event:kill', (data)=>{
+      showToast(`💥 ${data?.victimName || 'A player'} was eliminated`, 'warning');
+    });
+
+    socket.on('disconnect', () => {
+      $("gameStatus").textContent = '⚠️ Disconnected (WS)';
+    });
+  } else {
+    $("gameStatus").textContent = '✅ Connected (RTDB)';
+  }
+} catch (e) {
+  console.warn('Socket.IO unavailable, fallback to RTDB', e);
+  $("gameStatus").textContent = '✅ Connected (RTDB fallback)';
+}
+
 console.log('🎮 Game initialized');
+
+// ---------- Gameplay buttons ----------
+const btnStart = $("btnStartRound");
+const btnReport = $("btnReport");
+const btnMeeting = $("btnCallMeeting");
+const btnKill = $("btnKill");
+const btnVoteSkip = $("btnVoteSkip");
+const btnCloseMeeting = $("btnCloseMeeting");
+const btnAddBot = $("btnAddBot");
+const btnForceImp = $("btnForceImp");
+const btnForceCrew = $("btnForceCrew");
+const btnSpawnBody = $("btnSpawnBody");
+
+btnStart?.addEventListener('click', ()=> socket?.emit('game:start', { room: roomCode }));
+btnReport?.addEventListener('click', ()=> socket?.emit('game:event', { type: 'report' }));
+btnMeeting?.addEventListener('click', ()=> socket?.emit('game:event', { type: 'callMeeting' }));
+btnKill?.addEventListener('click', ()=> socket?.emit('game:event', { type: 'kill' }));
+btnVoteSkip?.addEventListener('click', ()=> socket?.emit('game:event', { type: 'vote', target: 'skip' }));
+btnCloseMeeting?.addEventListener('click', ()=> { $("meetingOverlay").style.display='none'; });
+
+btnAddBot?.addEventListener('click', ()=> socket?.emit('dev:addBot', { room: roomCode }));
+btnForceImp?.addEventListener('click', ()=> socket?.emit('dev:forceRole', { role: 'impostor' }));
+btnForceCrew?.addEventListener('click', ()=> socket?.emit('dev:forceRole', { role: 'crew' }));
+btnSpawnBody?.addEventListener('click', ()=> socket?.emit('dev:spawnBody'));
