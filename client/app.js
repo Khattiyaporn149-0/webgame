@@ -36,7 +36,7 @@ const state = {
   sfx: parseFloat(localStorage.getItem("ggd.sfx") || "0.9"),
   master: parseFloat(localStorage.getItem("ggd.master") || "1"),
   region: localStorage.getItem("ggd.region") || "asia",
-  version: "V.test1.2.2"
+  version: "V.test1.3.2"
 };
 
 function saveState() {

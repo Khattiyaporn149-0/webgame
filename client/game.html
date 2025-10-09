@@ -131,6 +131,7 @@
             <div id="gameControls">
                 <div>🎮 Use WASD or Arrow Keys to move</div>
                 <div class="status" id="gameStatus">Connecting...</div>
+                <div class="status" id="fpsCounter">FPS: --</div>
             </div>
         </div>
         
@@ -140,6 +141,7 @@
                 <div>Name: <span id="playerName">Loading...</span></div>
                 <div>Room: <span id="roomCode">Loading...</span></div>
                 <div>Position: <span id="playerPos">0, 0</span></div>
+                <div>Role: <span id="playerRole">Unknown</span></div>
             </div>
             
             <div id="playersList">
@@ -152,10 +154,47 @@
                 <div id="chatMessages"></div>
                 <input type="text" id="chatInput" placeholder="Type your message..." maxlength="100">
             </div>
+
+            <div id="actions" style="margin-top:20px;background:rgba(255,255,255,0.1);padding:12px;border-radius:8px;">
+                <h3>🧭 Actions</h3>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button id="btnStartRound">Start Game</button>
+                    <button id="btnReport">Report</button>
+                    <button id="btnCallMeeting">Call Meeting</button>
+                    <button id="btnKill" style="display:none;background:#e74c3c;color:#fff;">KILL</button>
+                </div>
+                <div class="status" id="roundStatus"></div>
+            </div>
+
+            <div id="debugPanel" style="margin-top:16px;background:rgba(255,255,255,0.08);padding:10px;border-radius:8px;">
+              <h3>🧪 Debug</h3>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button id="btnAddBot">Add Bot</button>
+                <button id="btnForceImp">Force Impostor</button>
+                <button id="btnForceCrew">Force Crew</button>
+                <button id="btnSpawnBody">Spawn Body</button>
+              </div>
+              <div class="status">Use these to test solo.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Meeting Overlay -->
+    <div id="meetingOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:20;">
+        <div style="background:#222;border:1px solid #555;border-radius:12px;padding:20px;min-width:320px;max-width:90vw;color:#fff;">
+            <h2 style="margin-top:0">📣 Meeting</h2>
+            <div id="meetingInfo" class="status" style="margin-bottom:10px;">Discuss and vote</div>
+            <div id="candidates" style="display:flex;flex-direction:column;gap:8px;max-height:40vh;overflow:auto;"></div>
+            <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end;">
+                <button id="btnVoteSkip">Skip</button>
+                <button id="btnCloseMeeting">Close</button>
+            </div>
         </div>
     </div>
 
     
+    <!-- Socket.IO client for realtime movement -->
+    <script src="/socket.io/socket.io.js"></script>
     <script type="module" src="game.js"></script>
 </body>
 </html>
