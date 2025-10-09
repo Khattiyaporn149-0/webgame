@@ -226,7 +226,7 @@ function startCountdown() {
       overlay.classList.remove("show");
       // ⚠️ ถ้าต้องการ reset chat ตอนเริ่มเกม ให้ล้างที่นี่ (เฉพาะ host ก็ได้)
       // await set(ref(rtdb, `lobbies/${roomCode}/chat`), null);
-      location.href = "game.html";
+      location.href = `game.html?code=${encodeURIComponent(roomCode)}`;
     }
   }, 1000);
 }
