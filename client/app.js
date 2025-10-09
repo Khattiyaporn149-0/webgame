@@ -93,6 +93,20 @@ function nameOk(n) {
   return valid.test(t);
 }
 
+// Startup gating: if a valid name already exists, keep the start screen hidden
+(function ensureStartScreenState(){
+  try {
+    const stored = localStorage.getItem("ggd.name") || localStorage.getItem("playerName") || "";
+    const candidate = state.name !== "Guest" ? state.name : stored;
+    if (nameOk(candidate) && candidate !== "Guest") {
+      if (state.name === "Guest") { state.name = candidate; saveState(); }
+      hideStartScreen();
+      const top = document.getElementById("playerNameTop");
+      if (top) top.textContent = state.name;
+    }
+  } catch {}
+})();
+
 startBtn?.addEventListener("click", () => {
   const name = playerNameInput.value.trim();
   if (!nameOk(name)) return alert("❗ ชื่อต้องยาว 3–16 ตัวอักษร");
