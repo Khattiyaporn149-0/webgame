@@ -12,6 +12,8 @@ const chatInput = $("chatInput");
 const chatMessages = $("chatMessages");
 
 // ---------- Context ----------
+
+// ดึงข้อมูล room code จาก URL
 const params = new URLSearchParams(location.search);
 const roomCode = params.get("code");
 if (!roomCode) {
@@ -19,18 +21,43 @@ if (!roomCode) {
   throw new Error("Missing room code");
 }
 
-const displayName =
+// ✅ ตรวจสอบผู้ใช้ (auth / guest)
+import { auth } from "./firebase.js"; // ใช้จากไฟล์ firebase.js ที่แก้ไปก่อนหน้า
+
+// --- ถ้ามี user login อยู่ ให้ใช้ uid จริง ---
+let user = auth.currentUser;
+
+// 🔹 ถ้า refresh แล้ว auth ยังไม่โหลดทัน ให้รอ state เปลี่ยนก่อน
+if (!user) {
+  await new Promise((resolve) => {
+    const unsub = auth.onAuthStateChanged((u) => {
+      user = u;
+      unsub();
+      resolve();
+    });
+  });
+}
+
+// 🔹 ถ้า login อยู่ → ใช้ข้อมูลจริงจาก Firebase Auth
+// 🔹 ถ้าไม่ได้ login → ใช้ระบบ guest เดิม (localStorage + random UID)
+const displayName = user?.displayName ||
   localStorage.getItem("ggd.name") ||
   localStorage.getItem("playerName") ||
   `Player_${Math.random().toString(36).slice(2, 7)}`;
-const uid =
+
+const uid = user?.uid ||
   sessionStorage.getItem("ggd.uid") ||
   (() => {
-    const v = crypto?.randomUUID?.() || "uid_" + Math.random().toString(36).slice(2, 10);
+    const v =
+      crypto?.randomUUID?.() || "uid_" + Math.random().toString(36).slice(2, 10);
     sessionStorage.setItem("ggd.uid", v);
     return v;
   })();
 
+localStorage.setItem("ggd.name", displayName);
+localStorage.setItem("ggd.uid", uid);
+
+// แสดงชื่อผู้เล่น + รหัสห้อง
 $("playerName").textContent = displayName;
 $("roomCode").textContent = roomCode;
 
