@@ -80,8 +80,9 @@
     click: null,
     init() {
       // Reuse existing if any (same-page scripts)
-      this.bgm = window.bgm || new Audio('/client/assets/sounds/galaxy-283941.mp3');
-      this.click = window.clickSound || new Audio('/client/assets/sounds/click.mp3');
+      // Serve from the static client root; express serves ../client as '/'
+      this.bgm = window.bgm || new Audio('assets/sounds/galaxy-283941.mp3');
+      this.click = window.clickSound || new Audio('assets/sounds/click.mp3');
 
       this.bgm.loop = true;
 
