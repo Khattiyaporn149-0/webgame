@@ -176,23 +176,6 @@ try {
   }
 } catch {}
 
-// Join / presence for RTDB (used for sidebar and chat)
-try {
-  await set(myPlayerRef, {
-    uid,
-    name: displayName,
-    x: gameState.myPlayer.x,
-    y: gameState.myPlayer.y,
-    color: gameState.myPlayer.color,
-    online: true,
-    lastUpdate: serverTimestamp(),
-  });
-  onDisconnect(myPlayerRef).remove();
-} catch (e) {
-  console.warn("RTDB set myPlayerRef failed", e);
-  $("gameStatus").textContent = '❌ Permission denied: update Firebase rules for /games';
-}
-
 // Sync messages via RTDB (keep chat on RTDB)
 let cachedOthers = [];
 onValue(ref(rtdb, `games/${roomCode}/messages`), (snap) => {
@@ -290,16 +273,16 @@ function handleMovement(dt) {
         socket.volatile.emit('input', { seq: ++inputSeq, t: Date.now(), ax, ay });
         lastNetUpdate = now;
       }
-    } else {
-      if (now - lastNetUpdate > NET_INTERVAL_MS) {
-        update(myPlayerRef, {
-          x: Math.round(gameState.myPlayer.x),
-          y: Math.round(gameState.myPlayer.y),
-          lastUpdate: serverTimestamp(),
-        }).catch(() => {});
-        $("playerPos").textContent = `${Math.round(gameState.myPlayer.x)}, ${Math.round(gameState.myPlayer.y)}`;
-        lastNetUpdate = now;
-      }
+    // } else {
+    //   if (now - lastNetUpdate > NET_INTERVAL_MS) {
+    //     update(myPlayerRef, {
+    //       x: Math.round(gameState.myPlayer.x),
+    //       y: Math.round(gameState.myPlayer.y),
+    //       lastUpdate: serverTimestamp(),
+    //     }).catch(() => {});
+    //     $("playerPos").textContent = `${Math.round(gameState.myPlayer.x)}, ${Math.round(gameState.myPlayer.y)}`;
+    //     lastNetUpdate = now;
+    //   }
     }
   }
 }
