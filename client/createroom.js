@@ -1,57 +1,22 @@
 // client/createroom.js
-// ใช้กับหน้า createroom.html (RTDB ล้วน)
-// ต้องมี firebase.js ที่ export: rtdb, ref, set, update, onDisconnect, get
-
 import { rtdb, ref, set, update, onDisconnect, get } from "./firebase.js";
 import { serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 // ---------- DOM ----------
 const $ = (id)=>document.getElementById(id);
-const nameInput   = $("roomName");
-const nameError   = $("nameError");
-const maxSel      = $("maxPlayers");
-const typeSel     = $("roomType");
-const passRow     = $("roomPassRow");   // มีใน HTML (จะซ่อน/โชว์อัตโนมัติ)
-const passInput   = $("roomPass");      // อาจไม่มี ถ้าไม่ใช้ private ให้เช็คก่อน
-const btnCreate   = $("btnCreate");
-const btnBack     = $("btnBack");
+const nameInput = $("roomName");
+const nameError = $("nameError");
+const maxSel    = $("maxPlayers");
+const typeSel   = $("roomType");
+const btnCreate = $("btnCreate");
+const btnBack   = $("btnBack");
 
-// ---------- UI: settings modal ----------
+// ---------- Settings modal ----------
 const modal = $("settingsModal");
 $("btnSettingsTop").onclick = ()=> modal.setAttribute("aria-hidden","false");
 $("closeSettings").onclick  = ()=> modal.setAttribute("aria-hidden","true");
 
-// ---------- UI: โชว์/ซ่อนช่องรหัสตามประเภท ----------
-typeSel.addEventListener("change", ()=>{
-  if (passRow) passRow.style.display = typeSel.value === "private" ? "block" : "none";
-});
-
-// ---------- Helper ----------
-function genCode(len=4){
-  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // ตัด I O 0 1 เพื่อลดสับสน
-  let s = "";
-  for (let i=0;i<len;i++) s += chars[Math.floor(Math.random()*chars.length)];
-  return s;
-}
-function getPlayerName(){
-  return localStorage.getItem("ggd.name")
-      || localStorage.getItem("playerName")
-      || `Player_${Math.random().toString(36).slice(2,7)}`;
-}
-// uid ต่อแท็บ (กันทับเวลาเปิดหลายแท็บ)
-const uid = sessionStorage.getItem("ggd.uid") || (()=>{
-  const v = (crypto?.randomUUID?.() || ("uid_"+Math.random().toString(36).slice(2,10)));
-  sessionStorage.setItem("ggd.uid", v);
-  return v;
-})();
-
-// SHA-256 → hex
-async function sha256Hex(s){
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
-  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-
-// ---------- Background (เล็ก ๆ พอมีชีวิตชีวา) ----------
+// ---------- BG (เอฟเฟกต์พื้นหลังเล็ก ๆ) ----------
 const bg = $("bgCanvas");
 if (bg) {
   const ctx = bg.getContext("2d");
@@ -70,12 +35,31 @@ if (bg) {
   setInterval(drawBackground, 10000);
 }
 
+// ---------- Helpers ----------
+function genCode(len=4){
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // ไม่มี I,O,0,1
+  let s = "";
+  for (let i=0;i<len;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+function getPlayerName(){
+  return localStorage.getItem("ggd.name")
+      || localStorage.getItem("playerName")
+      || `Player_${Math.random().toString(36).slice(2,7)}`;
+}
+// uid ต่อแท็บ
+const uid = sessionStorage.getItem("ggd.uid") || (()=> {
+  const v = (crypto?.randomUUID?.() || ("uid_"+Math.random().toString(36).slice(2,10)));
+  sessionStorage.setItem("ggd.uid", v);
+  return v;
+})();
+
 // ---------- สร้างห้อง ----------
 async function createRoom(){
-  const roomName  = (nameInput.value || "").trim();
-  const maxPlayers= parseInt(maxSel.value, 10);
-  const roomType  = typeSel.value;
-  const hostName  = getPlayerName();
+  const roomName   = (nameInput.value || "").trim();
+  const maxPlayers = parseInt(maxSel.value, 10);
+  const roomType   = typeSel.value; // 'public' | 'private'
+  const hostName   = getPlayerName();
 
   if (!roomName){
     nameError.textContent = "กรุณาตั้งชื่อห้อง";
@@ -84,19 +68,7 @@ async function createRoom(){
   }
   nameError.textContent = "";
 
-  // ถ้า private ต้องมีรหัส → เก็บเป็น hash
-  let joinHash = null;
-  if (roomType === "private") {
-    const pass = (passInput?.value || "").trim();
-    if (pass.length < 4) {
-      alert("รหัสห้องต้องอย่างน้อย 4 ตัว");
-      passInput?.focus();
-      return;
-    }
-    joinHash = await sha256Hex(pass);
-  }
-
-  // สุ่มโค้ด 4 ตัว + กันชนซ้ำ (เช็ค RTDB)
+  // สุ่มโค้ด 4 ตัว + กันชนซ้ำ
   let code = genCode(4);
   for (let tries=0; tries<8; tries++){
     const ex = await get(ref(rtdb, `rooms/${code}`));
@@ -108,38 +80,37 @@ async function createRoom(){
   const roomRef = ref(rtdb, `rooms/${code}`);
   await set(roomRef, {
     code, name: roomName, maxPlayers, type: roomType,
-    host: hostName, status: "lobby",
+    host: hostName, hostId: uid,
+    status: "lobby",
     playerCount: 1,
-    joinHash: joinHash,                         // null ถ้า public
     createdAt: serverTimestamp(), lastActivity: serverTimestamp()
   });
 
-  // (2) lobbies/{code}/players/{uid}  — ใช้ uid เป็น key กันทับ
+  // (2) lobbies/{code}/players/{uid}
   const meRef = ref(rtdb, `lobbies/${code}/players/${uid}`);
   await set(meRef, {
-    uid,
-    name: hostName,
-    isHost: true,
-    ready: false,
-    online: true,
-    char: "mini_brown",
-    joinTime: serverTimestamp()
+    uid, name: hostName, isHost: true, ready: false, online: true,
+    char: "mini_brown", joinTime: serverTimestamp()
   });
   onDisconnect(meRef).remove();
 
   // (3) bump activity
   await update(roomRef, { lastActivity: serverTimestamp() });
 
-  // (4) เก็บ context & เด้งไป lobby
+  // (4) context & แจ้งโค้ดห้อง & ไป lobby
   localStorage.setItem("currentRoom", JSON.stringify({
     code, name: roomName, maxPlayers, type: roomType, isHost: true
   }));
   localStorage.setItem("playerName", hostName);
   localStorage.setItem("ggd.name", hostName);
 
-  // ถ้า private ให้ mark ว่าผ่านการยืนยันรหัสแล้ว (ไว้ให้ lobby ตรวจ)
-  if (roomType === "private") {
-    localStorage.setItem(`roomAuth:${code}`, "ok");
+  const inviteURL = new URL(`lobby.html`, location.href);
+  inviteURL.searchParams.set("code", code);
+  try {
+    await navigator.clipboard.writeText(inviteURL.toString());
+    alert(`รหัสห้องของคุณคือ: ${code}\nลิงก์เชิญถูกคัดลอกแล้ว!`);
+  } catch {
+    alert(`รหัสห้องของคุณคือ: ${code}`);
   }
 
   location.href = `lobby.html?code=${code}`;
