@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Heist - Demo (Interactable Meeting)</title>
+    <style>
+        /* ตั้งค่าพื้นฐาน */
+        body {
+            margin: 0;
+            background-color: #000;
+            font-family: Arial, sans-serif;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* -------------------------------------------
+            1. GAME CONTAINER (แผนที่หลัก)
+            ------------------------------------------- */
+        #game-container {
+            position: absolute; 
+            width: 8192px; 
+            height: 8192px; 
+            background-color: #222; 
+            background-position: left top;
+            background-repeat: no-repeat;
+            overflow: hidden;
+            z-index: 1; 
+            transition: transform 0.05s linear;
+            background-image: url('assets/images/map_base_8192.png'); /* ใช้ภาพฐานที่ตรงกับ Tiled */
+            background-size: 8192px 8192px; /* ขนาดของแผนที่ตามที่คุณตั้งค่าไว้ */
+            will-change: transform; 
+            backface-visibility: hidden; 
+            transform: translateZ(0); /* hint GPU */
+        }
+
+        /* Debug overlay Canvas บนแผนที่หลัก */
+        #debug-overlay {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        /* ตัวละครผู้เล่น */
+        #player {
+            position: absolute;
+            width: 128px;
+            height: 128px;
+            image-rendering: pixelated;
+            z-index: 300; 
+            transition: transform 0.05s linear;
+            will-change: transform; 
+            backface-visibility: hidden; 
+            transform: translateZ(0);
+        }
+        
+        /* -------------------------------------------
+            2. VISION OVERLAY (Fog of War)
+            ------------------------------------------- */
+        #vision-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 200;
+            will-change: background; 
+        }
+        
+        /* -------------------------------------------
+            3. MISSION SPOTS (จุดภารกิจ)
+            ------------------------------------------- */
+        .mission-spot {
+            position: absolute;
+            width: 90px; 
+            height: 90px; 
+            border-radius: 8px;
+            opacity: 0.6;
+            z-index: 100;
+            transition: opacity 0.2s, border 0.2s;
+        }
+
+        #mission-guest {
+            background-color: blue; 
+            border: 5px solid blue;
+        }
+
+        #mission-heist {
+            background-color: red; 
+            border: 5px solid red;
+        }
+
+        #mission-meeting {
+            width: 150px; 
+            height: 150px;
+            background-color: yellow; 
+            border: 8px solid #ffcc00;
+        }
+        
+        /* -------------------------------------------
+            4. INTERACTION UI (ข้อความโต้ตอบ)
+            ------------------------------------------- */
+        #interaction-hint {
+            position: fixed;
+            bottom: 50px; 
+            left: 50%;
+            transform: translateX(-50%); 
+            padding: 10px 20px;
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #000;
+            border-radius: 5px;
+            font-size: 1.5em;
+            font-weight: bold;
+            z-index: 500; 
+            display: none; 
+        }
+        
+        /* -------------------------------------------
+            5. LOG EVENT UI (ระบบหลักฐาน)
+            ------------------------------------------- */
+        #log-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 300px;
+            max-height: 200px;
+            overflow-y: auto; 
+            z-index: 500;
+            padding: 10px;
+            padding-right: 15px; 
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 5px;
+        }
+        
+        #log-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #log-container::-webkit-scrollbar-thumb {
+            background-color: #555;
+            border-radius: 4px;
+        }
+
+        .log-message {
+            color: white;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            opacity: 1;
+            transition: opacity 1s linear; 
+        }
+
+        .log-message.heist {
+            color: #ffcc00; 
+            font-weight: bold;
+        }
+
+        /* -------------------------------------------
+            6. MISSION STATUS UI (แถบภารกิจ)
+            ------------------------------------------- */
+        #mission-status-container {
+            position: fixed;
+            top: 20px;
+            right: 190px; 
+            width: 350px;
+            z-index: 500;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 5px;
+            color: white;
+            font-size: 1.1em;
+        }
+
+        #mission-bar-background {
+            width: 100%;
+            height: 20px;
+            background-color: #333;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        #mission-bar-fill {
+            height: 100%;
+            width: 0%; 
+            background-color: #00cc00;
+            transition: width 0.3s ease-out;
+        }
+        
+        /* -------------------------------------------
+            7. MEETING SYSTEM UI (Modal)
+            ------------------------------------------- */
+        #meeting-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            /* ** NEW: ซ่อนตามค่าเริ่มต้นเพื่อรอการเรียกใช้ ** */
+            display: none; 
+        }
+
+        #meeting-content {
+            background-color: #1a1a1a;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+            color: white;
+            width: 80%;
+            max-width: 600px;
+        }
+        
+        #voting-area button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+
+        #voting-area button:hover {
+            background-color: #45a049;
+        }
+        
+        /* -------------------------------------------
+            8. ROLE REVEAL MODAL 
+            ------------------------------------------- */
+
+        @keyframes pulseShadow-Visitor {
+            0% { text-shadow: 0 0 2px rgba(255, 255, 255, 0.5); } 
+            50% { text-shadow: 0 0 15px rgba(76, 175, 80, 0.9); } 
+            100% { text-shadow: 0 0 2px rgba(255, 255, 255, 0.5); }
+        }
+
+        @keyframes pulseShadow-Thief {
+            0% { text-shadow: 0 0 2px rgba(255, 255, 255, 0.5); } 
+            50% { text-shadow: 0 0 15px rgba(255, 0, 0, 0.9); } 
+            100% { text-shadow: 0 0 2px rgba(255, 255, 255, 0.5); }
+        }
+        
+        @keyframes pulseGlow-Visitor {
+            0% { box-shadow: 0 0 15px 8px rgba(255, 255, 255, 0.4); } 
+            50% { box-shadow: 0 0 45px 25px rgba(76, 175, 80, 1.0); } 
+            100% { box-shadow: 0 0 15px 8px rgba(255, 255, 255, 0.4); }
+        }
+
+        @keyframes pulseGlow-Thief {
+            0% { box-shadow: 0 0 15px 8px rgba(255, 255, 255, 0.4); } 
+            50% { box-shadow: 0 0 45px 25px rgba(255, 0, 0, 1.0); } 
+            100% { box-shadow: 0 0 15px 8px rgba(255, 255, 255, 0.4); }
+        }
+        
+        .role-name-visitor { animation: pulseShadow-Visitor 2s infinite; }
+        .role-name-thief { animation: pulseShadow-Thief 2s infinite; }
+
+        #role-character-display {
+            position: relative; 
+            margin-top: 30px; 
+            width: 256px; 
+            height: 256px; 
+            display: block; 
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        #role-character-display::before {
+            content: '';
+            position: absolute;
+            bottom: -10px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px; 
+            height: 40px; 
+            background: transparent; 
+            border-radius: 50%; 
+            box-shadow: 0 0 15px 8px rgba(255, 255, 255, 0.4); 
+            z-index: 1; 
+        }
+
+        .character-glow-visitor::before { animation: pulseGlow-Visitor 2s infinite; }
+        .character-glow-thief::before { animation: pulseGlow-Thief 2s infinite; }
+
+        #role-character-image {
+            position: relative; 
+            z-index: 2; 
+            width: 256px; 
+            height: 256px;
+            image-rendering: pixelated;
+            border: none; 
+            box-shadow: none; 
+            transition: transform 0.2s;
+        }
+        
+        #role-reveal-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 1.0); 
+            z-index: 2000; 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: white;
+            font-family: 'Arial Black', sans-serif;
+            transition: opacity 1s ease-out;
+            animation: none; 
+            /* ** NEW: ซ่อนตามค่าเริ่มต้นเพื่อรอการเรียกใช้ ** */
+            display: none; 
+        }
+
+        #role-content {
+            padding: 20px;
+            transform: scale(1.0);
+            transition: transform 0.5s ease-out;
+        }
+
+        #role-reveal-modal.revealed #role-content {
+            transform: scale(1.05); 
+        }
+
+        #role-name-text {
+            font-size: 5em;
+            margin-bottom: 0.2em;
+            color: #fff; 
+            text-shadow: 0 0 2px rgba(255, 255, 255, 0.5); 
+        }
+
+        #role-team-text {
+            font-size: 2.5em;
+            color: #ffcc00; 
+            margin-bottom: 0.5em;
+            transition: color 0.5s ease-out; 
+            animation: none;
+        }
+
+        #role-ability-text {
+            font-size: 1.8em;
+            color: #fff; 
+            animation: none;
+        }
+        
+        /* -------------------------------------------
+            9. MINIMAP UI (แก้ไข: Fullscreen เป็นทรงกลมและกลางจอ)
+            ------------------------------------------- */
+        /* ตัวครอบ Minimap (Viewport) */
+        #map-overlay {
+            --minimap-size: 150px; /* ขนาด Minimap ปกติ */
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: var(--minimap-size);
+            height: var(--minimap-size);
+            border-radius: 50%; /* ทำให้เป็นวงกลม */
+            overflow: hidden; 
+            border: 3px solid rgba(255, 255, 255, 0.2); 
+            z-index: 500;
+            transition: width 0.3s, height 0.3s, border-radius 0.3s, background-color 0.3s, transform 0.3s;
+        }
+
+        /* โหมดแผนที่เต็มจอ (Fullscreen - วงกลมขนาดใหญ่กลางจอ) */
+        #map-overlay.fullscreen {
+            top: 50%; /* จัดให้อยู่กึ่งกลางหน้าจอแนวนอน */
+            right: auto;
+            left: 50%; /* จัดให้อยู่กึ่งกลางหน้าจอแนวตั้ง */
+            /* ขยาย Minimap ให้มีขนาดใหญ่ขึ้น */
+            width: 80vh; 
+            height: 80vh;
+            border-radius: 50%; /* คงคุณสมบัติทรงกลมไว้ */
+            background-color: rgba(0, 0, 0, 0.95);
+            /* **จัดตำแหน่งให้ Minimap ที่ใหญ่ขึ้นอยู่กึ่งกลางหน้าจอโดยสมบูรณ์** */
+            transform: translate(-50%, -50%); 
+        }
+
+        /* ส่วนของแผนที่จริงที่ถูกย่อ/เลื่อน */
+        #minimap-content {
+            width: 8192px; /* ขนาดเดิมของแผนที่ */
+            height: 8192px;
+            position: absolute; /* เพื่อให้สามารถ Transform ได้ */
+            transform-origin: top left;
+        }
+
+        #minimap-base {
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+
+        /* จุดผู้เล่นบน Minimap/Full Map */
+        #minimap-player-dot {
+            position: absolute;
+            width: 10px; /* ลดขนาดจุดผู้เล่นเหลือ 10px */
+            height: 10px;
+            border-radius: 50%;
+            background-color: #00ff00; /* สีเขียว */
+            z-index: 700; 
+            transform: translate(-50%, -50%); /* จัดกึ่งกลางตัวเอง */
+        }
+
+        /* จุดภารกิจบน Minimap/Full Map */
+        .minimap-mission-dot {
+            position: absolute;
+            width: 6px; /* ลดขนาดจุดภารกิจเหลือ 6px */
+            height: 6px;
+            border-radius: 50%;
+            background-color: #fff; /* จุดสีขาว */
+            z-index: 650;
+            transform: translate(-50%, -50%); /* จัดกึ่งกลางตัวเอง */
+        }
+        
+        #minimap-guest-dot { background-color: #00bfff; } /* ฟ้า */
+        #minimap-heist-dot { background-color: #ff4500; } /* ส้ม/แดง */
+        #minimap-meeting-dot { 
+            background-color: #ffff00; 
+            width: 15px; /* ลดขนาดจุดประชุมเหลือ 15px */
+            height: 15px; 
+            border-radius: 50%;
+        } /* เหลือง */
+        
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <img id="player" src="assets/images/idle_1.png" alt="Player Character">
+        
+        <div id="mission-guest" class="mission-spot"></div>
+        <div id="mission-heist" class="mission-spot"></div>
+        <div id="mission-meeting" class="mission-spot"></div>
+
+        <!-- Debug Canvas Overlay -->
+        
+        </div>
+    
+    <div id="vision-overlay"></div>
+    <!-- Debug Canvas Overlay (moved outside container so it isn't transformed) -->
+    <canvas id='debug-overlay' width='1' height='1'></canvas>
+    <div id="interaction-hint">กด [E] เพื่อโต้ตอบ</div>
+    
+    <div id="mission-status-container">
+        <p>ความคืบหน้าภารกิจ (ผู้เยี่ยมชม): <span id="mission-progress-text">0%</span></p>
+        <div id="mission-bar-background">
+            <div id="mission-bar-fill"></div>
+        </div>
+    </div>
+    
+    <div id="log-container">
+    </div>
+    
+    <div id="meeting-modal">
+        <div id="meeting-content">
+            <h2>การประชุมฉุกเฉินเริ่มต้นขึ้น</h2>
+            <p>ทุกคนกำลังพูดคุยและโต้แย้งหลักฐาน...</p>
+            
+            <div id="voting-area">
+                <p>หัวขโมยคือใคร?</p>
+                <button class="vote-option" data-target="Player 2">โหวต Player 2 (ผู้ต้องสงสัย)</button>
+                <button class="vote-option" data-target="Player 3">โหวต Player 3</button>
+                <button class="vote-option" data-target="Skip">ข้ามการโหวต</button>
+            </div>
+            
+            <p id="vote-result" style="margin-top: 20px; color: yellow; font-weight: bold;"></p>
+
+            <button id="end-meeting-button" style="margin-top: 20px;">
+                สิ้นสุดการประชุม
+            </button>
+        </div>
+    </div>
+    
+    <div id="role-reveal-modal"> 
+        <div id="role-content">
+            <h1 id="role-name-text">กำลังโหลดบทบาท...</h1>
+            <h2 id="role-team-text">ฝ่าย: ...</h2> 
+            <p id="role-ability-text">...</p>
+            <div id="role-character-display">
+                <img id="role-character-image" src="" alt="Player Character">
+            </div>
+            </div>
+    </div>
+
+    <div id="map-overlay">
+        <div id="minimap-content">
+            <img id="minimap-base" src="assets/images/map_base_8192.png" alt="Map Base">
+            
+            <div id="minimap-player-dot"></div>
+            <div id="minimap-guest-dot" class="minimap-mission-dot"></div>
+            <div id="minimap-heist-dot" class="minimap-mission-dot"></div>
+            <div id="minimap-meeting-dot" class="minimap-mission-dot"></div>
+        </div>
+    </div>
+
+    <!-- Debug Panel -->
+    <div id="debug-panel" style="position:fixed; left:10px; bottom:10px; background:#0009; color:#0f0; font-family:monospace; font-size:12px; line-height:1.4; padding:8px 10px; border:1px solid #0f0; border-radius:6px; z-index:1200; display:none;"></div>
+    
+    <audio id="sfx-interact" src="assets/sounds/interaction_success.mp3"></audio>
+    <audio id="sfx-heist" src="assets/sounds/heist_alarm.mp3"></audio>
+    <audio id="bgm-music" src="assets/sounds/bgm_loop.mp3" loop></audio>
+
+    <script src="game.js"></script>
+</body>
+</html>
+
+
