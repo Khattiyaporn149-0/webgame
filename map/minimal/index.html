@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Map Minimal</title>
+    <style>
+      html, body { height: 100%; margin: 0; background: #0f1220; color: #e6e8ef; font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+      .wrap { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+      header { padding: 8px 12px; color: #9aa3b2; }
+      main { display: block; height: 100%; }
+      canvas { width: 100vw; height: 100vh; display: block; background: #0b0e1b; border: 1px solid #1f2745; image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        ตัวอย่างแบบมินิมอล: เดินด้วย Arrow/WASD · พื้นหลัง map.png · กล้องตามตัวละคร · กริดโชว์ค่า x,y
+      </header>
+      <main>
+        <canvas id="game" width="800" height="600"></canvas>
+      </main>
+    </div>
+
+    <script type="module" src="main.js"></script>
+  </body>
+  </html>

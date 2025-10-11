@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Heist - Minigame Overworld</title>
+  <link rel="stylesheet" href="world.css">
+  <script src="../config.js"></script>
+</head>
+<body>
+  <!-- 🌌 Overworld Canvas -->
+  <canvas id="world"></canvas>
+
+  <!-- ========== 🧩 Overlays (แต่ละมินิเกม) ========== -->
+
+  <!-- Dodge Square -->
+  <div class="overlay" id="miniOverlayDodge" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniDodge">×</button>
+      <h2>Dodge Square</h2>
+      <canvas id="game"></canvas>
+      <div class="panel">
+        <button id="startBtn">เริ่มเกม</button>
+        <p>คะแนน: <span id="score">0.0</span></p>
+        <p>ดีที่สุด: <span id="best">0.0</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reaction Tester -->
+  <div class="overlay" id="miniOverlayReact" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniReact">×</button>
+      <h2>Reaction Tester</h2>
+      <canvas id="reactCanvas" width="800" height="450"></canvas>
+      <div class="panel">
+        <button id="reactStart">เริ่ม</button>
+        <p>ดีที่สุด: <span id="reactBest">--</span> ms</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Aim Trainer -->
+  <div class="overlay" id="miniOverlayAim" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniAim">×</button>
+      <h2>Aim Trainer</h2>
+      <canvas id="aimCanvas" width="800" height="450"></canvas>
+      <div class="panel">
+        <button id="aimStart">เริ่ม</button>
+        <p>Hits: <span id="aimHits">0</span> | Best: <span id="aimBest">0</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Speed Tap -->
+  <div class="overlay" id="miniOverlayTap" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniTap">×</button>
+      <h2>Speed Tap</h2>
+      <div class="tap-container">
+        <p>เวลา: <span id="tapTimer">5.0</span> วิ</p>
+        <p>คะแนน: <span id="tapScore">0</span></p>
+        <p>ดีที่สุด: <span id="tapBest">0</span></p>
+        <button id="tapStart">เริ่ม</button>
+        <p class="hint">กด Space ให้ได้มากที่สุดใน 5 วินาที!</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🧩 Task แบบ Among Us -->
+  <div class="overlay" id="miniOverlayWires" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniWires">×</button>
+      <h2>Fix Wiring</h2>
+      <canvas id="wiresCanvas" width="800" height="450"></canvas>
+    </div>
+  </div>
+
+  <div class="overlay" id="miniOverlayUpload" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniUpload">×</button>
+      <h2>Upload Data</h2>
+      <div class="upload">
+        <div id="uploadBar" class="bar"></div>
+        <p id="uploadText">0%</p>
+        <button id="uploadStart">เริ่ม Upload</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="miniOverlayMix" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniMix">×</button>
+      <h2>Mix Chemical</h2>
+      <canvas id="mixCanvas" width="800" height="450"></canvas>
+    </div>
+  </div>
+
+  <div class="overlay" id="miniOverlaySwitch" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniSwitch">×</button>
+      <h2>Power Switch</h2>
+      <div id="switchPanel" class="switch-panel"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="miniOverlayCard" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniCard">×</button>
+      <h2>Swipe Card</h2>
+      <div class="card-area">
+        <div id="card" class="card"></div>
+      </div>
+      <p id="cardStatus">พร้อมรูด...</p>
+    </div>
+  </div>
+
+  <div class="overlay" id="miniOverlayTimer" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniTimer">×</button>
+      <h2>Perfect Timer</h2>
+      <p id="timerDisplay">3.00</p>
+      <button id="timerStart">เริ่ม</button>
+      <p class="hint">กด Space ตอนเวลาถึง 0.00 พอดี!</p>
+    </div>
+  </div>
+
+  <div class="overlay" id="miniOverlayAlign" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniAlign">×</button>
+      <h2>Align Engine</h2>
+      <canvas id="alignCanvas" width="800" height="450"></canvas>
+    </div>
+  </div>
+
+  <!-- Simon Says -->
+  <div class="overlay" id="miniOverlaySimon" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniSimon">x</button>
+      <h2>Simon Says</h2>
+      <div id="simonBoard" style="display:grid;grid-template-columns:repeat(2,140px);gap:12px;justify-content:center;margin:8px 0;">
+        <button class="simon-pad" data-pad="0" style="width:140px;height:140px;border-radius:12px;background:#e53935"></button>
+        <button class="simon-pad" data-pad="1" style="width:140px;height:140px;border-radius:12px;background:#43a047"></button>
+        <button class="simon-pad" data-pad="2" style="width:140px;height:140px;border-radius:12px;background:#1e88e5"></button>
+        <button class="simon-pad" data-pad="3" style="width:140px;height:140px;border-radius:12px;background:#fdd835"></button>
+      </div>
+      <div class="panel">
+        <button id="simonStart">เริ่ม</button>
+        <p>รอบ: <span id="simonRound">0</span> | ดีที่สุด: <span id="simonBest">0</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pipe Connect -->
+  <div class="overlay" id="miniOverlayPipes" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniPipes">x</button>
+      <h2>Pipe Connect</h2>
+      <canvas id="pipesCanvas" width="660" height="300"></canvas>
+      <div class="panel"><button id="pipesShuffle">สับใหม่</button></div>
+    </div>
+  </div>
+
+  <!-- Quick Math -->
+  <div class="overlay" id="miniOverlayMath" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniMath">x</button>
+      <h2>Quick Math</h2>
+      <div id="mathQ" style="font-size:28px;margin:10px 0;">1 + 2 = ?</div>
+      <div style="display:flex;gap:12px;justify-content:center;">
+        <button id="mathA"></button>
+        <button id="mathB"></button>
+      </div>
+      <div class="panel">
+        <span>เวลา: <span id="mathTime">15.0</span>s</span>
+        <span style="margin-left:12px;">ถูก: <span id="mathScore">0</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rhythm Tap -->
+  <div class="overlay" id="miniOverlayRhythm" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniRhythm">x</button>
+      <h2>Rhythm Tap</h2>
+      <canvas id="rhythmCanvas" width="800" height="240"></canvas>
+      <div class="panel">
+        <button id="rhythmStart">เริ่ม</button>
+        <span style="margin-left:12px;">คอมโบ: <span id="rhythmCombo">0</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pattern Lock -->
+  <div class="overlay" id="miniOverlayPattern" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniPattern">x</button>
+      <h2>Pattern Lock</h2>
+      <canvas id="patternCanvas" width="400" height="400"></canvas>
+      <div class="panel"><button id="patternStart">เริ่ม</button></div>
+    </div>
+  </div>
+
+  <!-- Lights Out -->
+  <div class="overlay" id="miniOverlayLights" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniLights">x</button>
+      <h2>Lights Out</h2>
+      <canvas id="lightsCanvas" width="400" height="400"></canvas>
+      <div class="panel"><button id="lightsShuffle">สับใหม่</button></div>
+    </div>
+  </div>
+
+  <!-- Whack-a-Mole -->
+  <div class="overlay" id="miniOverlayMole" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniMole">x</button>
+      <h2>Whack-a-Mole</h2>
+      <canvas id="moleCanvas" width="450" height="450"></canvas>
+      <div class="panel">
+        <button id="moleStart">เริ่ม</button>
+        <span style="margin-left:12px;">เวลา: <span id="moleTime">20.0</span>s</span>
+        <span style="margin-left:12px;">คะแนน: <span id="moleScore">0</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slider Puzzle -->
+  <div class="overlay" id="miniOverlaySlider" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniSlider">x</button>
+      <h2>Slider Puzzle</h2>
+      <canvas id="sliderCanvas" width="400" height="400"></canvas>
+      <div class="panel"><button id="sliderShuffle">สับใหม่</button></div>
+    </div>
+  </div>
+
+  <!-- Script -->
+  <script src="world.js"></script>
+</body>
+</html>
+
