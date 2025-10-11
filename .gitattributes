@@ -48,10 +48,7 @@
 *.txt  text eol=lf
 *.log  text eol=lf
 Dockerfile text eol=lf
-*.ps1  text eol=crlf   # PowerShell script ใช้ CRLF ดีกว่าใน Windows
-Makefile text eol=lf
-*.bat  text eol=crlf   # Batch script ใช้ CRLF ดีกว่าใน Windows
-*.cmd  text eol=crlf   # Command script ใช้ CRLF ดีกว่าใน Windows
+makefile text eol=lf
 *.cmake text eol=lf
 *.patch text eol=lf
 *.diff text eol=lf

@@ -1,201 +1,272 @@
-// =====================
-// 🌐 เชื่อมต่อเซิร์ฟเวอร์ Socket.IO
-// =====================
-const socket = io("https://webgame-25n5.onrender.com"); // ✅ Render URL จริง
-const params = new URLSearchParams(window.location.search);
-const roomCode = params.get("room");
-document.getElementById("roomCodeText").textContent = roomCode;
+// ✅ ใช้ RTDB อย่างเดียว (ไม่ใช้ socket.io)
+import {
+  rtdb, ref, set, update, onValue, onDisconnect, push, get, serverTimestamp
+} from "./firebase.js";
 
-// =====================
-// 🚀 โหลดทุกอย่างเมื่อหน้าเว็บพร้อม
-// =====================
-window.addEventListener("load", () => {
-  // =====================
-  // 🧩 ตัวแปรหลัก
-  // =====================
-  const readyBtn = document.getElementById("readyBtn");
-  const img = document.getElementById("charImage");
-  const chatInput = document.getElementById("chatInput");
-  const sendBtn = document.getElementById("sendBtn");
-  const chatBox = document.getElementById("chatMessages");
-  const playerListEl = document.getElementById("playerList");
-  const prevBtn = document.getElementById("prevChar");
-  const nextBtn = document.getElementById("nextChar");
+/* ---------- Utils & Context ---------- */
+const $ = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const roomCode = params.get("code");
 
-  let isReady = false;
+// ถ้าไม่มี code ส่งกลับไปหน้า roomlist
+if (!roomCode) {
+  location.href = "roomlist.html";
+  throw new Error("Missing room code");
+}
 
-  //sounds
-  const bgm = new Audio("assets/sounds/galaxy-283941.mp3");
-  const clickSound = new Audio("assets/sounds/click.mp3");
+const savedRoom = JSON.parse(localStorage.getItem("currentRoom") || "{}");
+const displayName =
+  localStorage.getItem("ggd.name") ||
+  localStorage.getItem("playerName") ||
+  `Player_${Math.random().toString(36).slice(2, 7)}`;
+const uid =
+  sessionStorage.getItem("ggd.uid") ||
+  (() => {
+    const v = crypto?.randomUUID?.() || "uid_" + Math.random().toString(36).slice(2, 10);
+    sessionStorage.setItem("ggd.uid", v);
+    return v;
+  })();
 
-    bgm.loop = true; // ให้เล่นวนลูป
-    bgm.volume = 0.5; // ปรับระดับเสียง 0.0 - 1.0
-    bgm.play();
+$("roomName").textContent = savedRoom.name || "Room";
+$("roomCode").textContent = roomCode || savedRoom.code || "-";
 
+/* ---------- Background ---------- */
+const canvas = $("bgCanvas");
+const ctx = canvas.getContext("2d");
+function drawBackground() {
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+  const g = ctx.createRadialGradient(
+    canvas.width / 2, canvas.height / 2, 0,
+    canvas.width / 2, canvas.height / 2, canvas.width * 0.6
+  );
+  g.addColorStop(0, "#1e2130");
+  g.addColorStop(1, "#0b0d12");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < 100; i++) {
+    const x = Math.random() * canvas.width, y = Math.random() * canvas.height;
+    ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.5 + 0.3})`;
+    ctx.beginPath(); ctx.arc(x, y, Math.random() * 1.5 + 0.5, 0, Math.PI * 2); ctx.fill();
+  }
+}
+drawBackground();
+addEventListener("resize", drawBackground);
 
-  // =====================
-  // ⚠️ กล่องเตือน
-  // =====================
-  const warningBox = document.createElement("div");
-  Object.assign(warningBox.style, {
-    position: "fixed",
-    bottom: "40px",
-    left: "50%",
-    transform: "translateX(-50%)",
-    background: "rgba(255,255,0,0.1)",
-    border: "1px solid #ffd86b",
-    color: "#ffd86b",
-    fontWeight: "700",
-    padding: "10px 20px",
-    borderRadius: "10px",
-    boxShadow: "0 0 15px rgba(255,255,0,0.3)",
-    backdropFilter: "blur(5px)",
-    display: "none",
-    zIndex: "9999",
-  });
-  warningBox.textContent = "⚠ เกมจะเริ่มอัตโนมัติเมื่อผู้เล่นทุกคนกด READY!";
-  document.body.appendChild(warningBox);
-
-  const showWarning = (show = true, msg) => {
-    warningBox.textContent =
-      msg || "⚠ เกมจะเริ่มอัตโนมัติเมื่อผู้เล่นทุกคนกด READY!";
-    warningBox.style.display = show ? "block" : "none";
-    if (show) {
-      warningBox.style.animation = "fadeInOut 1.5s ease";
-      setTimeout(() => (warningBox.style.animation = ""), 1500);
-    }
-  };
-
-  // =====================
-  // 🟩 ปุ่ม READY
-  // =====================
-  readyBtn.addEventListener("click", () => {
-    isReady = !isReady;
-    readyBtn.textContent = isReady ? "READY ✔" : "UNREADY ✖";
-    readyBtn.style.background = isReady
-      ? "linear-gradient(135deg,#77FF6B,#4AFF59)"
-      : "linear-gradient(135deg,#E02F2F,#C04125)";
-
-    img.classList.toggle("ready-char", isReady);
-
-    clickSound.currentTime = 0; clickSound.volume = state.sfx * state.volume; clickSound.play();
-    prevBtn.disabled = nextBtn.disabled = isReady;
-    prevBtn.style.opacity = nextBtn.style.opacity = isReady ? 0.3 : 1;
-    prevBtn.style.cursor = nextBtn.style.cursor = isReady
-      ? "not-allowed"
-      : "pointer";
-
-    showWarning(true);
-
-    // ส่งสถานะไป server
-    if (socket.connected) {
-      socket.emit("playerReady", { room: roomCode, ready: isReady });
-    }
-  });
-
-  // =====================
-  // 💬 ระบบแชท
-  // =====================
-  const sendMessage = () => {
-    const text = chatInput.value.trim();
-    if (text === "" || !socket.connected) return;
-    socket.emit("chatMessage", { room: roomCode, text });
-    chatInput.value = "";
-  };
-
-  sendBtn.addEventListener("click", sendMessage);
-  chatInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
-
-  socket.on("chatMessage", (data) => {
-    const msgEl = document.createElement("div");
-    msgEl.className = "chat-message";
-    msgEl.innerHTML = `<strong>${data.sender}:</strong> ${data.text}`;
-    chatBox.appendChild(msgEl);
-    chatBox.scrollTop = chatBox.scrollHeight;
-  });
-
-  // =====================
-  // 👥 อัปเดตรายชื่อผู้เล่นในห้อง
-  // =====================
-  socket.on("updatePlayers", (playerList) => {
-    playerListEl.innerHTML = "";
-    playerList.forEach((p) => {
-      const li = document.createElement("li");
-      li.textContent = `${p.name} ${p.ready ? "✔️" : "⌛"}`;
-      playerListEl.appendChild(li);
+/* ---------- Ensure room exists ---------- */
+const roomRef = ref(rtdb, `rooms/${roomCode}`);
+try {
+  const rs = await get(roomRef);
+  if (!rs.exists()) {
+    await set(roomRef, {
+      code: roomCode,
+      name: savedRoom.name || roomCode,
+      maxPlayers: savedRoom.maxPlayers || 8,
+      type: savedRoom.type || "public",
+      host: displayName,
+      status: "lobby",
+      playerCount: 0,
+      createdAt: serverTimestamp(),
+      lastActivity: serverTimestamp(),
     });
+  }
+} catch (e) {
+  console.warn("ensure room error:", e);
+}
 
-    const allReady = playerList.every((p) => p.ready);
-    if (allReady && playerList.length > 1) {
-      showWarning(true, "🚀 ทุกคนพร้อมแล้ว! เกมจะเริ่มใน 3...2...1...");
-      setTimeout(() => {
-        window.location.href = "game.html";
-      }, 3000);
+/* ---------- Join / Presence ---------- */
+const playerRef = ref(rtdb, `lobbies/${roomCode}/players/${uid}`);
+await set(playerRef, {
+  uid,
+  name: displayName,
+  isHost: !!savedRoom.isHost,
+  ready: false,
+  online: true,
+  char: "mini_brown",
+  joinTime: serverTimestamp(),
+});
+onDisconnect(playerRef).remove();
+await update(roomRef, { lastActivity: serverTimestamp() });
+
+/* ---------- Character selection (no-duplicate) ---------- */
+const characters = [
+  "mini_brown","mini_coral","mini_gray","mini_lavender",
+  "mini_mint","mini_pink","mini_sky_blue","mini_yellow"
+];
+let currentCharIndex = 0;
+let isReady = false;
+
+// เก็บว่า char ใครจองอยู่ { charName: uid }
+let takenBy = {};
+
+const img = $("charImage");
+const label = $("charLabel");
+
+function renderChar() {
+  const f = characters[currentCharIndex];
+  img.src = `./assets/Characters/${f}/idle_1.png`;
+  label.textContent = f.replace("mini_", "").toUpperCase();
+}
+
+function findNextFree(fromIndex, direction = +1) {
+  for (let i = 0; i < characters.length; i++) {
+    const idx = (fromIndex + direction * i + characters.length) % characters.length;
+    const ch = characters[idx];
+    if (!takenBy[ch] || takenBy[ch] === uid) return idx;
+  }
+  return null;
+}
+
+async function ensureUniqueChar() {
+  const mine = characters[currentCharIndex];
+  if (takenBy[mine] && takenBy[mine] !== uid) {
+    const idx = findNextFree(currentCharIndex + 1, +1);
+    if (idx !== null) {
+      currentCharIndex = idx;
+      renderChar();
+      try { await update(playerRef, { char: characters[idx] }); } catch {}
     }
-  });
+  }
+}
 
-  // =====================
-  // 🌌 พื้นหลัง: ดาวกระพริบ
-  // =====================
-  const drawBackground = () => {
-    const canvas = document.getElementById("bgCanvas");
-    const ctx = canvas.getContext("2d");
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+async function changeChar(delta) {
+  if (isReady) return;
+  const dir = delta >= 0 ? +1 : -1;
+  const next = findNextFree(currentCharIndex + dir, dir);
+  if (next === null) return; // ตัวละครถูกจองครบ
+  currentCharIndex = next;
+  renderChar();
+  try { await update(playerRef, { char: characters[currentCharIndex] }); } catch {}
+}
 
-    const gradient = ctx.createRadialGradient(
-      canvas.width / 2,
-      canvas.height / 2,
-      0,
-      canvas.width / 2,
-      canvas.height / 2,
-      canvas.width * 0.6
-    );
-    gradient.addColorStop(0, "#1e2130");
-    gradient.addColorStop(1, "#0b0d12");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+$("prevChar").onclick = () => changeChar(-1);
+$("nextChar").onclick = () => changeChar(+1);
+renderChar();
 
-    const starCount = Math.min(
-      100,
-      Math.floor((canvas.width * canvas.height) / 8000)
-    );
-    for (let i = 0; i < starCount; i++) {
-      const x = Math.random() * canvas.width;
-      const y = Math.random() * canvas.height;
-      const radius = Math.random() * 1.5 + 0.5;
-      const alpha = Math.random() * 0.5 + 0.3;
-      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fill();
+// หลัง join แล้ว ถ้า mini_brown ถูกจอง → กระโดดไปตัวว่าง
+await ensureUniqueChar();
+
+/* ---------- Ready / Back ---------- */
+const readyBtn = $("readyBtn");
+const warning = $("warningBox");
+const overlay = $("countdownOverlay");
+
+function showWarning() {
+  warning.classList.add("show");
+  clearTimeout(warning._t);
+  warning._t = setTimeout(() => warning.classList.remove("show"), 4000);
+}
+
+readyBtn.onclick = async () => {
+  isReady = !isReady;
+  readyBtn.textContent = isReady ? "READY ✔" : "UNREADY ✖";
+  readyBtn.style.background = isReady
+    ? "linear-gradient(135deg,#77FF6B,#4AFF59)"
+    : "linear-gradient(135deg,#E02F2F,#C04125)";
+  img.classList.toggle("ready-char", isReady);
+  showWarning();
+  try {
+    await update(playerRef, { ready: isReady });
+    await update(roomRef, { lastActivity: serverTimestamp() });
+  } catch {}
+};
+
+$("btnBack").onclick = async () => {
+  try { await update(roomRef, { lastActivity: serverTimestamp() }); } catch {}
+  try { await set(playerRef, null); } catch {}
+  location.href = "roomlist.html";
+};
+
+/* ---------- Players list sync ---------- */
+const playerListEl = $("playerList");
+const playerCountEl = $("playerCount");
+const lobbyPlayersRef = ref(rtdb, `lobbies/${roomCode}/players`);
+
+let countdownStarted = false;
+onValue(lobbyPlayersRef, async (snap) => {
+  const obj = snap.val() || {};
+  const players = Object.values(obj);
+
+  // อัปเดต map character ที่ถูกจับจอง
+  takenBy = {};
+  players.forEach((p) => { if (p.char) takenBy[p.char] = p.uid; });
+
+  // ถ้าของเราโดนชน ให้หาตัวใหม่ที่ว่าง
+  await ensureUniqueChar();
+
+  // render รายชื่อ
+  playerListEl.innerHTML = players.map((p) => {
+    const meMark = p.uid === uid ? " (You)" : "";
+    const host = p.isHost ? "👑" : "";
+    const rd = p.ready ? "✅" : "⌛";
+    return `<li>${p.name}${meMark} ${host} ${rd}</li>`;
+  }).join("");
+
+  // นับคน & sync room
+  playerCountEl.textContent = `${players.length} player${players.length > 1 ? "s" : ""}`;
+  try { await update(roomRef, { playerCount: players.length, lastActivity: serverTimestamp() }); } catch {}
+
+  // start เมื่อทุกคนพร้อม >=2
+  const allReady = players.length >= 2 && players.every((p) => p.ready);
+  if (allReady && !countdownStarted) {
+    countdownStarted = true;
+    startCountdown();
+  }
+});
+
+function startCountdown() {
+  let count = 3;
+  overlay.textContent = count;
+  overlay.classList.add("show");
+  const t = setInterval(() => {
+    count--;
+    overlay.textContent = count > 0 ? count : "GO!";
+    if (count < 0) {
+      clearInterval(t);
+      overlay.classList.remove("show");
+      // ⚠️ ถ้าต้องการ reset chat ตอนเริ่มเกม ให้ล้างที่นี่ (เฉพาะ host ก็ได้)
+      // await set(ref(rtdb, `lobbies/${roomCode}/chat`), null);
+      location.href = `game.html?code=${encodeURIComponent(roomCode)}`;
     }
-  };
-  drawBackground();
-  window.addEventListener("resize", drawBackground);
-  setInterval(drawBackground, 10000);
+  }, 1000);
+}
 
-  // =====================
-  // 🧠 Debug / Reconnect
-  // =====================
-  socket.on("connect", () => {
-    console.log("✅ Connected:", socket.id);
-    socket.emit("joinRoom", roomCode);
-  });
+/* ---------- Chat ---------- */
+const chatInput = $("chatInput");
+const sendBtn = $("sendBtn");
+const box = $("chatMessages");
 
-  socket.on("disconnect", () => {
-    console.warn("⚠️ Disconnected from server.");
-    showWarning(true, "⚠️ Lost connection. Trying to reconnect...");
-  });
+function addMsg(sender, text, ts) {
+  const p = document.createElement("p");
+  const time = ts ? new Date(ts).toLocaleTimeString() : "";
+  p.innerHTML = `<b>${sender}</b> <small style="opacity:.7">${time}</small>: ${text}`;
+  box.appendChild(p);
+  box.scrollTop = box.scrollHeight;
+}
 
-  socket.io.on("reconnect", (attempt) => {
-    console.log("🔁 Reconnected after", attempt, "tries");
-    showWarning(true, "✅ Reconnected to server!");
-    socket.emit("joinRoom", roomCode);
-  });
+const chatRef = ref(rtdb, `lobbies/${roomCode}/chat`);
+onValue(chatRef, (snap) => {
+  const data = snap.val() || {};
+  const arr = Object.values(data)
+    .sort((a, b) => (a.ts || 0) - (b.ts || 0))
+    .slice(-100);
+  box.innerHTML = "";
+  arr.forEach((m) => addMsg(m.sender, m.text, m.ts));
+});
+
+sendBtn.onclick = async () => {
+  const msg = chatInput.value.trim();
+  if (!msg) return;
+  chatInput.value = "";
+  try {
+    await push(chatRef, { sender: displayName, text: msg, ts: Date.now() });
+  } catch (e) {
+    console.warn("chat push fail", e);
+  }
+};
+chatInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendBtn.click();
+  }
 });

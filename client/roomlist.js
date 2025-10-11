@@ -1,209 +1,174 @@
-// ===============================
-// 🧩 Room List Logic + Settings + Sound
-// ===============================
-
-import { db } from "./firebase.js";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  getDocs
-} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-
-// ===============================
-// 🎵 SOUND SETUP (persistent across pages)
-// ===============================
-if (window.GameAudio) window.GameAudio.init();
-const bgm = window.bgm;
-const clickSound = window.clickSound;
-
-// ===============================
-// ⚙️ SETTINGS (load + save)
-// ===============================
-let settings = JSON.parse(localStorage.getItem("settings") || "{}");
-settings = {
-  master: settings.master ?? 0.8,
-  music: settings.music ?? 0.6,
-  sfx: settings.sfx ?? 0.8,
-  region: settings.region ?? "asia",
-};
-
-function applyVolume() {
-  bgm.volume = settings.music * settings.master;
-  clickSound.volume = settings.sfx * settings.master;
-}
-function saveSettings() {
-  localStorage.setItem("settings", JSON.stringify(settings));
-  applyVolume();
-}
-applyVolume();
-
-// ===============================
-// 🎛️ SETTINGS MODAL UI
-// ===============================
-const rangeMaster = document.getElementById("rangeMaster");
-const rangeMusic = document.getElementById("rangeMusic");
-const rangeSfx = document.getElementById("rangeSfx");
-const regionSel = document.getElementById("regionSel");
-
-if (rangeMaster && rangeMusic && rangeSfx && regionSel) {
-  // ตั้งค่าตามค่าเดิม
-  rangeMaster.value = settings.master;
-  rangeMusic.value = settings.music;
-  rangeSfx.value = settings.sfx;
-  regionSel.value = settings.region;
-
-  // อัปเดตเมื่อผู้ใช้เลื่อน
-  rangeMaster.addEventListener("input", e => {
-    settings.master = parseFloat(e.target.value);
-    saveSettings();
-  });
-  rangeMusic.addEventListener("input", e => {
-    settings.music = parseFloat(e.target.value);
-    saveSettings();
-  });
-  rangeSfx.addEventListener("input", e => {
-    settings.sfx = parseFloat(e.target.value);
-    saveSettings();
-  });
-  regionSel.addEventListener("change", e => {
-    settings.region = e.target.value;
-    saveSettings();
-  });
+/* ---------- BG ---------- */
+const canvas = document.getElementById("bgCanvas");
+if (canvas) {
+  const ctx = canvas.getContext("2d");
+  function drawBackground(){
+    canvas.width = innerWidth; canvas.height = innerHeight;
+    const g = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, canvas.width*.6);
+    g.addColorStop(0,"#1e2130"); g.addColorStop(1,"#0b0d12");
+    ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+    for(let i=0;i<100;i++){
+      const x=Math.random()*canvas.width,y=Math.random()*canvas.height;
+      ctx.fillStyle=`rgba(255,255,255,${Math.random()*.5+.3})`;
+      ctx.beginPath();ctx.arc(x,y,Math.random()*1.5+.5,0,Math.PI*2);ctx.fill();
+    }
+  }
+  drawBackground(); setInterval(drawBackground,10000);
 }
 
-// ✅ Sync settings ระหว่างหลายหน้า (index ↔ roomlist ↔ lobby)
-window.addEventListener("storage", (e) => {
-  if (e.key === "settings" && e.newValue) {
-    try {
-      const newSettings = JSON.parse(e.newValue);
-      settings = newSettings;
-      applyVolume();
-      console.log("🔄 Settings updated from another page:", newSettings);
+/* ---------- DOM ---------- */
+const $ = (id)=>document.getElementById(id);
+const listEl  = $("roomList");
+const emptyEl = $("emptyState");
+const infoEl  = $("info");
 
-      // ถ้ามี UI slider → อัปเดตให้ตรง
-      if (rangeMaster && rangeMusic && rangeSfx && regionSel) {
-        rangeMaster.value = settings.master;
-        rangeMusic.value = settings.music;
-        rangeSfx.value = settings.sfx;
-        regionSel.value = settings.region;
+const joinModal  = $("joinModal");
+const joinBtn    = $("joinByCodeBtn");
+const joinClose  = $("joinClose");
+const joinInput  = $("joinCodeInput");
+const joinErr    = $("joinErr");
+const joinSubmit = $("joinSubmit");
+
+/* ---------- Modal: ensure open works ---------- */
+function reallyOpenJoin(){
+  if (joinErr) joinErr.textContent = "";
+  if (joinInput) joinInput.value = "";
+  if (joinModal) {
+    joinModal.setAttribute("aria-hidden","false");
+    setTimeout(()=> joinInput && joinInput.focus(), 0);
+  }
+}
+window._openJoin = reallyOpenJoin;
+
+if (joinBtn) {
+  joinBtn.addEventListener("click", (e)=>{
+    e.preventDefault(); e.stopPropagation();
+    reallyOpenJoin();
+  });
+}
+if (joinClose) {
+  joinClose.addEventListener("click", ()=> joinModal && joinModal.setAttribute("aria-hidden","true"));
+}
+
+/* auto-open if ?code=XXXX */
+const urlCode = new URLSearchParams(location.search).get("code");
+if (urlCode && joinModal && joinInput) {
+  joinModal.setAttribute("aria-hidden","false");
+  joinInput.value = (urlCode||"").toUpperCase();
+  setTimeout(()=>joinInput.focus(),0);
+}
+
+/* ---------- Firebase (dynamic import) ---------- */
+let rtdb, ref, onValue, get;
+let firebaseReady = false;
+
+(async () => {
+  try {
+    const mod = await import("./firebase.js");
+    rtdb = mod.rtdb; ref = mod.ref; onValue = mod.onValue; get = mod.get;
+    firebaseReady = true;
+
+    const createdCode = new URLSearchParams(location.search).get("code");
+    if (createdCode && infoEl) infoEl.textContent = `เข้ามาจากห้องที่เพิ่งสร้าง: ${createdCode}`;
+
+    onValue(ref(rtdb, "rooms"), snap => renderRooms(snap.val()), err => {
+      console.error("[roomlist] onValue error:", err);
+      if (emptyEl){
+        emptyEl.style.display="block";
+        emptyEl.textContent = "โหลดรายการห้องไม่ได้ (ตรวจ RTDB rules)";
       }
-    } catch (err) {
-      console.warn("⚠️ Failed to parse updated settings:", err);
+    });
+  } catch (e) {
+    console.error("[roomlist] โหลด firebase.js ไม่ได้:", e);
+    if (emptyEl){
+      emptyEl.style.display="block";
+      emptyEl.textContent = "ไม่สามารถโหลดระบบได้: ตรวจไฟล์ firebase.js หรือ path";
     }
   }
-});
+})();
 
-// ===============================
-// 🪟 MODAL OPEN/CLOSE LOGIC
-// ===============================
-const btnSettingsTop = document.getElementById("btnSettingsTop");
-const settingsModal = document.getElementById("settingsModal");
-const closeSettings = document.getElementById("closeSettings");
+/* ---------- Render list (hide private) ---------- */
+function renderRooms(roomsObj){
+  if (!listEl || !emptyEl) return;
 
-if (btnSettingsTop && settingsModal && closeSettings) {
-  btnSettingsTop.addEventListener("click", () => {
-    settingsModal.classList.add("show");
-    playClick();
-  });
-  closeSettings.addEventListener("click", () => {
-    settingsModal.classList.remove("show");
-    playClick();
-  });
-  settingsModal.addEventListener("click", e => {
-    if (e.target === settingsModal) {
-      settingsModal.classList.remove("show");
-      playClick();
-    }
-  });
-}
+  const rooms = Object.values(roomsObj||{})
+    .filter(r => (r?.status ?? "lobby") === "lobby" && (r?.type ?? "public") !== "private")
+    .sort((a,b)=>(b.lastActivity||0)-(a.lastActivity||0));
 
-// ===============================
-// 🔊 SOUND CONTROL
-// ===============================
-let lastClick = 0;
-function playClick() {
-  const now = Date.now();
-  if (now - lastClick > 120) {
-    clickSound.currentTime = 0;
-    clickSound.play();
-    lastClick = now;
-  }
-}
-document.addEventListener("click", () => bgm.play().catch(() => {}), { once: true });
+  listEl.innerHTML = "";
+  if(!rooms.length){ emptyEl.style.display="block"; return; }
+  emptyEl.style.display="none";
 
-// ===============================
-// 🧱 FIRESTORE ROOM LIST
-// ===============================
-const q = query(
-  collection(db, "rooms"),
-  where("type", "==", "public"),
-  orderBy("createdAt", "desc")
-);
-
-onSnapshot(q, (snap) => {
-  const list = document.getElementById("roomList");
-  const empty = document.getElementById("emptyState");
-  list.innerHTML = "";
-
-  if (snap.empty) {
-    empty.style.display = "block";
-    return;
-  }
-  empty.style.display = "none";
-
-  snap.forEach(docSnap => {
-    const room = docSnap.data();
+  rooms.forEach(r=>{
+    const lockIcon = r.type === "private" ? "🔒" : "🔓";
     const div = document.createElement("div");
     div.className = "room-card";
     div.innerHTML = `
       <div class="room-info">
-        <div class="room-name">📛 ${room.name}</div>
-        <div class="room-detail">👥 ${room.maxPlayers ?? "?"} • 🔒 ${room.type}</div>
+        <div class="room-name">${lockIcon} ${r.name || "(no name)"} <small>#${r.code || ""}</small></div>
+        <div class="room-detail">👥 ${r.playerCount || 0}/${r.maxPlayers ?? "?"} • ${r.type || "-"}</div>
       </div>
-      <button class="join-btn" data-roomcode="${room.code}">Join</button>
+      <button class="join-btn" data-code="${r.code}" type="button">Join</button>
     `;
-    list.appendChild(div);
-  });
 
-  document.querySelectorAll(".join-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const roomCode = btn.dataset.roomcode;
-      const roomCard = btn.closest(".room-card");
-      const type = roomCard.querySelector(".room-detail").textContent.includes("public") ? "public" : "private";
-      playClick();
-      if (type === "public") {
-        window.location.href = `lobby.html?code=${roomCode}`;
-      } else {
-        showCodePrompt(roomCode);
+    div.querySelector(".join-btn").onclick = async (e)=>{
+      const code = e.currentTarget.dataset.code;
+      if (!firebaseReady) { alert("ระบบยังไม่พร้อม (โหลด Firebase ไม่สำเร็จ)"); return; }
+      try{
+        const snap = await get(ref(rtdb, `rooms/${code}`));
+        const room = snap.val();
+        if(!room || room.status!=="lobby"){ alert("ห้องนี้ไม่พร้อมเข้าหรือถูกลบแล้ว"); return; }
+        if(room.playerCount >= (room.maxPlayers || 999)){ alert("ห้องเต็มแล้ว"); return; }
+
+        const playerName =
+          localStorage.getItem("ggd.name") ||
+          localStorage.getItem("playerName") ||
+          `Player_${Math.random().toString(36).slice(2,7)}`;
+
+        localStorage.setItem("currentRoom", JSON.stringify({
+          code: room.code, name: room.name, maxPlayers: room.maxPlayers,
+          type: room.type, isHost: false
+        }));
+        if(!localStorage.getItem("playerName")) localStorage.setItem("playerName", playerName);
+        if(!localStorage.getItem("ggd.name"))   localStorage.setItem("ggd.name", playerName);
+
+        location.href = `lobby.html?code=${code}`;
+      }catch(err){
+        console.error(err);
+        alert("เข้าห้องไม่สำเร็จ");
       }
-    });
-  });
-});
+    };
 
-// ===============================
-// 🔑 JOIN WITH CODE PROMPT
-// ===============================
-async function showCodePrompt(correctCode) {
-  const input = prompt("🔑 กรุณาใส่โค้ด 4 ตัวเพื่อเข้าห้องนี้:");
-  if (input === null) return;
-  const code = input.trim().toUpperCase();
-  if (!/^[A-Z0-9]{4}$/.test(code)) {
-    alert("⚠️ กรุณาใส่โค้ด 4 ตัว (A-Z หรือ 0-9)");
-    return;
-  }
-  if (code !== correctCode) {
-    alert("❌ โค้ดไม่ถูกต้อง ลองใหม่อีกครั้ง");
-    return;
-  }
-  const q = query(collection(db, "rooms"), where("code", "==", code));
-  const snap = await getDocs(q);
-  if (snap.empty) {
-    alert("❌ ไม่พบห้องนี้ หรือห้องถูกลบไปแล้ว");
-    return;
-  }
-  playClick();
-  window.location.href = `lobby.html?code=${code}`;
+    listEl.appendChild(div);
+  });
 }
+
+/* ---------- Join by code ---------- */
+const normCode = s => (s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+
+async function joinByCode(){
+  const code = normCode(joinInput?.value.trim());
+  if(!code || code.length<4){ if (joinErr) joinErr.textContent="กรุณากรอกรหัสอย่างน้อย 4 ตัว"; return; }
+  if (!firebaseReady){ if (joinErr) joinErr.textContent = "ระบบยังไม่พร้อม (โหลด Firebase ไม่สำเร็จ)"; return; }
+
+  try{
+    const snap = await get(ref(rtdb, `rooms/${code}`));
+    const room = snap.val();
+    if(!room){ joinErr.textContent="ไม่พบห้องนี้"; return; }
+    if(room.status!=="lobby"){ joinErr.textContent="ห้องนี้ไม่พร้อมเข้าหรือเริ่มเกมแล้ว"; return; }
+    if((room.playerCount||0) >= (room.maxPlayers||999)){ joinErr.textContent="ห้องเต็มแล้ว"; return; }
+
+    localStorage.setItem("currentRoom", JSON.stringify({
+      code: room.code, name: room.name, maxPlayers: room.maxPlayers,
+      type: room.type, isHost:false
+    }));
+    localStorage.setItem(`joinedByCode:${code}`,"1");
+    location.href = `lobby.html?code=${code}`;
+  }catch(e){
+    console.error(e);
+    if (joinErr) joinErr.textContent="เข้าห้องไม่สำเร็จ ลองใหม่อีกครั้ง";
+  }
+}
+
+if (joinSubmit) joinSubmit.onclick = joinByCode;
+if (joinInput)  joinInput.addEventListener("keydown", (e)=>{ if(e.key==="Enter") joinByCode(); });

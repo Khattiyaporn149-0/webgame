@@ -8,10 +8,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>The Heist</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <script src="./common-settings.js" defer></script>
+
   <!-- BACKGROUND -->
   <div class="bg">
     <div class="bg-video-overlay"></div>
@@ -24,7 +24,7 @@
       <span class="tag-icon">🪪</span>
       LOGGED IN AS <b id="playerNameTop">Guest</b>
       <span class="clan">[The Heist]</span>
-      <span class="ver" id="ver">V.test1.0.0</span>
+      <span class="ver" id="ver">V.test</span>
     </div>
     <div class="top-icons">
       <button class="icon-btn" title="Profile" id="btnProfile" aria-label="Profile">
@@ -47,8 +47,20 @@
     <p>กรุณากรอกชื่อผู้เล่นก่อนเริ่ม</p>
     <input type="text" id="playerNameInput" placeholder="เช่น MasterHeist" maxlength="16" />
     <button id="startBtn">Start</button>
+
+    <div class="or-line">
+      <span>หรือ</span>
+    </div>
+
+    <button id="loginGoogleBtn" class="google-btn">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="google icon" />
+      <span>Login with Google</span>
+    </button>
+
+    
   </div>
 </div>
+
 
 
   <!-- MAIN WRAP -->
@@ -109,7 +121,7 @@
     <aside class="right-rail">
       <div class="right-group">
         <button class="right-btn" id="btnTutorial">❓ TUTORIAL</button>
-        <button class="right-btn" id="btnClassic">🎵 CLASSIC</button>
+        <button class="right-btn" id="btnClassic">🎵 MUSIC</button>
         <button class="right-btn" id="btnFriends">👥 FRIENDS</button>
       </div>
     </aside>
@@ -150,6 +162,45 @@
     </div>
   </div>
 
+<div id="toast-container"></div>
+
+
+<!-- 🧩 PROFILE MODAL -->
+<div class="modal" id="profileModal" aria-hidden="true" role="dialog">
+  <div class="dialog">
+    <div class="dialog-head">
+      <h3>👤 PROFILE</h3>
+      <button class="x" id="closeProfile">✖</button>
+    </div>
+
+    <div class="dialog-body center">
+      <div class="profile-box">
+        <div class="profile-row">
+          <span class="label">Current Name:</span>
+          <span id="displayName" class="value">Guest</span>
+
+          <div id="editNameGroup" class="edit-group hidden">
+              <input type="text" id="editNameInput" maxlength="16" />
+              <button id="saveNameBtn" class="mini-btn save">💾</button>
+              <button id="cancelNameBtn" class="mini-btn cancel">✖</button>
+          </div>
+
+
+          <button id="editNameBtn" class="icon-btn small" title="Edit Name">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+        </div>
+
+        <div class="profile-row">
+          <button id="googleLoginBtn" class="google-btn">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
+            <span>Login with Google</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 
 <!-- 🧩 POPUP: วิธีเล่น / เนื้อเรื่อง -->
@@ -166,6 +217,36 @@
       <button class="tab-btn" data-tab="story">📖 เนื้อเรื่อง</button>
       <button class="tab-btn" data-tab="system">⚙️ ระบบเกม</button>
     </div>
+
+    <!-- 🎮 CLAW MACHINE MODAL -->
+<div class="modal" id="clawModal">
+  <div class="claw-dialog">
+    <div class="claw-head">
+      <h3>🕹️ CLAW MACHINE</h3>
+      <button class="x" id="closeClaw">✖</button>
+    </div>
+    <div class="claw-body">
+      <div class="claw-view">
+        <div class="claw-arm" id="clawArm">🤖</div>
+        <div class="claw-prize" id="clawPrize">🎁</div>
+      </div>
+      <button id="btnPlayClaw" class="play-btn">DROP CLAW (x1 Token)</button>
+      <p class="token-info">Tokens: <span id="tokenCount">0</span></p>
+    </div>
+  </div>
+</div>
+
+<!-- 🧳 COLLECTION MODAL -->
+<div class="modal" id="collectionModal">
+  <div class="coll-dialog">
+    <div class="coll-head">
+      <h3>📦 COLLECTION</h3>
+      <button class="x" id="closeCollection">✖</button>
+    </div>
+    <div class="coll-body" id="collectionGrid"></div>
+  </div>
+</div>
+
 
     <!-- 🔹 เนื้อหาแท็บ -->
     <div class="tab-content">
@@ -209,8 +290,9 @@
     </div>
   </div>
 </div>
-
-  <script src="./app.js"></script>
+<script type="module" src="common-settings.js"></script>
+<script type="module" src="app.js"></script>
+<script type="module" src="streak.js"></script>
+<script type="module" src="missions.js"></script>
 </body>
 </html>
-
