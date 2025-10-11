@@ -12,11 +12,35 @@ const btnCreate = $("btnCreate");
 const btnBack   = $("btnBack");
 
 // ---------- Settings modal ----------
-const modal = $("settingsModal");
-$("btnSettingsTop").onclick = ()=> modal.setAttribute("aria-hidden","false");
-$("closeSettings").onclick  = ()=> modal.setAttribute("aria-hidden","true");
+const modal      = $("settingsModal");
+const btnGear    = $("btnSettingsTop");
+const btnClose   = $("closeSettings");
 
-// ---------- BG (เอฟเฟกต์พื้นหลังเล็ก ๆ) ----------
+btnGear?.addEventListener("click", ()=> modal?.setAttribute("aria-hidden","false"));
+btnClose?.addEventListener("click", ()=> modal?.setAttribute("aria-hidden","true"));
+modal?.addEventListener("click", (e)=>{ if (e.target === modal) modal.setAttribute("aria-hidden","true"); });
+
+// ---------- Settings values ----------
+const rMaster = $("rangeMaster");
+const rMusic  = $("rangeMusic");
+const rSfx    = $("rangeSfx");
+const selReg  = $("regionSel");
+
+function loadSettings(){
+  if (rMaster) rMaster.value = parseFloat(localStorage.getItem('set.master') ?? 0.7);
+  if (rMusic)  rMusic.value  = parseFloat(localStorage.getItem('set.music')  ?? 0.6);
+  if (rSfx)    rSfx.value    = parseFloat(localStorage.getItem('set.sfx')    ?? 0.6);
+  if (selReg)  selReg.value  = localStorage.getItem('set.region') ?? 'asia';
+}
+function bindSave(el, key){ el?.addEventListener('input', ()=> localStorage.setItem(key, el.value)); }
+
+loadSettings();
+bindSave(rMaster, 'set.master');
+bindSave(rMusic , 'set.music');
+bindSave(rSfx   , 'set.sfx');
+selReg?.addEventListener('change', ()=> localStorage.setItem('set.region', selReg.value));
+
+// ---------- BG (พื้นหลัง) ----------
 const bg = $("bgCanvas");
 if (bg) {
   const ctx = bg.getContext("2d");
@@ -32,7 +56,6 @@ if (bg) {
     }
   }
   drawBackground();
-  setInterval(drawBackground, 10000);
 }
 
 // ---------- Helpers ----------
@@ -117,13 +140,13 @@ async function createRoom(){
 }
 
 // ---------- Events ----------
-btnCreate.onclick = ()=> {
+btnCreate?.addEventListener("click", ()=> {
   createRoom().catch(err=>{
     console.error(err);
     alert("สร้างห้องไม่สำเร็จ: " + (err?.message || err));
   });
-};
-btnBack.onclick = ()=> location.href = "index.html";
-nameInput.addEventListener("keydown", e=>{
-  if (e.key === "Enter") btnCreate.click();
+});
+btnBack?.addEventListener("click", ()=> location.href = "index.html");
+nameInput?.addEventListener("keydown", e=>{
+  if (e.key === "Enter") btnCreate?.click();
 });
