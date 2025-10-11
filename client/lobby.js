@@ -1,6 +1,7 @@
-// ✅ ใช้ RTDB อย่างเดียว (ไม่ใช้ socket.io)
+// client/lobby.js
+// ✅ ใช้ RTDB อย่างเดียว
 import {
-  rtdb, ref, set, update, onValue, onDisconnect, push, get, serverTimestamp
+  rtdb, ref, set, update, onValue, onDisconnect, push, get, remove, serverTimestamp
 } from "./firebase.js";
 
 /* ---------- Utils & Context ---------- */
@@ -30,7 +31,7 @@ const uid =
 $("roomName").textContent = savedRoom.name || "Room";
 $("roomCode").textContent = roomCode || savedRoom.code || "-";
 
-/* ---------- Background ---------- */
+/* ---------- BG ---------- */
 const canvas = $("bgCanvas");
 const ctx = canvas.getContext("2d");
 function drawBackground() {
@@ -53,8 +54,22 @@ function drawBackground() {
 drawBackground();
 addEventListener("resize", drawBackground);
 
-/* ---------- Ensure room exists ---------- */
+/* ---------- Refs & helpers ---------- */
 const roomRef = ref(rtdb, `rooms/${roomCode}`);
+const playerRef = ref(rtdb, `lobbies/${roomCode}/players/${uid}`);
+const lobbyPlayersRef = ref(rtdb, `lobbies/${roomCode}/players`);
+const chatRef = ref(rtdb, `lobbies/${roomCode}/chat`);
+
+const bumpActivity = () =>
+  update(roomRef, { lastActivity: serverTimestamp() }).catch(() => {});
+
+async function syncPlayerCount() {
+  const snap = await get(lobbyPlayersRef);
+  const cnt = snap.exists() ? Object.keys(snap.val() || {}).length : 0;
+  await update(roomRef, { playerCount: cnt, lastActivity: serverTimestamp() }).catch(() => {});
+}
+
+/* ---------- Ensure room exists (เติม hostId ถ้าสร้างใหม่) ---------- */
 try {
   const rs = await get(roomRef);
   if (!rs.exists()) {
@@ -64,18 +79,23 @@ try {
       maxPlayers: savedRoom.maxPlayers || 8,
       type: savedRoom.type || "public",
       host: displayName,
+      hostId: uid, // ตั้งโฮสเริ่มต้น
       status: "lobby",
       playerCount: 0,
       createdAt: serverTimestamp(),
       lastActivity: serverTimestamp(),
     });
+  } else {
+    const room = rs.val() || {};
+    if (!room.hostId) {
+      await update(roomRef, { hostId: uid, host: room.host || displayName, lastActivity: serverTimestamp() }).catch(() => {});
+    }
   }
 } catch (e) {
   console.warn("ensure room error:", e);
 }
 
 /* ---------- Join / Presence ---------- */
-const playerRef = ref(rtdb, `lobbies/${roomCode}/players/${uid}`);
 await set(playerRef, {
   uid,
   name: displayName,
@@ -83,10 +103,10 @@ await set(playerRef, {
   ready: false,
   online: true,
   char: "mini_brown",
-  joinTime: serverTimestamp(),
+  joinTime: Date.now(), // ใช้ timestamp จริงเพื่อจัดลำดับโฮส
 });
 onDisconnect(playerRef).remove();
-await update(roomRef, { lastActivity: serverTimestamp() });
+await bumpActivity();
 
 /* ---------- Character selection (no-duplicate) ---------- */
 const characters = [
@@ -95,7 +115,6 @@ const characters = [
 ];
 let currentCharIndex = 0;
 let isReady = false;
-
 // เก็บว่า char ใครจองอยู่ { charName: uid }
 let takenBy = {};
 
@@ -125,6 +144,7 @@ async function ensureUniqueChar() {
       currentCharIndex = idx;
       renderChar();
       try { await update(playerRef, { char: characters[idx] }); } catch {}
+      bumpActivity();
     }
   }
 }
@@ -137,13 +157,12 @@ async function changeChar(delta) {
   currentCharIndex = next;
   renderChar();
   try { await update(playerRef, { char: characters[currentCharIndex] }); } catch {}
+  bumpActivity();
 }
 
 $("prevChar").onclick = () => changeChar(-1);
 $("nextChar").onclick = () => changeChar(+1);
 renderChar();
-
-// หลัง join แล้ว ถ้า mini_brown ถูกจอง → กระโดดไปตัวว่าง
 await ensureUniqueChar();
 
 /* ---------- Ready / Back ---------- */
@@ -165,29 +184,40 @@ readyBtn.onclick = async () => {
     : "linear-gradient(135deg,#E02F2F,#C04125)";
   img.classList.toggle("ready-char", isReady);
   showWarning();
-  try {
-    await update(playerRef, { ready: isReady });
-    await update(roomRef, { lastActivity: serverTimestamp() });
-  } catch {}
+  try { await update(playerRef, { ready: isReady }); } catch {}
+  bumpActivity();
 };
 
+// ออกห้อง: ถ้าเราเป็นคนสุดท้าย → ลบ lobby → room (ตามกฎ)
 $("btnBack").onclick = async () => {
-  try { await update(roomRef, { lastActivity: serverTimestamp() }); } catch {}
   try { await set(playerRef, null); } catch {}
+  try {
+    const pSnap = await get(lobbyPlayersRef);
+    const left = pSnap.exists() ? Object.keys(pSnap.val() || {}).length : 0;
+    if (left === 0) {
+      // เคลียร์ลูกใต้ lobby ก่อนเสมอ เพื่อผ่าน rules
+      try { await remove(ref(rtdb, `lobbies/${roomCode}/players`)); } catch {}
+      try { await remove(ref(rtdb, `lobbies/${roomCode}/chat`)); } catch {}
+      try { await remove(ref(rtdb, `lobbies/${roomCode}`)); } catch {}
+      try { await remove(roomRef); } catch {}
+      console.log(`🗑 Room ${roomCode} deleted (last player left).`);
+    } else {
+      await bumpActivity();
+    }
+  } catch {}
   location.href = "roomlist.html";
 };
 
-/* ---------- Players list sync ---------- */
+/* ---------- Players list sync + host auto-promotion ---------- */
 const playerListEl = $("playerList");
 const playerCountEl = $("playerCount");
-const lobbyPlayersRef = ref(rtdb, `lobbies/${roomCode}/players`);
 
 let countdownStarted = false;
 onValue(lobbyPlayersRef, async (snap) => {
   const obj = snap.val() || {};
   const players = Object.values(obj);
 
-  // อัปเดต map character ที่ถูกจับจอง
+  // อัปเดต map char ที่ถูกจอง
   takenBy = {};
   players.forEach((p) => { if (p.char) takenBy[p.char] = p.uid; });
 
@@ -202,11 +232,26 @@ onValue(lobbyPlayersRef, async (snap) => {
     return `<li>${p.name}${meMark} ${host} ${rd}</li>`;
   }).join("");
 
-  // นับคน & sync room
+  // นับคน & sync room & bump
   playerCountEl.textContent = `${players.length} player${players.length > 1 ? "s" : ""}`;
   try { await update(roomRef, { playerCount: players.length, lastActivity: serverTimestamp() }); } catch {}
 
-  // start เมื่อทุกคนพร้อม >=2
+  // เลือกโฮสใหม่อัตโนมัติ (คนที่ joinTime เก่าสุด)
+  const currentHost = players.find(p => p.isHost)?.uid || null;
+  if (!currentHost && players.length > 0) {
+    const sorted = players
+      .map(p => ({ id: p.uid, name: p.name, jt: p.joinTime || 0 }))
+      .sort((a, b) => a.jt - b.jt);
+    const candidate = sorted[0];
+    if (candidate && candidate.id === uid) {
+      try {
+        await update(playerRef, { isHost: true });
+        await update(roomRef, { host: displayName, hostId: uid, lastActivity: serverTimestamp() });
+      } catch {}
+    }
+  }
+
+  // เริ่มเมื่อทุกคนพร้อม (>=2)
   const allReady = players.length >= 2 && players.every((p) => p.ready);
   if (allReady && !countdownStarted) {
     countdownStarted = true;
@@ -224,14 +269,14 @@ function startCountdown() {
     if (count < 0) {
       clearInterval(t);
       overlay.classList.remove("show");
-      // ⚠️ ถ้าต้องการ reset chat ตอนเริ่มเกม ให้ล้างที่นี่ (เฉพาะ host ก็ได้)
-      // await set(ref(rtdb, `lobbies/${roomCode}/chat`), null);
+      // ถ้าต้องการรีเซ็ตแชตก่อนเริ่มเกม ให้ปลดคอมเมนต์สองบรรทัดด้านล่างนี้ (ตรวจ rules ให้เขียน chat ได้)
+      // try { await set(ref(rtdb, `lobbies/${roomCode}/chat`), null); } catch {}
       location.href = `game.html?code=${encodeURIComponent(roomCode)}`;
     }
   }, 1000);
 }
 
-/* ---------- Chat ---------- */
+/* ---------- Chat (+ bumpActivity) ---------- */
 const chatInput = $("chatInput");
 const sendBtn = $("sendBtn");
 const box = $("chatMessages");
@@ -244,7 +289,6 @@ function addMsg(sender, text, ts) {
   box.scrollTop = box.scrollHeight;
 }
 
-const chatRef = ref(rtdb, `lobbies/${roomCode}/chat`);
 onValue(chatRef, (snap) => {
   const data = snap.val() || {};
   const arr = Object.values(data)
@@ -263,6 +307,7 @@ sendBtn.onclick = async () => {
   } catch (e) {
     console.warn("chat push fail", e);
   }
+  bumpActivity();
 };
 chatInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
