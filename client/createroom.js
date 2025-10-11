@@ -129,14 +129,10 @@ async function createRoom(){
 
   const inviteURL = new URL(`lobby.html`, location.href);
   inviteURL.searchParams.set("code", code);
-  try {
-    await navigator.clipboard.writeText(inviteURL.toString());
-    alert(`รหัสห้องของคุณคือ: ${code}\nลิงก์เชิญถูกคัดลอกแล้ว!`);
-  } catch {
-    alert(`รหัสห้องของคุณคือ: ${code}`);
-  }
 
-  location.href = `lobby.html?code=${code}`;
+  // ✅ ข้าม alert และ redirect ทันที
+  location.href = inviteURL.toString();
+
 }
 
 // ---------- Events ----------
