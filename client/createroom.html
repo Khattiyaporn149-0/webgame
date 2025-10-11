@@ -4,245 +4,212 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Create Room</title>
+  <link rel="stylesheet" href="./styles.css" />
+
   <style>
-    html, body { margin:0; padding:0; height:100%; overflow:hidden;
-      font-family: 'Segoe UI', system-ui, sans-serif; color:#E6E6FA; }
-    #bgCanvas { position:fixed; inset:0; z-index:-1; }
-
-    .room-container{
-      width: 680px; max-width: 92%;
-      background: rgba(20,28,48,0.6); backdrop-filter: blur(10px);
-      border: 2px solid rgba(100,200,255,.3); border-radius: 20px;
-      padding: 32px; box-shadow: 0 0 25px rgba(100,200,255,.2);
-      margin: 64px auto; text-align: center; position: relative;
+    /* ==== BG / Overlay แบบเดียวกับ roomlist ==== */
+    #bgCanvas { position: fixed; inset: 0; z-index: 0; }
+    .bg-video-overlay{
+      position: fixed; inset: 0; z-index: 1; pointer-events:none;
+      background:
+        radial-gradient(60vmax 40vmax at 70% 20%, #6b9cff11, #0000 70%),
+        radial-gradient(40vmax 30vmax at 30% 70%, #f6d36511, #0000 70%);
+      filter: blur(2px) saturate(140%);
     }
-    .title { font-size: 36px; margin: 6px 0 18px; text-shadow: 0 0 10px #ffffff66 }
-
-    .back-btn {
-      position:absolute; top:16px; left:16px;
-      padding:10px 16px; border-radius:999px; border:0;
-      background:#394867; color:#fff; font-weight:800; cursor:pointer;
-      box-shadow:0 6px 16px #0007; transition:transform .15s ease;
+    body{
+      margin:0; font-family:"Segoe UI",system-ui,sans-serif; color:#e6e6fa;
+      background:#0b1324; position:relative; z-index:2;
+      padding-top: 80px; /* เผื่อ topbar/ไอคอนมุมขวา */
     }
-    .back-btn:hover{ transform: translateY(-2px) }
 
-    label{ display:block; text-align:left; margin:10px 0 6px; font-weight:700 }
-    input, select{
-      width:100%; padding:12px; border-radius:10px; border:0;
-      background:rgba(255,255,255,.12); color:#fff; outline:none; margin-bottom:14px;
+    /* ===== กล่องหลัก: โทนเดียวกับ roomlist (กรอบเดียว) ===== */
+    .panel{
+      width: 800px; max-width: 90%;
+      margin: 0 auto 100px;
+      background: rgba(27, 38, 59, 0.95);
+      border: 2px solid #394867;
+      border-radius: 20px;
+      padding: 30px 28px;
+      color: #e6e6fa;
+      position: relative;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
     }
-    input:focus, select:focus{ background:rgba(255,255,255,.22) }
 
-    .btn{
-      width:100%; padding:14px 18px; border:0; border-radius:12px;
-      font-weight:900; cursor:pointer; margin-top:12px;
-      background: linear-gradient(135deg,#2fe093,#25c07d); color:#0b1324;
-      box-shadow:0 8px 24px rgba(47,224,147,.35); transition:transform .15s ease;
+    /* (ลบเอฟเฟกต์ซ้อนกรอบ/ไฮไลต์หัวกล่องเดิมทิ้งทั้งหมด) */
+
+    .title{
+      font-size: 36px; font-weight: 800; text-align: center;
+      letter-spacing: .06em; margin: 6px 0 18px;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.6);
     }
-    .btn:hover{ transform: translateY(-2px) }
 
-    .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7);
-      align-items:center; justify-content:center; z-index:9999; }
-    .dialog { background:#1e1e2f; color:#fff; padding:24px; border-radius:16px; width:320px; box-shadow:0 0 20px rgba(0,0,0,.5) }
-    .dialog-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px }
-    .dialog-body label.row { display:flex; justify-content:space-between; align-items:center; margin:8px 0 }
-    .dialog-body input[type=range], .dialog-body select { width:160px }
-    .dialog-body .note { margin-top:10px; font-size:.85em; color:#ccc }
-    .x { background:none; border:none; color:#fff; font-size:18px; cursor:pointer }
+    /* ปุ่ม Leave มุมซ้ายของกล่อง เหมือน roomlist */
+    .back-btn{
+      position:absolute; top:20px; left:20px; z-index:3;
+      background: linear-gradient(135deg, #2fe093, #25c07d);
+      color:#0b1324; border:0; border-radius: 999px;
+      padding: 10px 16px; font-weight:800; cursor:pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,.3);
+      transition: transform .15s;
+    }
+    .back-btn:hover{ transform: translateY(-2px); }
 
-    .icon-btn { position:absolute; top:18px; right:18px; background:rgba(255,255,255,.1);
-      border:none; border-radius:50%; width:40px; height:40px; cursor:pointer; color:#fff;
-      display:flex; align-items:center; justify-content:center; transition:background .2s }
-    .icon-btn:hover { background:rgba(255,255,255,.25) }
-    .icon-btn svg { width:22px; height:22px; fill:#fff }
+    /* ฟิลด์อินพุต/เซเล็กต์ โทนเดียวกับ roomlist */
+    .field{ margin: 16px 0 18px; }
+    .label{
+      display:flex; align-items:center; gap:10px; font-weight:800; margin-bottom:8px;
+      color:#dbe4ff;
+    }
+    .input, .select{
+      width:100%; padding: 14px 16px; border-radius: 12px;
+      background: rgba(14,22,38,0.85); color:#e6e6fa;
+      border: 1px solid #394867; outline:none;
+      transition: border-color .15s, background .15s, box-shadow .15s;
+    }
+    .input::placeholder{ color:#9aa6c1; }
+    .input:focus, .select:focus{
+      border-color:#4aa8ff;
+      background:#1b2740;
+      box-shadow: 0 0 0 3px rgba(74,168,255,.12);
+    }
 
-    .modal[aria-hidden="false"]{ display:flex; animation:fadeIn .25s ease }
-    @keyframes fadeIn{ from{ opacity:0; transform:scale(.96) } to{ opacity:1; transform:scale(1) } }
+    /* ปุ่ม CREATE ROOM โทนเดียวกับ roomlist */
+    .row-actions{ margin-top: 22px; }
+    .btn-primary{
+      width:100%;
+      padding: 12px 20px;
+      border:0; border-radius: 12px; cursor:pointer; font-weight:900; font-size:16px;
+      background: #2fe093; color:#0b1324;
+      box-shadow: 0 8px 24px rgba(47,224,147,.35);
+      transition: transform .06s ease, filter .2s ease;
+      text-transform: uppercase; letter-spacing: .04em;
+    }
+    .btn-primary:hover{ transform: translateY(-2px); }
 
-    select{ appearance:none; -webkit-appearance:none; -moz-appearance:none; background:#2b2d42; color:#E6E6FA;
-      border:1px solid rgba(100,200,255,.3); border-radius:8px; padding:10px 12px }
-    select option{ background:#1a1a2e; color:#E6E6FA }
-    select option:hover, select option:checked, select option:focus{ background:#25c07d; color:#0b1324 }
+    /* ไอคอน Settings มุมขวาบนของหน้า (ยกมาจากสไตล์รวม) */
+    .top-icons{ position: fixed; top: 16px; right: 16px; z-index: 10; display:flex; gap:12px; }
+    .icon-btn{
+      background: rgba(255,255,255,.1); border: none; color:#fff; cursor:pointer;
+      width: 42px; height: 42px; border-radius: 999px;
+      display:flex; align-items:center; justify-content:center;
+      box-shadow: 0 6px 16px rgba(0,0,0,.35);
+      transition: background .15s, transform .12s;
+    }
+    .icon-btn:hover{ background: rgba(255,255,255,.22); transform: translateY(-1px); }
+    .icon-btn svg{ width:22px; height:22px; fill:#fff; }
 
-    #pageContainer { transition: opacity .25s ease }
-    .fade { opacity: 0 }
+    /* Modal settings ใช้ styles.css + บังคับเปิดเมื่อ aria-hidden=false */
+    #settingsModal[aria-hidden="false"]{ display:flex !important; }
   </style>
 </head>
 <body>
+  <!-- BG -->
   <canvas id="bgCanvas"></canvas>
-  <script src="./common-settings.js" defer></script>
+  <div class="bg-video-overlay"></div>
 
-  <main class="room-container" id="setup">
-    <button class="back-btn" id="btnBack">⬅ Leave</button>
+  <!-- ปุ่ม Settings มุมขวาบน -->
+  <div class="top-icons">
+    <button class="icon-btn" id="btnSettingsTop" title="Settings" aria-label="Settings" type="button">
+      <svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 1-4 4 4 4 0 0 1 4-4Zm9 4a7.43 7.43 0 0 0-.09-1l2.09-1.64-2-3.46-2.49.63a7.51 7.51 0 0 0-1.73-1L14.5 2h-5l-.28 2.53a7.51 7.51 0 0 0-1.73 1l-2.49-.63-2 3.46L4.09 11a7.43 7.43 0 0 0 0 2l-2.09 1.64 2 3.46 2.49-.63a7.51 7.51 0 0 0 1.73-1L9.5 22h5l.28-2.53a7.51 7.51 0 0 0 1.73-1l2.49.63 2-3.46L20.91 13a7.43 7.43 0 0 0 .09-1Z"/></svg>
+    </button>
+  </div>
+
+  <!-- กล่องหลัก -->
+  <main class="panel">
+    <button class="back-btn" id="btnBack" type="button">⬅ Leave</button>
     <h1 class="title">CREATE ROOM</h1>
 
-    <button class="icon-btn" title="Settings" id="btnSettingsTop" aria-label="Settings">
-      <svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 1-4 4 4 4 0 0 1 4-4Zm9 4a7.43 7.43 0 0 0-.09-1l2.09-1.64-2-3.46-2.49.63a7.51 7.51 0 0 0-1.73-1L14.5 2h-5l-.28-2.53a7.51 7.51 0 0 0-1.73-1l-2.49-.63-2 3.46L4.09 11a7.43 7.43 0 0 0 0 2l-2.09 1.64 2 3.46 2.49-.63a7.51 7.51 0 0 0 1.73-1L9.5 22h5l.28-2.53a7.51 7.51 0 0 0 1.73-1l2.49.63 2-3.46L20.91 13a7.43 7.43 0 0 0 .09-1Z"/></svg>
-    </button>
-
-    <!-- SETTINGS MODAL -->
-    <div class="modal" id="settingsModal" aria-hidden="true" role="dialog">
-      <div class="dialog">
-        <div class="dialog-head">
-          <h3>Settings</h3>
-          <button class="x" id="closeSettings">✖</button>
-        </div>
-        <div class="dialog-body">
-          <label class="row"><span>Master Volume</span><input id="rangeMaster" type="range" min="0" max="1" step="0.01"></label>
-          <label class="row"><span>Music</span><input id="rangeMusic" type="range" min="0" max="1" step="0.01"></label>
-          <label class="row"><span>SFX</span><input id="rangeSfx" type="range" min="0" max="1" step="0.01"></label>
-          <label class="row">
-            <span>Region</span>
-            <select id="regionSel">
-              <option value="asia">Asia</option>
-              <option value="na">North America</option>
-              <option value="eu">Europe</option>
-            </select>
-          </label>
-          <div class="note">* ค่านี้จะถูกบันทึกลงในเบราว์เซอร์ (localStorage)</div>
-        </div>
-      </div>
+    <!-- Row: Room Name -->
+    <div class="field">
+      <div class="label"><span class="emoji">👑</span> <span>Room Name</span></div>
+      <input id="roomName" class="input" placeholder="ตั้งชื่อห้องของคุณ…" />
+      <div id="nameError" style="color:#ff6b6b; font-size:14px; min-height:18px; margin-top:6px;"></div>
     </div>
 
-    <label for="roomName">📛 Room Name</label>
-    <input id="roomName" placeholder="ตั้งชื่อห้องของคุณ…">
-    <div id="nameError" style="color:#ff6b6b; font-size:14px; margin-top:4px; min-height:18px;"></div>
+    <!-- Row: Max Players -->
+    <div class="field">
+      <div class="label"><span class="emoji">👥</span> <span>จำนวนผู้เล่นสูงสุด</span></div>
+      <select id="maxPlayers" class="select">
+        <option value="4">4</option>
+        <option value="6">6</option>
+        <option value="8" selected>8</option>
+        <option value="10">10</option>
+      </select>
+    </div>
 
-    <label for="maxPlayers">👥 จำนวนผู้เล่นสูงสุด</label>
-    <select id="maxPlayers">
-      <option value="4">4</option>
-      <option value="6">6</option>
-      <option value="8" selected>8</option>
-      <option value="10">10</option>
-    </select>
+    <!-- Row: Room Type -->
+    <div class="field">
+      <div class="label"><span class="emoji">🔒</span> <span>ประเภทห้อง</span></div>
+      <select id="roomType" class="select">
+        <option value="public">Public (เข้าร่วมได้)</option>
+        <option value="private">Private (ซ่อนจากลิสต์)</option>
+      </select>
+    </div>
 
-    <label for="roomType">🔒 ประเภทห้อง</label>
-    <select id="roomType">
-      <option value="public">Public (เข้าร่วมได้)</option>
-      <option value="private">Private (ซ่อนจากลิสต์)</option>
-    </select>
-
-    <button class="btn" id="btnCreate">🚀 CREATE ROOM</button>
+    <!-- Button -->
+    <div class="row-actions">
+      <button class="btn-primary" id="btnCreate" type="button">🚀 CREATE ROOM</button>
+    </div>
   </main>
 
-  <!-- สคริปต์สร้างห้อง (ESM) -->
-  <script type="module">
-    import { rtdb, ref, set, update, onDisconnect, get } from "./firebase.js";
-    import { serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+  <!-- SETTINGS MODAL (ใช้ของเดิม) -->
+  <div class="modal" id="settingsModal" aria-hidden="true" role="dialog">
+    <div class="dialog">
+      <div class="dialog-head">
+        <h3>Settings</h3>
+        <button class="x" id="closeSettings" type="button">✖</button>
+      </div>
+      <div class="dialog-body">
+        <label class="row"><span>Master Volume</span><input id="rangeMaster" type="range" min="0" max="1" step="0.01"></label>
+        <label class="row"><span>Music</span><input id="rangeMusic" type="range" min="0" max="1" step="0.01"></label>
+        <label class="row"><span>SFX</span><input id="rangeSfx" type="range" min="0" max="1" step="0.01"></label>
+        <label class="row">
+          <span>Region</span>
+          <select id="regionSel">
+            <option value="asia">Asia</option>
+            <option value="na">North America</option>
+            <option value="eu">Europe</option>
+          </select>
+        </label>
+        <div class="note">* ค่านี้บันทึกบนเบราว์เซอร์ (localStorage)</div>
+      </div>
+    </div>
+  </div>
 
-    // ----- UI: settings modal -----
-    const modal = document.getElementById('settingsModal');
-    document.getElementById('btnSettingsTop').onclick = ()=> modal.setAttribute('aria-hidden','false');
-    document.getElementById('closeSettings').onclick = ()=> modal.setAttribute('aria-hidden','true');
+  <!-- โหลดตัวกลางเสียง/ตั้งค่า + โค้ดหน้า -->
+  <script src="./common-settings.js" defer></script>
+  <script type="module" src="./createroom.js"></script>
 
-    // ----- BG -----
-    const canvas = document.getElementById("bgCanvas");
-    const ctx = canvas.getContext("2d");
-    function drawBackground(){
-      canvas.width = innerWidth; canvas.height = innerHeight;
-      const g = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, canvas.width*.6);
-      g.addColorStop(0,"#1e2130"); g.addColorStop(1,"#0b0d12");
-      ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
-      for(let i=0;i<100;i++){
-        const x=Math.random()*canvas.width,y=Math.random()*canvas.height;
-        ctx.fillStyle=`rgba(255,255,255,${Math.random()*.5+.3})`;
-        ctx.beginPath();ctx.arc(x,y,Math.random()*1.5+.5,0,Math.PI*2);ctx.fill();
-      }
-    }
-    drawBackground(); setInterval(drawBackground, 10000);
-
-    // ----- Helpers -----
-    const $ = (id)=>document.getElementById(id);
-    const nameInput = $("roomName"), nameError = $("nameError");
-    const maxSel = $("maxPlayers");
-    const typeSel = $("roomType");
-    $("btnBack").onclick = ()=> location.href = "index.html";
-
-    function genCode(len=4){
-      const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-      let s = ""; for(let i=0;i<len;i++) s += chars[Math.floor(Math.random()*chars.length)];
-      return s;
-    }
-    function getPlayerName(){
-      return localStorage.getItem('ggd.name')
-          || localStorage.getItem('playerName')
-          || `Player_${Math.floor(Math.random()*1000)}`;
-    }
-    // uid ต่อแท็บ
-    const uid = sessionStorage.getItem('ggd.uid') || (()=>{ 
-      const v = (crypto?.randomUUID?.() || ('uid_'+Math.random().toString(36).slice(2,10)));
-      sessionStorage.setItem('ggd.uid', v);
-      return v;
-    })();
-
-    async function createRoom(){
-      const roomName  = (nameInput.value || "").trim();
-      const maxPlayers= parseInt(maxSel.value,10);
-      const roomType  = typeSel.value;
-      const hostName  = getPlayerName();
-
-      if(!roomName){
-        nameError.textContent = "กรุณาตั้งชื่อห้อง";
-        nameInput.focus();
-        return;
-      }
-      nameError.textContent = "";
-
-      // สุ่ม code ไม่ชน
-      let code = genCode(4);
-      for (let i=0;i<8;i++){
-        const snap = await get(ref(rtdb, `rooms/${code}`));
-        if (!snap.exists()) break;
-        code = genCode(4);
-      }
-
-      // 1) rooms/{code}
-      const roomRef = ref(rtdb, `rooms/${code}`);
-      await set(roomRef, {
-        code, name: roomName, maxPlayers, type: roomType,
-        host: hostName, hostId: uid,
-        status: "lobby",
-        playerCount: 1,
-        createdAt: serverTimestamp(), lastActivity: serverTimestamp()
-      });
-
-      // 2) lobbies/{code}/players/{uid}
-      const meRef = ref(rtdb, `lobbies/${code}/players/${uid}`);
-      await set(meRef, {
-        uid, name: hostName, isHost: true, ready: false, online: true,
-        char: "mini_brown", joinTime: serverTimestamp()
-      });
-      onDisconnect(meRef).remove();
-
-      // 3) bump activity
-      await update(roomRef, { lastActivity: serverTimestamp() });
-
-      // 4) เก็บ context & แจ้งโค้ดห้อง & ไป lobby
-      localStorage.setItem("currentRoom", JSON.stringify({
-        code, name: roomName, maxPlayers, type: roomType, isHost: true
-      }));
-      localStorage.setItem("playerName", hostName);
-      localStorage.setItem("ggd.name", hostName);
-
-      location.href = `lobby.html?code=${code}`;
-    }
-
-    document.getElementById("btnCreate").onclick = ()=> {
-      createRoom().catch(err=>{
-        console.error(err);
-        alert("สร้างห้องไม่สำเร็จ: " + (err.message || err));
-      });
-    };
-    nameInput.addEventListener("keydown", e=>{
-      if(e.key==="Enter") document.getElementById("btnCreate").click();
-    });
-  </script>
-
-  <!-- Dev helper -->
+  <!-- Wiring ปุ่ม Settings + คลิก SFX -->
   <script>
-    window.addEventListener('error', e => console.warn('Script error:', e.message));
-    window.addEventListener('unhandledrejection', e => console.warn('Promise error:', (e.reason?.message || e.reason)));
+    (function(){
+      const modal = document.getElementById('settingsModal');
+      const openBtn = document.getElementById('btnSettingsTop');
+      const closeBtn= document.getElementById('closeSettings');
+
+      const open  = ()=> modal?.setAttribute('aria-hidden','false');
+      const close = ()=> modal?.setAttribute('aria-hidden','true');
+
+      openBtn?.addEventListener('click', open);
+      closeBtn?.addEventListener('click', close);
+      modal?.addEventListener('click', e=>{ if(e.target===modal) close(); });
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape') close(); });
+
+      // bind sliders/select กับ GameSettings (มีใน common-settings.js)
+      window.addEventListener('DOMContentLoaded', ()=>{
+        window.GameSettings?.bindUI({
+          rangeMaster:'rangeMaster',
+          rangeMusic :'rangeMusic',
+          rangeSfx   :'rangeSfx',
+          regionSel  :'regionSel'
+        });
+        ['#btnBack','#btnCreate','#btnSettingsTop','#closeSettings'].forEach(sel=>{
+          document.querySelectorAll(sel).forEach(el=>{
+            el.addEventListener('click', ()=> window.GameAudio?.playClick?.());
+          });
+        });
+      });
+    })();
   </script>
 </body>
 </html>
-
