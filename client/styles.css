@@ -10,7 +10,12 @@
   --white-15: rgba(255,255,255,.15);
 }
 
-
+html ,body, * {
+  cursor: url("assets/Normal\ Select.cur"), all-scroll;
+}
+button:hover, a:hover {
+  cursor: url("./assets/Alternate\ Select.cur") 8 8, pointer;
+}
 
 * { box-sizing: border-box }
 html, body { height: 100% }

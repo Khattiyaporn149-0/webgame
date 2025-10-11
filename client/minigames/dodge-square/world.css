@@ -1,0 +1,102 @@
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #0b1324;
+  color: #fff;
+  overflow: hidden;
+}
+
+canvas#world {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at center, #1c2141, #0a0f1f);
+}
+
+/* === Overlay base === */
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,20,0.85);
+  z-index: 9999;
+  transition: opacity 0.3s ease;
+}
+.overlay[aria-hidden="true"] { display: none; }
+
+.mini-box {
+  background: #14182b;
+  border: 2px solid #2b3554;
+  border-radius: 16px;
+  padding: 20px;
+  width: 860px;
+  text-align: center;
+  position: relative;
+}
+.mini-box h2 { margin-top: 0; }
+
+button {
+  background: #2b64ff;
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+button:hover { background: #5b84ff; }
+button.close {
+  position: absolute;
+  top: 10px; right: 10px;
+  background: #ff4d4d;
+  font-size: 18px;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  line-height: 0;
+}
+
+/* === Upload === */
+.upload { position: relative; width: 80%; margin: 0 auto; }
+.upload .bar {
+  width: 0%;
+  height: 30px;
+  background: linear-gradient(90deg,#00eaff,#007eff);
+  border-radius: 10px;
+  transition: width 0.2s;
+}
+
+/* === Swipe Card === */
+.card-area {
+  background: #1a1f35;
+  padding: 20px;
+  border-radius: 12px;
+  margin: 10px auto;
+  width: 400px; height: 120px;
+  overflow: hidden;
+  position: relative;
+}
+.card {
+  background: linear-gradient(135deg,#4e8cff,#6cb1ff);
+  width: 120px; height: 80px;
+  border-radius: 8px;
+  position: absolute; top: 20px; left: 10px;
+  cursor: grab;
+  transition: left 0.1s;
+}
+
+/* === Power Switch === */
+.switch-panel { display: flex; gap: 10px; justify-content: center; }
+.switch-panel button {
+  width: 50px; height: 50px;
+  font-size: 18px;
+}
+
+/* === Timer === */
+#timerDisplay { font-size: 64px; margin: 20px 0; }
+#timerDisplay.warning { color: #ff4d4d; animation: blink 1s step-start 0s infinite; }
+@keyframes blink {
+  50% { opacity: 0; }
+}

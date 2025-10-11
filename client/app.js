@@ -1,5 +1,7 @@
 import { auth, provider, signInWithPopup, rtdb, ref, set } from "./firebase.js";
 
+
+
 // 🧩 Auto-generate guest UID ถ้าไม่มี
 if (!localStorage.getItem("ggd.uid")) {
   const guest = crypto.randomUUID ? crypto.randomUUID() : "uid_" + Math.random().toString(36).slice(2, 10);
@@ -338,9 +340,9 @@ const closeTutorial = document.getElementById("closeTutorial");
 const tabButtons = document.querySelectorAll(".tab-btn");
 const tabPanes = document.querySelectorAll(".tab-pane");
 
-btnTutorial?.addEventListener("click", () => { tutorialModal.setAttribute('aria-hidden','false'); tutorialModal.classList.add("show"); });
-closeTutorial?.addEventListener("click", () => { tutorialModal.classList.remove("show"); tutorialModal.setAttribute('aria-hidden','true'); });
-tutorialModal?.addEventListener("click", e => { if (e.target === tutorialModal) { tutorialModal.classList.remove("show"); tutorialModal.setAttribute('aria-hidden','true'); } });
+btnTutorial?.addEventListener("click", () => { tutorialModal.setAttribute('aria-hidden','false'); tutorialModal.classList.add("active"); });
+closeTutorial?.addEventListener("click", () => { tutorialModal.classList.remove("active"); tutorialModal.setAttribute('aria-hidden','true'); });
+tutorialModal?.addEventListener("click", e => { if (e.target === tutorialModal) { tutorialModal.classList.remove("active"); tutorialModal.setAttribute('aria-hidden','true'); } });
 tabButtons.forEach(btn => btn.addEventListener("click", () => {
   tabButtons.forEach(b => b.classList.remove("active"));
   tabPanes.forEach(p => p.classList.remove("active"));
@@ -663,7 +665,7 @@ const collection = [
 
   function openCollectionStandalone(){
     const tut = document.getElementById('tutorialModal');
-    if (tut) { tut.classList.remove('active'); tut.classList.remove('show'); tut.setAttribute('aria-hidden','true'); }
+    if (tut) { tut.classList.remove('active'); tut.classList.remove('active'); tut.setAttribute('aria-hidden','true'); }
     ensureCollectionModal();
     renderCollectionGridLive();
     const modal = document.getElementById('collectionModal');
@@ -692,11 +694,11 @@ const collection = [
   function openModal(modal){
     if (!modal) return;
     modal.setAttribute('aria-hidden','false');
-    modal.classList.add('show');
+    modal.classList.add('active');
   }
   function closeModal(modal){
     if (!modal) return;
-    modal.classList.remove('show');
+    modal.classList.remove('active');
     modal.setAttribute('aria-hidden','true');
   }
   function bindModalOpeners(buttonSelector, modalId, closeBtnId){
@@ -733,6 +735,9 @@ const collection = [
           try { e.stopImmediatePropagation && e.stopImmediatePropagation(); } catch {}
           try { e.preventDefault && e.preventDefault(); } catch {}
           openModal(modal);
+
+
+          
         }
       }, true);
     }
