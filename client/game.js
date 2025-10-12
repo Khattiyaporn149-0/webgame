@@ -1069,22 +1069,140 @@ socket.on("connect", ()=>{
   });
 });
 
-  sendPlayerPosition(true);
-  announcePresenceBurst();
 
-  try{ socket.emit("game:snapshot:request", { room: ROOM_CODE }); }catch(_){}
-});
+// === Remote Player Rendering ===
+// remotePlayers = { uid: element }
+// gameData = { players: { uid: { x, y, dir, color, name } } } 
+const remotePlayers = {};
 
-socket.on("snapshot", (payload)=>{
-  if(!payload?.players) return;
-  const newSet = new Set(payload.players.map(p=>p.uid));
-  for(const id of lastActiveUIDs){
-    if(!newSet.has(id) && remotePlayers[id]){
-      try{ remotePlayers[id].remove(); }catch(_){}
+// ต้องแน่ใจว่าตัวแปรเหล่านี้ถูกกำหนดไว้ที่ส่วนต้นของไฟล์แล้ว
+// const remotePlayers = {}; 
+// const myPlayerUID;
+// const gameContainer;
+// const playerWidth = 200; // อ้างอิงจาก CSS ที่คุณให้มา
+// const playerHeight = 220; // อ้างอิงจาก CSS ที่คุณให้มา
+// let lastPlayersSnapshot = []; // ต้องถูกอัปเดตจาก socket.on("snapshot", ...)
+
+function renderRemotePlayers() {
+  
+    // ใช้ lastPlayersSnapshot ที่ถูกอัปเดตจาก Socket เป็นแหล่งข้อมูล
+    const playersSource = window.lastPlayersSnapshot || [];
+
+    // 2. อัปเดตตำแหน่งและข้อมูลผู้เล่นที่มีอยู่
+    for (const p of playersSource) {
+        // p คือ Object ผู้เล่น: { uid, x, y, dir, name, color, ... }
+        const uid = p.uid;
+
+        // ข้ามผู้เล่นที่เป็นตัวเราเอง
+        if (uid === myPlayerUID) continue;
+
+        let el = remotePlayers[uid];
+
+        if (!el) {
+            // *** NEW: สร้างผู้เล่นใหม่ พร้อม Nametag และ Container ***
+            
+            // 2.1. สร้าง Container หลัก (div)
+            el = document.createElement('div');
+            el.className = 'player remote-player-container'; 
+            // ใช้ค่าขนาดตัวละครจริง
+            el.style.width = `${window.playerWidth || 200}px`; 
+            el.style.height = `${window.playerHeight || 220}px`; 
+
+            // 2.2. สร้าง Nametag Element
+            const nametagEl = document.createElement('div');
+            nametagEl.className = 'remote-player-nametag';
+            el.appendChild(nametagEl);
+
+            // 2.3. สร้าง Player Image Element
+            const playerImg = document.createElement('img');
+            playerImg.className = 'remote-player-img';
+            playerImg.src = 'assets/images/idle_1.png'; // รูปเริ่มต้น
+            el.appendChild(playerImg);
+
+            // เก็บการอ้างอิง DOM เพื่ออัปเดตในลูป
+            el._nametagEl = nametagEl;
+            el._playerImg = playerImg;
+            
+            // กำหนดค่าเริ่มต้นสำหรับ Smoothing
+            el.dataset.x = p.x;
+            el.dataset.y = p.y;
+            el.dataset.tx = p.x;
+            el.dataset.ty = p.y;
+            el._lastUpdate = performance.now();
+            
+            if (window.gameContainer) {
+                gameContainer.appendChild(el); 
+            }
+            remotePlayers[uid] = el;
+        }
+
+        // *** อัปเดต Name และ Color อิงตาม Socket Data (p.name, p.color) ***
+        
+        // 1. อัปเดต Name Tag
+        el._nametagEl.textContent = p.name || `Player ${uid.substring(0, 4)}`;
+
+        // 2. อัปเดต Color (ใช้ Custom Property เพื่อให้ CSS ดึงไปใช้ใน filter/border)
+        const color = p.color || '#ffffff'; // ใช้สีที่มาจาก Socket (เช่น '#FF0000')
+        el.style.setProperty('--player-color', color); 
+
+        // 3. อัปเดต Animation/Direction
+        if (p.dir === 'left') {
+            el._playerImg.style.transform = 'scaleX(-1)';
+        } else if (p.dir === 'right') {
+            el._playerImg.style.transform = 'scaleX(1)';
+        }
+        
+        // 4. การจัดการตำแหน่ง (Interpolation)
+        const cx = parseFloat(el.dataset.x);
+        const cy = parseFloat(el.dataset.y);
+        const now = performance.now();
+        const dt = (now - (el._lastUpdate || now)) / 1000;
+        el._lastUpdate = now;
+
+        const smoothing = Math.min(1, dt * 8); 
+        const nx = cx + (p.x - cx) * smoothing;
+        const ny = cy + (p.y - cy) * smoothing;
+
+        const tx = Math.round(nx);
+        const ty = Math.round(ny);
+        if (tx !== +el.dataset.tx || ty !== +el.dataset.ty) {
+            el.style.transform = `translate(${tx}px, ${ty}px)`;
+            el.dataset.tx = tx;
+            el.dataset.ty = ty;
+        }
+
+        el.dataset.x = nx;
+        el.dataset.y = ny;
+    }
+    
+    // ** ฟังก์ชันนี้จะเรียกตัวเองซ้ำเพื่อสร้างลูปภาพเคลื่อนไหว **
+    requestAnimationFrame(renderRemotePlayers); 
+}
+
+// ** ต้องแน่ใจว่ามีการเรียกฟังก์ชันนี้หนึ่งครั้งเพื่อเริ่มลูป! **
+// renderRemotePlayers();
+
+let lastPlayersSnapshot = [];
+let lastActiveUIDs = new Set();
+
+socket.on("snapshot", (payload) => {
+  if (!payload?.players) return;
+  
+  // อัปเดต Set ของ UID ปัจจุบัน
+  const newSet = new Set(payload.players.map(p => p.uid));
+
+  // ✅ โค้ดลบผู้เล่นที่หายไปจาก DOM
+  for (const id of lastActiveUIDs) {
+    if (!newSet.has(id) && remotePlayers[id]) {
+      // ตรวจสอบก่อนลบ
+      if (remotePlayers[id].parentElement) {
+          remotePlayers[id].remove(); 
+      }
       delete remotePlayers[id];
     }
   }
 
+  // อัปเดต Snapshot ล่าสุดสำหรับ render loop
   lastPlayersSnapshot = payload.players;
   lastActiveUIDs = newSet;
 });
