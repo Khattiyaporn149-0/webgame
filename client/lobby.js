@@ -156,7 +156,9 @@ async function changeChar(delta) {
   if (next === null) return; // ตัวละครถูกจองครบ
   currentCharIndex = next;
   renderChar();
-  try { await update(playerRef, { char: characters[currentCharIndex] }); } catch {}
+  const chosen = characters[currentCharIndex];
+  try { await update(playerRef, { char: chosen }); } catch {}
+  try { localStorage.setItem('ggd.char', chosen); } catch {}
   bumpActivity();
 }
 
