@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Heist - Demo (Interactable Meeting)</title>
+    <title>The Heist - เดโม (ประชุมแบบโต้ตอบได้)</title>
     <style>
         /* ตั้งค่าพื้นฐาน */
         body {
@@ -16,7 +16,8 @@
         }
 
         /* -------------------------------------------
-            1. GAME CONTAINER (แผนที่หลัก)
+            1. GAME CONTAINER (à¹à¸œà¸™à¸—à¸µà¹ˆà¸«à¸¥à¸±à¸)
+            1. พื้นที่เกม (แผนที่หลัก)
             ------------------------------------------- */
         #game-container {
             position: absolute; 
@@ -28,14 +29,14 @@
             overflow: hidden;
             z-index: 1; 
             transition: transform 0.05s linear;
-            background-image: url('assets/images/map_base_8192.png'); /* ใช้ภาพฐานที่ตรงกับ Tiled */
-            background-size: 8192px 8192px; /* ขนาดของแผนที่ตามที่คุณตั้งค่าไว้ */
+            background-image: url('assets/images/map_base_8192.png'); /* ใช้ภาพฐานของแผนที่ให้ตรงกับ Tiled */
+            background-size: 8192px 8192px; /* ขนาดของแผนที่ตามที่กำหนดไว้ */
             will-change: transform; 
             backface-visibility: hidden; 
             transform: translateZ(0); /* hint GPU */
         }
 
-        /* Debug overlay Canvas บนแผนที่หลัก */
+        /* ดีบักโอเวอร์เลย์ (แคนวาส) บนพื้นที่หลัก */
         #debug-overlay {
             position: fixed;
             left: 0;
@@ -60,7 +61,7 @@
         }
         
         /* -------------------------------------------
-            2. VISION OVERLAY (Fog of War)
+            2. วิสัยทัศน์ (หมอกสงคราม)
             ------------------------------------------- */
         #vision-overlay {
             position: fixed;
@@ -74,7 +75,8 @@
         }
         
         /* -------------------------------------------
-            3. MISSION SPOTS (จุดภารกิจ)
+            3. MISSION SPOTS (à¸ˆà¸¸à¸”à¸ à¸²à¸£à¸à¸´à¸ˆ)
+            3. จุดภารกิจ
             ------------------------------------------- */
         .mission-spot {
             position: absolute;
@@ -104,7 +106,8 @@
         }
         
         /* -------------------------------------------
-            4. INTERACTION UI (ข้อความโต้ตอบ)
+            4. INTERACTION UI (à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¹‚à¸•à¹‰à¸•à¸­à¸š)
+            4. ส่วนโต้ตอบ
             ------------------------------------------- */
         #interaction-hint {
             position: fixed;
@@ -122,7 +125,8 @@
         }
         
         /* -------------------------------------------
-            5. LOG EVENT UI (ระบบหลักฐาน)
+            5. LOG EVENT UI (à¸£à¸°à¸šà¸šà¸«à¸¥à¸±à¸à¸à¸²à¸™)
+            5. บันทึกเหตุการณ์
             ------------------------------------------- */
         #log-container {
             position: fixed;
@@ -161,7 +165,8 @@
         }
 
         /* -------------------------------------------
-            6. MISSION STATUS UI (แถบภารกิจ)
+            6. MISSION STATUS UI (à¹à¸–à¸šà¸ à¸²à¸£à¸à¸´à¸ˆ)
+            6. สถานะภารกิจ
             ------------------------------------------- */
         #mission-status-container {
             position: fixed;
@@ -193,7 +198,7 @@
         }
         
         /* -------------------------------------------
-            7. MEETING SYSTEM UI (Modal)
+            7. ระบบประชุม (Modal)
             ------------------------------------------- */
         #meeting-modal {
             position: fixed;
@@ -238,7 +243,7 @@
         }
         
         /* -------------------------------------------
-            8. ROLE REVEAL MODAL 
+            8. หน้าต่างเฉลยบทบาท 
             ------------------------------------------- */
 
         @keyframes pulseShadow-Visitor {
@@ -359,11 +364,11 @@
         }
         
         /* -------------------------------------------
-            9. MINIMAP UI (แก้ไข: Fullscreen เป็นทรงกลมและกลางจอ)
+            9. มินิแมป (แผนที่ย่อ/โหมดเต็มหน้าจอ)
             ------------------------------------------- */
-        /* ตัวครอบ Minimap (Viewport) */
+        /* ตัวครอบมินิแมป (Viewport) */
         #map-overlay {
-            --minimap-size: 150px; /* ขนาด Minimap ปกติ */
+            --minimap-size: 150px; /* ขนาดมินิแมปปกติ */
             position: fixed;
             top: 20px;
             right: 20px;
@@ -378,15 +383,15 @@
 
         /* โหมดแผนที่เต็มจอ (Fullscreen - วงกลมขนาดใหญ่กลางจอ) */
         #map-overlay.fullscreen {
-            top: 50%; /* จัดให้อยู่กึ่งกลางหน้าจอแนวนอน */
+            top: 50%; /* จัดให้อยู่กึ่งกลางแนวแกนตั้ง */
             right: auto;
-            left: 50%; /* จัดให้อยู่กึ่งกลางหน้าจอแนวตั้ง */
-            /* ขยาย Minimap ให้มีขนาดใหญ่ขึ้น */
+            left: 50%; /* จัดให้อยู่กึ่งกลางแนวแกนนอน */
+            /* ขยายมินิแมปให้มีขนาดใหญ่ขึ้น */
             width: 80vh; 
             height: 80vh;
             border-radius: 50%; /* คงคุณสมบัติทรงกลมไว้ */
             background-color: rgba(0, 0, 0, 0.95);
-            /* **จัดตำแหน่งให้ Minimap ที่ใหญ่ขึ้นอยู่กึ่งกลางหน้าจอโดยสมบูรณ์** */
+            /* จัดตำแหน่งให้มินิแมปที่ใหญ่ขึ้นอยู่กึ่งกลางหน้าจอโดยสมบูรณ์ */
             transform: translate(-50%, -50%); 
         }
 
@@ -404,7 +409,7 @@
             image-rendering: pixelated;
         }
 
-        /* จุดผู้เล่นบน Minimap/Full Map */
+        /* จุดผู้เล่นบนมินิแมป/แผนที่เต็ม */
         #minimap-player-dot {
             position: absolute;
             width: 10px; /* ลดขนาดจุดผู้เล่นเหลือ 10px */
@@ -412,10 +417,10 @@
             border-radius: 50%;
             background-color: #00ff00; /* สีเขียว */
             z-index: 700; 
-            transform: translate(-50%, -50%); /* จัดกึ่งกลางตัวเอง */
+            transform: translate(-50%, -50%); /* จัดให้อยู่กึ่งกลางตัวเอง */
         }
 
-        /* จุดภารกิจบน Minimap/Full Map */
+        /* จุดภารกิจบนมินิแมป/แผนที่เต็ม */
         .minimap-mission-dot {
             position: absolute;
             width: 6px; /* ลดขนาดจุดภารกิจเหลือ 6px */
@@ -423,14 +428,14 @@
             border-radius: 50%;
             background-color: #fff; /* จุดสีขาว */
             z-index: 650;
-            transform: translate(-50%, -50%); /* จัดกึ่งกลางตัวเอง */
+            transform: translate(-50%, -50%); /* จัดให้อยู่กึ่งกลางตัวเอง */
         }
         
         #minimap-guest-dot { background-color: #00bfff; } /* ฟ้า */
         #minimap-heist-dot { background-color: #ff4500; } /* ส้ม/แดง */
         #minimap-meeting-dot { 
             background-color: #ffff00; 
-            width: 15px; /* ลดขนาดจุดประชุมเหลือ 15px */
+            width: 15px; /* กำหนดขนาดจุดประชุมเป็น 15px */
             height: 15px; 
             border-radius: 50%;
         } /* เหลือง */
@@ -439,18 +444,20 @@
 </head>
 <body>
     <div id="game-container">
-        <img id="player" src="assets/images/idle_1.png" alt="Player Character">
-        
+        <div id="player-wrap" style="position:absolute;width:128px;height:128px;will-change:transform;">
+            <img id="player" src="assets/images/idle_1.png" alt="ตัวละครผู้เล่น">
+            <div id="nameplate" style="position:absolute;left:50%;bottom:100%;transform:translate(-50%,-8px);color:#fff;font-weight:700;text-shadow:0 2px 6px #000;z-index:350;white-space:nowrap;"></div>
+        </div>
         <div id="mission-guest" class="mission-spot"></div>
         <div id="mission-heist" class="mission-spot"></div>
         <div id="mission-meeting" class="mission-spot"></div>
 
-        <!-- Debug Canvas Overlay -->
+        <!-- โอเวอร์เลย์แคนวาสสำหรับดีบัก -->
         
         </div>
     
     <div id="vision-overlay"></div>
-    <!-- Debug Canvas Overlay (moved outside container so it isn't transformed) -->
+    <!-- โอเวอร์เลย์แคนวาสสำหรับดีบัก (ย้ายออกนอกคอนเทนเนอร์เพื่อไม่ให้ถูกแปลง) -->
     <canvas id='debug-overlay' width='1' height='1'></canvas>
     <div id="interaction-hint">กด [E] เพื่อโต้ตอบ</div>
     
@@ -470,9 +477,9 @@
             <p>ทุกคนกำลังพูดคุยและโต้แย้งหลักฐาน...</p>
             
             <div id="voting-area">
-                <p>หัวขโมยคือใคร?</p>
-                <button class="vote-option" data-target="Player 2">โหวต Player 2 (ผู้ต้องสงสัย)</button>
-                <button class="vote-option" data-target="Player 3">โหวต Player 3</button>
+                <p>ผู้ต้องสงสัยคือใคร?</p>
+                <button class="vote-option" data-target="Player 2">โหวต ผู้เล่น 2 (ผู้ต้องสงสัย)</button>
+                <button class="vote-option" data-target="Player 3">โหวต ผู้เล่น 3</button>
                 <button class="vote-option" data-target="Skip">ข้ามการโหวต</button>
             </div>
             
@@ -490,14 +497,14 @@
             <h2 id="role-team-text">ฝ่าย: ...</h2> 
             <p id="role-ability-text">...</p>
             <div id="role-character-display">
-                <img id="role-character-image" src="" alt="Player Character">
+                <img id="role-character-image" src="" alt="ตัวละครผู้เล่น">
             </div>
             </div>
     </div>
 
     <div id="map-overlay">
         <div id="minimap-content">
-            <img id="minimap-base" src="assets/images/map_base_8192.png" alt="Map Base">
+            <img id="minimap-base" src="assets/images/map_base_8192.png" alt="แผนที่หลัก">
             
             <div id="minimap-player-dot"></div>
             <div id="minimap-guest-dot" class="minimap-mission-dot"></div>
@@ -506,7 +513,7 @@
         </div>
     </div>
 
-    <!-- Debug Panel -->
+    <!-- แผงดีบัก -->
     <div id="debug-panel" style="position:fixed; left:10px; bottom:10px; background:#0009; color:#0f0; font-family:monospace; font-size:12px; line-height:1.4; padding:8px 10px; border:1px solid #0f0; border-radius:6px; z-index:1200; display:none;"></div>
     
     <audio id="sfx-interact" src="assets/sounds/interaction_success.mp3"></audio>
@@ -518,4 +525,5 @@
 
 </body>
 </html>
+
 

@@ -180,12 +180,25 @@ const WALL_COLLISION_BOXES = [];
 // *******************************************
 // 4. การจัดการแอนิเมชัน (คงเดิม)
 // *******************************************
-const idleFrames = ['assets/images/idle_1.png']; 
-const walkFrames = [
-    'assets/images/walk_1.png', 'assets/images/walk_2.png', 'assets/images/walk_3.png', 
-    'assets/images/walk_4.png', 'assets/images/walk_5.png', 'assets/images/walk_6.png',
-    'assets/images/walk_7.png', 'assets/images/walk_8.png'
-]; 
+// Dynamic frames based on chosen character name stored from lobby
+let __spriteChar = 'mini_brown';
+try { const c = localStorage.getItem('ggd.char'); if (c) __spriteChar = c; } catch(_){}
+// Map lobby character selection to a representative color
+function colorFromChar(charName) {
+  switch ((charName || '').toLowerCase()) {
+    case 'mini_brown': return '#8B4513';
+    case 'mini_coral': return '#FF7F50';
+    case 'mini_gray': return '#A9A9A9';
+    case 'mini_lavender': return '#B19CD9';
+    case 'mini_mint': return '#3EB489';
+    case 'mini_pink': return '#FF69B4';
+    case 'mini_sky_blue': return '#87CEEB';
+    case 'mini_yellow': return '#FFD700';
+    default: return '#4CAF50';
+  }
+}
+let idleFrames = [`assets/Characters/${__spriteChar}/idle_1.png`];
+let walkFrames = Array.from({length:8}, (_,i)=>`assets/Characters/${__spriteChar}/walk_${i+1}.png`);
 let currentAnimation = 'idle';
 let currentFrameIndex = 0;
 let lastFrameTime = 0;
@@ -229,7 +242,20 @@ function updateDisplay() {
         }
     });
 
-    player.style.transform = `translate(${playerWorldX}px, ${playerWorldY}px)`;
+    // Move wrapper instead of image so nameplate sticks perfectly
+    try {
+      const wrap = document.getElementById('player-wrap');
+      if (wrap) wrap.style.transform = `translate(${playerWorldX}px, ${playerWorldY}px)`;
+      else player.style.transform = `translate(${playerWorldX}px, ${playerWorldY}px)`;
+    } catch(_){}
+    // Update nameplate text only (position handled by CSS inside wrapper)
+    try {
+      const np = document.getElementById('nameplate');
+      if (np) {
+        const pn = (localStorage.getItem('ggd.name') || `Player_${uid.slice(0,4)}`);
+        if (np.textContent !== pn) np.textContent = pn;
+      }
+    } catch(_){}
     gameContainer.style.transform = `translate(${containerX}px, ${containerY}px)`;
 
     // อัปเดต Fog of War
@@ -862,9 +888,12 @@ function initializeGame() {
     playerWidth = player.offsetWidth;
     playerHeight = player.offsetHeight;
 
-    // *** จำลองการดึง Character Asset Path จาก Database/Multiplayer ***
-    const currentPlayerCharacterAsset = player.src; 
-    
+    // ????? Character Asset ???????????????????? Lobby ????????????????????
+    let chosenChar = 'mini_brown';
+    try { const c = localStorage.getItem('ggd.char'); if (c) chosenChar = c; } catch(_){}
+    const currentPlayerCharacterAsset = "assets/Characters/" + chosenChar + "/idle_1.png";
+    // ?????????? player ???????????????????? (????? DOM ?????????????????)
+    try { if (player) player.src = currentPlayerCharacterAsset; } catch(_){ }
     // *** จำลองการกำหนดบทบาทและสุ่มความสามารถ ***
     const roles = ['Thief', 'Visitor']; 
     playerRole = roles[Math.floor(Math.random() * roles.length)]; 
@@ -889,19 +918,25 @@ function initializeGame() {
     }
     
 
+    const chosenColor = colorFromChar(localStorage.getItem('ggd.char') || __spriteChar);
+    // Also tint the minimap player dot to selected color
+    try { if (minimapPlayerDot) minimapPlayerDot.style.backgroundColor = chosenColor; } catch(_){ }
     if (playerRole === 'Visitor') {
         const abilityPool = VISITOR_ABILITIES;
         const abilities = Object.keys(abilityPool);
         abilityName = abilities[Math.floor(Math.random() * abilities.length)];
         playerAbility = abilityPool[abilityName];
         roleTeamText.textContent = `ฝ่าย: ผู้เยี่ยมชม`;
-        roleTeamText.style.color = '#4CAF50'; // สีเขียว
+        roleTeamText.style.color = "#4CAF50";
         
         // กำหนด Class Animation สีเขียว (เฉพาะเงาเรืองแสง)
+        // Use player-selected color instead of fixed animation
+        // reset to team color class
+        roleNameText.style.color = '';
+        roleNameText.style.textShadow = '';
         roleNameText.classList.add('role-name-visitor');
-        if(roleCharacterDisplay) {
-            roleCharacterDisplay.classList.add('character-glow-visitor'); 
-        }
+        if (roleCharacterDisplay) roleCharacterDisplay.classList.add('character-glow-visitor');
+        if (roleCharacterImage) roleCharacterImage.style.filter = `drop-shadow(0 0 18px ${chosenColor})`;
         
     } else if (playerRole === 'Thief') {
         const abilityPool = THIEF_ABILITIES;
@@ -909,13 +944,16 @@ function initializeGame() {
         abilityName = abilities[Math.floor(Math.random() * abilities.length)];
         playerAbility = abilityPool[abilityName];
         roleTeamText.textContent = `ฝ่าย: หัวขโมย`;
-        roleTeamText.style.color = '#FF0000'; // สีแดง
+        roleTeamText.style.color = "#FF0000";
         
         // กำหนด Class Animation สีแดง (เฉพาะเงาเรืองแสง)
+        // Use player-selected color instead of fixed animation
+        // reset to team color class
+        roleNameText.style.color = '';
+        roleNameText.style.textShadow = '';
         roleNameText.classList.add('role-name-thief');
-        if(roleCharacterDisplay) {
-            roleCharacterDisplay.classList.add('character-glow-thief'); 
-        }
+        if (roleCharacterDisplay) roleCharacterDisplay.classList.add('character-glow-thief');
+        if (roleCharacterImage) roleCharacterImage.style.filter = `drop-shadow(0 0 18px ${chosenColor})`;
     }
     
     // แสดงผลบทบาทและความสามารถบน Modal
@@ -1056,23 +1094,24 @@ const socket = io("https://webgame-25n5.onrender.com");
 window.socket = socket;
 
 // === Player identity ===
-const ROOM_CODE = "lobby01";
-const uid =
-  sessionStorage.getItem("uid") ||
-  (() => {
-    const v = crypto.randomUUID();
-    sessionStorage.setItem("uid", v);
-    return v;
-  })();
+// Resolve room code from URL if available
+const __params = new URLSearchParams(location.search);
+const ROOM_CODE = __params.get('code') || 'lobby01';
+// Use same uid key as lobby for consistency
+const uid = (sessionStorage.getItem('ggd.uid') || localStorage.getItem('ggd.uid')) ||
+  (() => { const v = (crypto?.randomUUID?.() || ('uid_' + Math.random().toString(36).slice(2,10))); sessionStorage.setItem('ggd.uid', v); localStorage.setItem('ggd.uid', v); return v; })();
 console.log("🆔 Current UID:", uid);
 
 // === Socket connection ===
 socket.on("connect", () => {
   console.log("✅ Connected to server:", socket.id);
+  const myName = (localStorage.getItem('ggd.name') || `Player_${uid.slice(0,4)}`);
+  const myChar = (localStorage.getItem('ggd.char') || 'mini_brown');
   socket.emit("game:join", {
     room: ROOM_CODE,
     uid,
-    name: `Player_${uid.slice(0, 4)}`,
+    name: myName,
+    char: myChar,
     color: "#00ffcc",
     x: playerWorldX,
     y: playerWorldY,
@@ -1080,9 +1119,10 @@ socket.on("connect", () => {
 });
 
 // === Snapshot handling ===
-let remotePlayers = {};
 let lastPlayersSnapshot = [];
 let lastActiveUIDs = new Set();
+let remotePlayers = window.remotePlayers || {};
+let remoteNameplates = {};
 
 socket.on("snapshot", (payload) => {
   if (!payload?.players) return;
@@ -1093,8 +1133,9 @@ socket.on("snapshot", (payload) => {
   // ✅ ลบเฉพาะ player ที่ "หายไป" จาก snapshot รอบนี้เท่านั้น
   for (const id of lastActiveUIDs) {
     if (!newSet.has(id) && remotePlayers[id]) {
-      remotePlayers[id].remove();
+      try { remotePlayers[id].remove(); } catch(_){}
       delete remotePlayers[id];
+      if (remoteNameplates[id]) { try { remoteNameplates[id].remove(); } catch(_){} delete remoteNameplates[id]; }
     }
   }
 
@@ -1110,7 +1151,8 @@ function renderRemotePlayers() {
     let el = remotePlayers[p.uid];
     if (!el) {
       el = document.createElement("img");
-      el.src = "assets/images/idle_1.png";
+      const charName = p.char || 'mini_brown';
+      el.src = `assets/Characters/${charName}/idle_1.png`;
       el.className = "remote-player";
       Object.assign(el.style, {
         position: "absolute",
@@ -1126,6 +1168,16 @@ function renderRemotePlayers() {
       el._lastUpdate = performance.now();
       gameContainer.appendChild(el);
       remotePlayers[p.uid] = el;
+
+      // Create nameplate for remote player
+      const np = document.createElement('div');
+      np.className = 'remote-nameplate';
+      np.textContent = p.name || `Player_${(p.uid||'xxxx').slice(0,4)}`;
+      Object.assign(np.style, {
+        position: 'absolute', color: '#fff', fontWeight: '700', textShadow: '0 2px 6px #000', zIndex: 350
+      });
+      gameContainer.appendChild(np);
+      remoteNameplates[p.uid] = np;
     }
 
     const cx = parseFloat(el.dataset.x);
@@ -1144,6 +1196,14 @@ function renderRemotePlayers() {
       el.style.transform = `translate(${tx}px, ${ty}px)`;
       el.dataset.tx = tx;
       el.dataset.ty = ty;
+      // Move nameplate to follow
+      const np = remoteNameplates[p.uid];
+      if (np) {
+        np.style.left = `${tx + 64}px`; // half of 128
+        np.style.top  = `${ty - 8}px`;
+        np.style.transform = 'translate(-50%, -100%)';
+        np.textContent = p.name || np.textContent;
+      }
     }
 
     el.dataset.x = nx;
@@ -1162,10 +1222,14 @@ function sendPlayerPosition() {
   const now = performance.now();
   if (!isMoving || now - lastSent < SEND_INTERVAL) return;
   lastSent = now;
+  const myName = (localStorage.getItem('ggd.name') || `Player_${uid.slice(0,4)}`);
+  const myChar = (localStorage.getItem('ggd.char') || 'mini_brown');
   socket.emit("player:move", {
     uid,
     x: playerWorldX,
     y: playerWorldY,
+    name: myName,
+    char: myChar,
   });
 }
 
@@ -1180,3 +1244,13 @@ socket.on("error", (error) => {
 });
 
 // ===== End Multiplayer Section =====
+
+
+
+
+
+
+
+
+
+
