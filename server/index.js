@@ -15,7 +15,7 @@ const gameRooms = {};
 function ensureGameRoom(code) {
   if (!gameRooms[code]) {
     gameRooms[code] = { players: new Map(), interval: null };
-    gameRooms[code].interval = setInterval(() => tickRoom(code), 33);
+    gameRooms[code].interval = setInterval(() => tickRoom(code), 100);
   }
   return gameRooms[code];
 }
@@ -63,6 +63,8 @@ io.on("connection", (socket) => {
       }
     }
   });
+
+
 
   // ===============================
   // DISCONNECT

@@ -72,8 +72,9 @@ const FOCUSED_MAP_SCALE = 0.5;
 // *******************************************
 // NEW: ขนาดแผนที่และตำแหน่งเริ่มต้น
 // *******************************************
-const CONTAINER_WIDTH = 8192;   // ขนาดแผนที่ 8192
-const CONTAINER_HEIGHT = 8192;  // ขนาดแผนที่ 8192
+
+const CONTAINER_WIDTH = 8192 ;
+const CONTAINER_HEIGHT = 8192 ;
 
 // พาธไฟล์แผนที่ .tmj ที่ใช้งาน
 // ไม่ใช้ไฟล์ TMJ อีกต่อไป (ลบการพึ่งพา Tiled)
@@ -213,25 +214,6 @@ function updateAnimation(timestamp) {
     }
 }
 
-// ===== Multiplayer Rendering =====
-const remotePlayers = {};
-function updateRemotePlayers(players) {
-  for (const p of players) {
-    if (p.uid === uid) continue; // ข้ามตัวเราเอง
-    let el = remotePlayers[p.uid];
-    if (!el) {
-      el = document.createElement("img");
-      el.src = "assets/images/idle_1.png";
-      el.style.position = "absolute";
-      el.style.width = "128px";
-      el.style.height = "128px";
-      el.style.imageRendering = "pixelated";
-      gameContainer.appendChild(el);
-      remotePlayers[p.uid] = el;
-    }
-    el.style.transform = `translate(${p.x}px, ${p.y}px)`;
-  }
-}
 
 
 // *******************************************
@@ -865,6 +847,7 @@ function worldGameLoop(timestamp) {
         updateAnimation(timestamp);
     }
     
+    sendPlayerPosition();
     requestAnimationFrame(worldGameLoop);
 }
 
@@ -1067,47 +1050,133 @@ try {
 // ===== Multiplayer Section (Socket.IO Integration) =====
 //import { io } from "/socket.io/socket.io.esm.min.js"; // โหลด socket.io client module
 
-const socket = io("http://localhost:3000"); // ถ้า deploy render ค่อยเปลี่ยน URL
-const ROOM_CODE = "lobby01"; // ห้องหลัก (จะเปลี่ยนให้ random ทีหลังได้)
-const uid = localStorage.getItem("uid") || crypto.randomUUID();
-localStorage.setItem("uid", uid);
+const socket = io("https://webgame-25n5.onrender.com");
+// ===== Multiplayer Section (Socket.IO Integration) =====
+//const socket = io("http://localhost:3000");
+window.socket = socket;
 
-// สำหรับควบคุมความถี่การส่งข้อมูล
-let lastSent = 0;
-const SEND_INTERVAL = 50; // ms
+// === Player identity ===
+const ROOM_CODE = "lobby01";
+const uid =
+  sessionStorage.getItem("uid") ||
+  (() => {
+    const v = crypto.randomUUID();
+    sessionStorage.setItem("uid", v);
+    return v;
+  })();
+console.log("🆔 Current UID:", uid);
 
-// ✅ เมื่อเชื่อมต่อ
+// === Socket connection ===
 socket.on("connect", () => {
   console.log("✅ Connected to server:", socket.id);
-
   socket.emit("game:join", {
     room: ROOM_CODE,
     uid,
     name: `Player_${uid.slice(0, 4)}`,
     color: "#00ffcc",
     x: playerWorldX,
-    y: playerWorldY
+    y: playerWorldY,
   });
 });
 
-// 🚀 ส่งตำแหน่งทุก 50ms เฉพาะเมื่อขยับ
-function sendPlayerPosition() {
-  const now = performance.now();
-  if (now - lastSent < SEND_INTERVAL) return;
-  lastSent = now;
-  socket.emit("player:move", { uid, x: playerWorldX, y: playerWorldY });
-}
+// === Snapshot handling ===
+let remotePlayers = {};
+let lastPlayersSnapshot = [];
+let lastActiveUIDs = new Set();
 
-// 🛰️ รับ snapshot ผู้เล่นทั้งหมด
 socket.on("snapshot", (payload) => {
   if (!payload?.players) return;
-  updateRemotePlayers(payload.players);
+  lastPlayersSnapshot = payload.players;
+
+  const newSet = new Set(payload.players.map(p => p.uid));
+
+  // ✅ ลบเฉพาะ player ที่ "หายไป" จาก snapshot รอบนี้เท่านั้น
+  for (const id of lastActiveUIDs) {
+    if (!newSet.has(id) && remotePlayers[id]) {
+      remotePlayers[id].remove();
+      delete remotePlayers[id];
+    }
+  }
+
+  lastPlayersSnapshot = payload.players;
+  lastActiveUIDs = newSet;
 });
 
-// ✨ Hook เข้ากับ game loop ให้ส่งตำแหน่งด้วย
-const originalLoop = worldGameLoop;
-worldGameLoop = function patchedLoop(ts) {
-  originalLoop(ts);
-  sendPlayerPosition();
-};
+// --- Render Loop (ลื่นมากกว่า) ---
+function renderRemotePlayers() {
+  for (const p of lastPlayersSnapshot) {
+    if (p.uid === uid) continue;
+
+    let el = remotePlayers[p.uid];
+    if (!el) {
+      el = document.createElement("img");
+      el.src = "assets/images/idle_1.png";
+      el.className = "remote-player";
+      Object.assign(el.style, {
+        position: "absolute",
+        width: "128px",
+        height: "128px",
+        imageRendering: "pixelated",
+        willChange: "transform"
+      });
+      el.dataset.x = p.x;
+      el.dataset.y = p.y;
+      el.dataset.tx = p.x;
+      el.dataset.ty = p.y;
+      el._lastUpdate = performance.now();
+      gameContainer.appendChild(el);
+      remotePlayers[p.uid] = el;
+    }
+
+    const cx = parseFloat(el.dataset.x);
+    const cy = parseFloat(el.dataset.y);
+    const now = performance.now();
+    const dt = (now - (el._lastUpdate || now)) / 1000;
+    el._lastUpdate = now;
+
+    const smoothing = Math.min(1, dt * 8);
+    const nx = cx + (p.x - cx) * smoothing;
+    const ny = cy + (p.y - cy) * smoothing;
+
+    const tx = Math.round(nx);
+    const ty = Math.round(ny);
+    if (tx !== +el.dataset.tx || ty !== +el.dataset.ty) {
+      el.style.transform = `translate(${tx}px, ${ty}px)`;
+      el.dataset.tx = tx;
+      el.dataset.ty = ty;
+    }
+
+    el.dataset.x = nx;
+    el.dataset.y = ny;
+  }
+
+  requestAnimationFrame(renderRemotePlayers);
+}
+renderRemotePlayers();
+
+// === Send position with throttle ===
+let lastSent = 0;
+const SEND_INTERVAL = 80; // ส่งทุก 80ms พอ
+
+function sendPlayerPosition() {
+  const now = performance.now();
+  if (!isMoving || now - lastSent < SEND_INTERVAL) return;
+  lastSent = now;
+  socket.emit("player:move", {
+    uid,
+    x: playerWorldX,
+    y: playerWorldY,
+  });
+}
+
+// === Handle disconnect ===
+socket.on("disconnect", (reason) => {
+  console.log("❌ Disconnected from server:", reason);
+});
+
+// === Handle errors ===
+socket.on("error", (error) => {
+  console.error("⚠️ Socket error:", error);
+});
+
 // ===== End Multiplayer Section =====
