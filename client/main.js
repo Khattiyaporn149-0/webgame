@@ -12,4 +12,5 @@
     // Go to create room page
     window.location.href = 'createroom.html';
   });
+  
 })();
