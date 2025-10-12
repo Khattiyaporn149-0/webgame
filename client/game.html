@@ -456,6 +456,42 @@
             border-radius: 50%;
         } /* เหลือง */
         
+        /* ในไฟล์ style.css หรือบล็อก <style> ที่คุณใช้ */
+
+    .remote-player-container {
+        /* เป็นตัวห่อหุ้มตัวละครและ nametag */
+        position: absolute;
+        width: 200px; /* ควรเท่ากับ playerWidth */
+        height: 200px; /* ควรเท่ากับ playerHeight */
+        pointer-events: none; /* ป้องกันการคลิกโดนคอนเทนเนอร์ */
+    }
+
+    .remote-player-img {
+        width: 100%;
+        height: 100%;
+        /* คุณสามารถใช้ CSS filter เพื่อ tint สีตัวละครได้ */
+        /* สมมติว่าใน JS คุณได้ตั้งค่า --player-color แล้ว */
+        filter: drop-shadow(0 0 0.2rem var(--player-color, transparent));
+    }
+
+    .remote-player-nametag {
+        position: absolute;
+        top: -30px; /* เลื่อนขึ้นเหนือหัวผู้เล่น */
+        left: 50%;
+        transform: translateX(-50%);
+        white-space: nowrap;
+        background-color: rgba(0, 0, 0, 0.75);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 16px; 
+        font-family: sans-serif;
+        font-weight: bold;
+        z-index: 100;
+        /* ใช้สีที่อิงจากผู้เล่นเป็นสีขอบ */
+        border: 1px solid var(--player-color, #ffffff); 
+    }
+
     </style>
 </head>
 <body>
