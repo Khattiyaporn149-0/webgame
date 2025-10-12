@@ -157,6 +157,7 @@
   </div>
 
   <!-- โค้ดหลักของหน้า -->
+  <script src="./common-settings.js" defer></script>
   <script type="module" src="./roomlist.js"></script>
 
   <!-- สคริปต์ Settings (ใช้ร่วมกับ styles.css ของ index) -->
@@ -188,7 +189,27 @@
     bindSave(rMaster, 'set.master');
     bindSave(rMusic , 'set.music');
     bindSave(rSfx   , 'set.sfx');
-    selReg?.addEventListener('change', ()=> localStorage.setItem('set.region', selReg.value));
+  selReg?.addEventListener('change', ()=> localStorage.setItem('set.region', selReg.value));
+  </script>
+  
+  <!-- Override with unified GameSettings so sliders sync across pages -->
+  <script>
+    window.addEventListener('DOMContentLoaded', ()=>{
+      if (!window.GameSettings) return;
+      const s = window.GameSettings.get();
+      const rMaster = document.getElementById('rangeMaster');
+      const rMusic  = document.getElementById('rangeMusic');
+      const rSfx    = document.getElementById('rangeSfx');
+      const region  = document.getElementById('regionSel');
+      if (rMaster) rMaster.value = s.master;
+      if (rMusic)  rMusic.value  = s.music;
+      if (rSfx)    rSfx.value    = s.sfx;
+      if (region)  region.value  = s.region;
+      rMaster?.addEventListener('input', e=> window.GameSettings.set({ master:+e.target.value }));
+      rMusic ?.addEventListener('input', e=> window.GameSettings.set({ music:+e.target.value }));
+      rSfx   ?.addEventListener('input', e=> window.GameSettings.set({ sfx  :+e.target.value }));
+      region ?.addEventListener('change', e=> window.GameSettings.set({ region:e.target.value }));
+    });
   </script>
 </body>
 </html>

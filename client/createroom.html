@@ -203,11 +203,7 @@
           rangeSfx   :'rangeSfx',
           regionSel  :'regionSel'
         });
-        ['#btnBack','#btnCreate','#btnSettingsTop','#closeSettings'].forEach(sel=>{
-          document.querySelectorAll(sel).forEach(el=>{
-            el.addEventListener('click', ()=> window.GameAudio?.playClick?.());
-          });
-        });
+        // SFX click handled globally in common-settings.js (pointerdown capture)
       });
     })();
   </script>
