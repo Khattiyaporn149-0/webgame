@@ -290,9 +290,50 @@
     </div>
   </div>
 </div>
-<script type="module" src="common-settings.js"></script>
+<script src="common-settings.js" defer></script>
 <script type="module" src="app.js"></script>
 <script type="module" src="streak.js"></script>
 <script type="module" src="missions.js"></script>
+<script>
+  // Bind index sliders to unified GameSettings so they reflect external changes
+  window.addEventListener('DOMContentLoaded', () => {
+    if (window.GameSettings) {
+      window.GameSettings.bindUI({
+        rangeMaster:'rangeMaster',
+        rangeMusic :'rangeMusic',
+        rangeSfx   :'rangeSfx',
+        regionSel  :'regionSel'
+      });
+    }
+  });
+  // Optional: when settings modal opens, refresh displayed values
+  document.getElementById('btnSettingsTop')?.addEventListener('click', () => {
+    try {
+      const s = window.GameSettings?.get?.();
+      if (!s) return;
+      const rm = document.getElementById('rangeMaster');
+      const rmu= document.getElementById('rangeMusic');
+      const rs = document.getElementById('rangeSfx');
+      const rg = document.getElementById('regionSel');
+      if (rm) rm.value = s.master;
+      if (rmu) rmu.value = s.music;
+      if (rs) rs.value = s.sfx;
+      if (rg) rg.value = s.region;
+    } catch {}
+  });
+  // Keep UI in sync if other pages change values while index is open
+  try {
+    window.GameSettings?.onChange?.((s) => {
+      const rm = document.getElementById('rangeMaster');
+      const rmu= document.getElementById('rangeMusic');
+      const rs = document.getElementById('rangeSfx');
+      const rg = document.getElementById('regionSel');
+      if (rm) rm.value = s.master;
+      if (rmu) rmu.value = s.music;
+      if (rs) rs.value = s.sfx;
+      if (rg) rg.value = s.region;
+    });
+  } catch {}
+</script>
 </body>
 </html>

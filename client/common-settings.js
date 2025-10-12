@@ -117,6 +117,17 @@
       // Expose globally for other scripts
       window.bgm = this.bgm;
       window.clickSound = this.click;
+      // Guard raw clickSound.play() to avoid double SFX when pointerdown/global already played
+      try {
+        const originalPlay = this.click.play.bind(this.click);
+        this.click.play = (...args) => {
+          const now = Date.now();
+          const last = window.__lastClickSfxTs || 0;
+          if (now - last < 250) return Promise.resolve();
+          window.__lastClickSfxTs = now;
+          return originalPlay(...args);
+        };
+      } catch {}
       window.GameAudio = this;
 
       return this;
@@ -165,12 +176,36 @@
     }
   } catch {}
 
-  // Global click SFX helper: ensure audio initialized, then play click
-  document.addEventListener('click', () => {
-    try {
-      if (!window.GameAudio) return;
-      if (!window.bgm || !window.clickSound) window.GameAudio.init();
-      window.GameAudio.playClick();
-    } catch {}
-  });
+  // Global click SFX helper: play earlier on pointerdown and support keyboard
+  (function(){
+    let _lastTs = 0;
+    let _lastMode = '';
+    function playClickNow(mode){
+      try {
+        if (!window.GameAudio) return;
+        if (!window.bgm || !window.clickSound) window.GameAudio.init();
+        const now = Date.now();
+        if (now - _lastTs < 300) return; // prevent double from pointerdown->click
+        _lastTs = now;
+        _lastMode = mode || '';
+        window.GameAudio.playClick();
+      } catch {}
+    }
+    document.addEventListener('pointerdown', (e) => {
+      const el = e.target && (e.target.closest?.('button, a, [role="button"], .cta, .sec-btn, .icon-btn, .join-btn, .btn-primary, .mini-btn'));
+      if (el) playClickNow('pointer');
+    }, { capture: true });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        const el = e.target && (e.target.closest?.('button, [role="button"]'));
+        if (el) playClickNow('key');
+      }
+    }, { capture: true });
+    document.addEventListener('click', () => {
+      // Skip if a pointer/key handler just fired recently
+      const now = Date.now();
+      if (now - _lastTs < 300) return;
+      playClickNow('click');
+    });
+  })();
 })();

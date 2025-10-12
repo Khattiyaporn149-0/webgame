@@ -39,11 +39,30 @@ const state = {
   version: "V.test1.3.2"
 };
 
+// If unified GameSettings exists (from common-settings.js), initialize from it
+try {
+  if (window.GameSettings && typeof window.GameSettings.get === 'function') {
+    const gs = window.GameSettings.get();
+    if (gs) {
+      if (Number.isFinite(+gs.master)) state.master = +gs.master;
+      if (Number.isFinite(+gs.music))  state.music  = +gs.music;
+      if (Number.isFinite(+gs.sfx))    state.sfx    = +gs.sfx;
+      if (gs.region)                   state.region = gs.region;
+    }
+  }
+} catch {}
+
 function saveState() {
   for (const k in state) {
     if (typeof state[k] !== "object") localStorage.setItem(`ggd.${k}`, state[k]);
   }
   updateVolumes();
+  // Propagate to unified settings so other pages follow
+  try {
+    if (window.GameSettings && typeof window.GameSettings.set === 'function') {
+      window.GameSettings.set({ master: state.master, music: state.music, sfx: state.sfx, region: state.region });
+    }
+  } catch {}
 }
 
 function updateVolumes() {
@@ -51,6 +70,30 @@ function updateVolumes() {
   clickSound.volume = state.master * state.sfx;
 }
 updateVolumes();
+
+// Keep index page in sync if other pages change GameSettings
+try {
+  if (window.GameSettings && typeof window.GameSettings.onChange === 'function') {
+    window.GameSettings.onChange((s) => {
+      // Update local state from unified settings
+      if (Number.isFinite(+s.master)) state.master = +s.master;
+      if (Number.isFinite(+s.music))  state.music  = +s.music;
+      if (Number.isFinite(+s.sfx))    state.sfx    = +s.sfx;
+      if (s.region)                   state.region = s.region;
+      // Apply immediately
+      updateVolumes();
+      // Reflect in sliders if present
+      const rm = document.getElementById("rangeMaster");
+      const rmu= document.getElementById("rangeMusic");
+      const rs = document.getElementById("rangeSfx");
+      const rg = document.getElementById("regionSel");
+      if (rm) rm.value = state.master;
+      if (rmu) rmu.value = state.music;
+      if (rs) rs.value = state.sfx;
+      if (rg && rg.value !== state.region) rg.value = state.region;
+    });
+  }
+} catch {}
 
 // ========== 🪄 BASIC UI HOOKS ==========
 const startScreen = document.getElementById("startScreen");
@@ -744,7 +787,5 @@ const collection = [
   if (document.readyState === 'complete' || document.readyState === 'interactive') init();
   else document.addEventListener('DOMContentLoaded', init, { once: true });
 })();
-
-
 
 
