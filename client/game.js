@@ -4,13 +4,13 @@
 // ตัวแปรการตั้งค่า
 // *******************************************
 
-const PLAYER_SPEED = 6; // <<< ความเร็ว 6
+const PLAYER_SPEED = 20; // <<< ความเร็ว 6
 const VISION_RADIUS = 300; 
 const FOG_COLOR = 'rgba(0, 0, 0, 0.95)'; 
 const ANIMATION_FRAME_RATE = 80; 
 
 // การตั้งค่าภารกิจและการโต้ตอบ
-const INTERACTION_RADIUS = 150; 
+const INTERACTION_RADIUS = 200; 
 const INTERACTION_KEY = 'KeyE'; // ปุ่มโต้ตอบ (ใช้เรียกประชุมด้วย)
 
 // การตั้งค่า Log
@@ -80,8 +80,8 @@ const CONTAINER_HEIGHT = 8192 ;
 // ไม่ใช้ไฟล์ TMJ อีกต่อไป (ลบการพึ่งพา Tiled)
 
 // ตำแหน่งเริ่มต้นผู้เล่น (กลางแผนที่ 8192x8192)
-let playerWorldX = 4096; 
-let playerWorldY = 4096; 
+let playerWorldX = 3500; 
+let playerWorldY = 3500; 
 
 // ตำแหน่งจุดภารกิจ (กระจายให้เหมาะสมกับแผนที่ 8192x8192)
 const MISSION_SPOTS_DATA = [
@@ -90,8 +90,11 @@ const MISSION_SPOTS_DATA = [
     // ภารกิจหัวขโมย: มุมขวาบน
     { id: 'mission-heist', type: 'heist', x: 7000, y: 1500, width: 90, height: 90 }, 
     // จุดเรียกประชุม: กลางแผนที่
-    { id: 'mission-meeting', type: 'meeting', x: 4000, y: 4000, width: 150, height: 150 } 
+    { id: 'mission-meeting', type: 'meeting', x: 4000, y: 4000, width: 150, height: 150 },
+    // จุดโต้ตอบอื่นๆ (เช่น CCTV, ไฟฉุกเฉิน) สามารถเพิ่มได้ที่นี่
+    { id: 'mission-cctv', type: 'Open_CCTV', x: 6000, y: 6000, width: 90, height: 90 }
 ];
+
 
 // อ้างอิงองค์ประกอบ DOM
 const gameContainer = document.getElementById('game-container');
@@ -107,6 +110,21 @@ const DEBUG_MAX_FPS = 30; // throttle debug overlay
 let DEBUG_SHOW_COLLISION_BOXES = false; // F3
 let DEBUG_SHOW_PLAYER_HITBOX = false;   // F4
 // เปิดดีบักอัตโนมัติเมื่อมีพารามิเตอร์ ?debug=1 ใน URL
+
+if (DEBUG_SHOW_PLAYER_HITBOX) {
+  const hitW = playerWidth * 0.8;
+  const hitH = playerHeight * 0.6;
+  const offsetX = (playerWidth - hitW) / 2;
+  const offsetY = (playerHeight - hitH) / 2 + 20;
+  const x = (playerWorldX + offsetX) - viewLeft;
+  const y = (playerWorldY + offsetY) - viewTop;
+
+  debugCtx.strokeStyle = 'rgba(0,200,255,0.9)';
+  debugCtx.lineWidth = 2;
+  debugCtx.strokeRect(x, y, hitW, hitH);
+}
+
+
 try {
     const params = new URLSearchParams(window.location.search);
     if (params.get('debug') === '1') {
@@ -168,8 +186,8 @@ let containerX = 0;
 let containerY = 0;
 let VIEWPORT_WIDTH = window.innerWidth;
 let VIEWPORT_HEIGHT = window.innerHeight;
-let playerWidth = 128; 
-let playerHeight = 128; 
+let playerWidth = 200; 
+let playerHeight = 200; 
 
 // *******************************************
 // Placeholder (เก็บเฉยๆ ไม่ใช้ Tiled แล้ว)
@@ -180,25 +198,12 @@ const WALL_COLLISION_BOXES = [];
 // *******************************************
 // 4. การจัดการแอนิเมชัน (คงเดิม)
 // *******************************************
-// Dynamic frames based on chosen character name stored from lobby
-let __spriteChar = 'mini_brown';
-try { const c = localStorage.getItem('ggd.char'); if (c) __spriteChar = c; } catch(_){}
-// Map lobby character selection to a representative color
-function colorFromChar(charName) {
-  switch ((charName || '').toLowerCase()) {
-    case 'mini_brown': return '#8B4513';
-    case 'mini_coral': return '#FF7F50';
-    case 'mini_gray': return '#A9A9A9';
-    case 'mini_lavender': return '#B19CD9';
-    case 'mini_mint': return '#3EB489';
-    case 'mini_pink': return '#FF69B4';
-    case 'mini_sky_blue': return '#87CEEB';
-    case 'mini_yellow': return '#FFD700';
-    default: return '#4CAF50';
-  }
-}
-let idleFrames = [`assets/Characters/${__spriteChar}/idle_1.png`];
-let walkFrames = Array.from({length:8}, (_,i)=>`assets/Characters/${__spriteChar}/walk_${i+1}.png`);
+const idleFrames = ['assets/images/idle_1.png']; 
+const walkFrames = [
+    'assets/images/walk_1.png', 'assets/images/walk_2.png', 'assets/images/walk_3.png', 
+    'assets/images/walk_4.png', 'assets/images/walk_5.png', 'assets/images/walk_6.png',
+    'assets/images/walk_7.png', 'assets/images/walk_8.png'
+]; 
 let currentAnimation = 'idle';
 let currentFrameIndex = 0;
 let lastFrameTime = 0;
@@ -242,20 +247,7 @@ function updateDisplay() {
         }
     });
 
-    // Move wrapper instead of image so nameplate sticks perfectly
-    try {
-      const wrap = document.getElementById('player-wrap');
-      if (wrap) wrap.style.transform = `translate(${playerWorldX}px, ${playerWorldY}px)`;
-      else player.style.transform = `translate(${playerWorldX}px, ${playerWorldY}px)`;
-    } catch(_){}
-    // Update nameplate text only (position handled by CSS inside wrapper)
-    try {
-      const np = document.getElementById('nameplate');
-      if (np) {
-        const pn = (localStorage.getItem('ggd.name') || `Player_${uid.slice(0,4)}`);
-        if (np.textContent !== pn) np.textContent = pn;
-      }
-    } catch(_){}
+    player.style.transform = `translate(${playerWorldX}px, ${playerWorldY}px)`;
     gameContainer.style.transform = `translate(${containerX}px, ${containerY}px)`;
 
     // อัปเดต Fog of War
@@ -343,6 +335,10 @@ function renderDebugOverlay() {
         debugCtx.lineWidth = 2;
         debugCtx.strokeRect(x, y, effectiveWidth, effectiveHeight);
     }
+
+
+    console.log("Sample wall:", collisionObjects[0]);
+console.log("Player:", playerWorldX, playerWorldY);
 
     updateDebugPanel();
 }
@@ -595,7 +591,7 @@ function updateMiniMapDisplay() {
 async function loadCollisionData() {
     collisionObjects = [];
     // 1) ลองโหลดจาก SVG ก่อน
-    try {
+    try {   
         const res = await fetch('assets/maps/collision.svg', { cache: 'no-cache' });
         if (res.ok) {
             const svgText = await res.text();
@@ -657,50 +653,120 @@ async function loadCollisionData() {
         console.warn('JSON collision load failed:', e);
     }
 
+    for (const r of collisionObjects) {
+        r.x *= 8;
+        r.y *= 8;
+        r.w *= 8;
+        r.h *= 8;
+        }
+console.log("🔧 Applied manual scale x8 to collision boxes");
+
     console.warn('No collision data found (SVG/JSON). Running without collisions.');
 }
 // game.js: ฟังก์ชัน checkCollision() (ฉบับยืนยัน)
+// 🔧 HITBOX FIXED
+function checkCollision(nextX, nextY, playerW, playerH) {
+  if (!collisionObjects?.length) return false;
 
-function checkCollision(nextPlayerX, nextPlayerY, playerW, playerH) {
-    
-    // กำหนด Hitbox ของตัวละครในตำแหน่งถัดไป (ส่วนเท้า 25% ล่าง)
-    const effectiveWidth = playerW * 0.5; // 50% ของความกว้าง
-    const effectiveHeight = playerH * 0.25; // 25% ของความสูง
-    const offsetX = (playerW - effectiveWidth) / 2; // Offset จากขอบซ้าย/ขวา
-    const offsetY = playerH - effectiveHeight; // Offset จากขอบบน (ดัน Hitbox ไปที่เท้า)
+  // ปรับสัดส่วน hitbox ให้ตรงกับภาพตัวละคร
+  const hitW = playerW * 0.2;       // แคบลงหน่อย ให้ชนตรงกลาง
+  const hitH = playerH * 0.2;       // สูงประมาณถึงไหล่
+  const offsetX = (playerW - hitW) / 2;
+  const offsetY = (playerH - hitH) ;  // 🔥 ยก hitbox ขึ้นมาประมาณ 20%
 
-    const box = {
-        left: nextPlayerX + offsetX,
-        top: nextPlayerY + offsetY,
-        right: nextPlayerX + offsetX + effectiveWidth,
-        bottom: nextPlayerY + offsetY + effectiveHeight
-    };
+  const box = {
+    left: nextX + offsetX,
+    top: nextY + offsetY,
+    right: nextX + offsetX + hitW,
+    bottom: nextY + offsetY + hitH,
+  };
 
-    // 1. ระบุ 4 มุมหลักของกล่องการชนที่ต้องตรวจสอบ
-    const checkPoints = [
-        { x: box.left, y: box.top },       // บนซ้าย
-        { x: box.right, y: box.top },      // บนขวา
-        { x: box.left, y: box.bottom },    // ล่างซ้าย
-        { x: box.right, y: box.bottom }    // ล่างขวา
-    ];
-
-    // ตรวจสอบชนกับสี่เหลี่ยมจาก Object Layer (ถ้ามี)
-    if (collisionObjects && collisionObjects.length > 0) {
-        const px1 = box.left;
-        const py1 = box.top;
-        const px2 = box.right;
-        const py2 = box.bottom;
-        for (const r of collisionObjects) {
-            const rx1 = r.x;
-            const ry1 = r.y;
-            const rx2 = r.x + r.w;
-            const ry2 = r.y + r.h;
-            const overlap = (px1 < rx2 && px2 > rx1 && py1 < ry2 && py2 > ry1);
-            if (overlap) return true;
-        }
+  for (const r of collisionObjects) {
+    const rx2 = r.x + r.w;
+    const ry2 = r.y + r.h;
+    if (box.left < rx2 && box.right > r.x && box.top < ry2 && box.bottom > r.y) {
+      return true; // collide!
     }
+  }
+  return false;
+}
 
-    return false; // ไม่ชน
+// 🔍 DEBUG OVERLAY FIX
+if (DEBUG_SHOW_PLAYER_HITBOX) {
+  const hitW = playerW * 0.005;       // แคบลงหน่อย ให้ชนตรงกลาง
+  const hitH = playerH * 0.00005;
+  const offsetX = (playerWidth - hitW) / 2;
+  const offsetY = (playerHeight - hitH) * 0.2;
+  const x = (playerWorldX + offsetX) - viewLeft;
+  const y = (playerWorldY + offsetY) - viewTop;
+  debugCtx.strokeStyle = 'rgba(0,255,255,0.9)';
+  debugCtx.lineWidth = 2;
+  debugCtx.strokeRect(x, y, hitW, hitH);
+}
+
+// game.js: ฟังก์ชัน checkCollisionAdvanced() (สำหรับรูปทรงอื่นๆ)
+function checkCollisionAdvanced(nextX, nextY, playerW, playerH) {
+  // ปรับ hitbox ให้ตรงพื้นจริง (เหมือนฟังก์ชันข้างบน)
+  const hitW = playerW * 0.3;
+  const hitH = playerH * 0.4;
+  const offsetX = (playerW - hitW) / 2;
+  const offsetY = (playerH - hitH) / 2; // เพิ่ม 20px ลงล่าง
+
+  const box = {
+    left: nextX + offsetX,
+    top: nextY + offsetY,
+    right: nextX + offsetX + hitW,
+    bottom: nextY + offsetY + hitH
+  };
+
+  if (!collisionObjects?.length) return false;
+
+  for (const r of collisionObjects) {
+    if (r.type === 'rect') {
+      const rx2 = r.x + r.w;
+      const ry2 = r.y + r.h;
+      if (
+        box.left < rx2 &&
+        box.right > r.x &&
+        box.top < ry2 &&
+        box.bottom > r.y
+      ) return true;
+    }
+    else if (r.type === 'circle') {
+      const cx = r.x;
+      const cy = r.y;
+      const radius = r.r;
+      const closestX = Math.max(box.left, Math.min(cx, box.right));
+      const closestY = Math.max(box.top, Math.min(cy, box.bottom));
+      const dx = cx - closestX;
+      const dy = cy - closestY;
+      if (dx * dx + dy * dy < radius * radius) return true;
+    }
+    else if (r.type === 'polygon' && r.points?.length >= 3) {
+      // polygon collision (simple point-in-poly)
+      const corners = [
+        { x: box.left, y: box.top },
+        { x: box.right, y: box.top },
+        { x: box.left, y: box.bottom },
+        { x: box.right, y: box.bottom }
+      ];
+      if (corners.some(pt => pointInPolygon(pt, r.points))) return true;
+    }
+  }
+  return false;
+}
+
+// helper function สำหรับ polygon collision
+function pointInPolygon(point, vertices) {
+  let inside = false;
+  for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+    const xi = vertices[i].x, yi = vertices[i].y;
+    const xj = vertices[j].x, yj = vertices[j].y;
+    const intersect = ((yi > point.y) !== (yj > point.y)) &&
+                      (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
 }
 
 // *******************************************
@@ -787,6 +853,99 @@ function checkInteractions() {
     interactionHint.style.display = canInteract && !isMapFullScreen ? 'block' : 'none';
 }
 
+// *******************************************
+// 🧩 SYSTEM: Generic Object Interaction System
+// *******************************************
+
+// 1️⃣ ข้อมูล Object ที่โต้ตอบได้ (เพิ่มอันใหม่ได้เรื่อยๆ)
+    const INTERACTABLE_OBJECTS = [
+    { id: 'printer', x: 3400, y: 3470, width: 100, height: 110, type: 'printer', active: true },
+    { id: 'tree_middle_room', x: 4750, y: 4300, width: -50,height: -100, type: 'tree', active: true },
+    { id: 'Telephone', x: 4100, y: 4390, width: -100, height: 200, type: 'Telephone', active: true },
+    { id: 'Scrupture1', x: 3570, y: 1500, width: 50, height: -200, type: 'Scrupture', active: true },
+    { id: 'tree_upper_room1', x: 3200, y: 500, width: -180,height: 30, type: 'tree', active: true },
+    { id: 'hidden_switch', x: 4280, y: 550, width: -50,height: -50, type: 'switch(?)', active: true },
+    { id: 'Scrupture2', x: 4780, y: 1200, width: -800, height: -400, type: 'Scrupture', active: true },
+    { id: 'tree_upper_room2', x: 4440, y: 1160, width: -220,height: -220, type: 'tree', active: true },
+    { id: 'Broom', x: 1500, y: 3280, width: -200,height: -200, type: 'broom', active: true },
+    { id: 'computer1', x: 3520, y: 7020, width: -350,height: -350, type: 'computer', active: true },
+    { id: 'computer2', x: 4320, y: 7180, width: -700,height: -350, type: 'computer', active: true },
+    { id: 'computer3', x: 4750, y: 6900, width: -100,height: -400, type: 'computer', active: true },
+    { id: 'monitor', x: 4980, y: 7500, width: -2000,height: -400, type: 'monitor', active: true },
+    { id: 'matchine', x: 6580, y: 3160, width: -380,height: -200, type: 'matchine', active: true },
+    { id: 'battery', x: 7120, y: 4260, width: -600,height: -600, type: 'battery', active: true },
+    { id: 'power', x: 7420, y: 7850, width: -200,height: -150, type: 'power', active: true },
+];
+
+
+// 2️⃣ ฟังก์ชันวาดวัตถุ (ตัวอย่างให้วาดจุด debug)
+function renderInteractableObjects() {
+  if (!debugCtx || !DEBUG_SHOW_COLLISION_BOXES) return;
+  debugCtx.strokeStyle = 'rgba(0,255,100,0.8)';
+  debugCtx.lineWidth = 2;
+  for (const obj of INTERACTABLE_OBJECTS) {
+    const x = obj.x - Math.max(0, -containerX);
+    const y = obj.y - Math.max(0, -containerY);
+    debugCtx.strokeRect(x, y, obj.width, obj.height);
+  }
+}
+
+// 3️⃣ ฟังก์ชันตรวจโต้ตอบกับ Object
+function checkObjectInteractions() {
+  const playerCenterX = playerWorldX + playerWidth / 2;
+  const playerCenterY = playerWorldY + playerHeight / 2;
+
+  let nearObj = null;
+  for (const obj of INTERACTABLE_OBJECTS) {
+    if (!obj.active) continue;
+    const objCenterX = obj.x + obj.width / 2;
+    const objCenterY = obj.y + obj.height / 2;
+    const dist = getDistance(playerCenterX, playerCenterY, objCenterX, objCenterY);
+
+    if (dist < INTERACTION_RADIUS) {
+      nearObj = obj;
+      break;
+    }
+  }
+
+  // แสดง Hint ถ้าอยู่ใกล้
+  if (nearObj) {
+    interactionHint.style.display = 'block';
+    interactionHint.textContent = `Press E to interact with ${nearObj.type}`;
+    if (keysPressed[INTERACTION_KEY]) {
+      keysPressed[INTERACTION_KEY] = false;
+      handleObjectInteraction(nearObj);
+    }
+  } else {
+    if (interactionHint.style.display !== 'none')
+      interactionHint.style.display = 'none';
+  }
+}
+
+// 4️⃣ ฟังก์ชันทำงานเมื่อโต้ตอบจริง
+function handleObjectInteraction(obj) {
+  switch (obj.type) {
+    case 'door':
+      addLogEvent('🚪 คุณเปิดประตูแล้ว!');
+      playSound(sfxInteract);
+      obj.active = false; // ทำได้ครั้งเดียว
+      break;
+    case 'console':
+      addLogEvent('💻 คุณใช้งานคอนโซล ระบบทำงานแล้ว!');
+      playSound(sfxInteract);
+      break;
+    case 'item':
+      addLogEvent('🎁 คุณเก็บของได้สำเร็จ!');
+      playSound(sfxInteract);
+      obj.active = false;
+      break;
+    default:
+      addLogEvent(`❓ คุณโต้ตอบกับวัตถุ ${obj.id}`);
+      break;
+  }
+}
+
+
 
 // *******************************************
 // 2. Game Loop (แก้ไข Logic การเคลื่อนที่และการชน)
@@ -868,6 +1027,7 @@ function worldGameLoop(timestamp) {
     }
     
     checkInteractions();
+    checkObjectInteractions(); // ตรวจสอบการโต้ตอบกับวัตถุ
     
     if (isMoving || wasMoving !== isMoving) {
         updateAnimation(timestamp);
@@ -888,12 +1048,9 @@ function initializeGame() {
     playerWidth = player.offsetWidth;
     playerHeight = player.offsetHeight;
 
-    // ????? Character Asset ???????????????????? Lobby ????????????????????
-    let chosenChar = 'mini_brown';
-    try { const c = localStorage.getItem('ggd.char'); if (c) chosenChar = c; } catch(_){}
-    const currentPlayerCharacterAsset = "assets/Characters/" + chosenChar + "/idle_1.png";
-    // ?????????? player ???????????????????? (????? DOM ?????????????????)
-    try { if (player) player.src = currentPlayerCharacterAsset; } catch(_){ }
+    // *** จำลองการดึง Character Asset Path จาก Database/Multiplayer ***
+    const currentPlayerCharacterAsset = player.src; 
+    
     // *** จำลองการกำหนดบทบาทและสุ่มความสามารถ ***
     const roles = ['Thief', 'Visitor']; 
     playerRole = roles[Math.floor(Math.random() * roles.length)]; 
@@ -918,25 +1075,19 @@ function initializeGame() {
     }
     
 
-    const chosenColor = colorFromChar(localStorage.getItem('ggd.char') || __spriteChar);
-    // Also tint the minimap player dot to selected color
-    try { if (minimapPlayerDot) minimapPlayerDot.style.backgroundColor = chosenColor; } catch(_){ }
     if (playerRole === 'Visitor') {
         const abilityPool = VISITOR_ABILITIES;
         const abilities = Object.keys(abilityPool);
         abilityName = abilities[Math.floor(Math.random() * abilities.length)];
         playerAbility = abilityPool[abilityName];
         roleTeamText.textContent = `ฝ่าย: ผู้เยี่ยมชม`;
-        roleTeamText.style.color = "#4CAF50";
+        roleTeamText.style.color = '#4CAF50'; // สีเขียว
         
         // กำหนด Class Animation สีเขียว (เฉพาะเงาเรืองแสง)
-        // Use player-selected color instead of fixed animation
-        // reset to team color class
-        roleNameText.style.color = '';
-        roleNameText.style.textShadow = '';
         roleNameText.classList.add('role-name-visitor');
-        if (roleCharacterDisplay) roleCharacterDisplay.classList.add('character-glow-visitor');
-        if (roleCharacterImage) roleCharacterImage.style.filter = `drop-shadow(0 0 18px ${chosenColor})`;
+        if(roleCharacterDisplay) {
+            roleCharacterDisplay.classList.add('character-glow-visitor'); 
+        }
         
     } else if (playerRole === 'Thief') {
         const abilityPool = THIEF_ABILITIES;
@@ -944,16 +1095,13 @@ function initializeGame() {
         abilityName = abilities[Math.floor(Math.random() * abilities.length)];
         playerAbility = abilityPool[abilityName];
         roleTeamText.textContent = `ฝ่าย: หัวขโมย`;
-        roleTeamText.style.color = "#FF0000";
+        roleTeamText.style.color = '#FF0000'; // สีแดง
         
         // กำหนด Class Animation สีแดง (เฉพาะเงาเรืองแสง)
-        // Use player-selected color instead of fixed animation
-        // reset to team color class
-        roleNameText.style.color = '';
-        roleNameText.style.textShadow = '';
         roleNameText.classList.add('role-name-thief');
-        if (roleCharacterDisplay) roleCharacterDisplay.classList.add('character-glow-thief');
-        if (roleCharacterImage) roleCharacterImage.style.filter = `drop-shadow(0 0 18px ${chosenColor})`;
+        if(roleCharacterDisplay) {
+            roleCharacterDisplay.classList.add('character-glow-thief'); 
+        }
     }
     
     // แสดงผลบทบาทและความสามารถบน Modal
@@ -1094,24 +1242,23 @@ const socket = io("https://webgame-25n5.onrender.com");
 window.socket = socket;
 
 // === Player identity ===
-// Resolve room code from URL if available
-const __params = new URLSearchParams(location.search);
-const ROOM_CODE = __params.get('code') || 'lobby01';
-// Use same uid key as lobby for consistency
-const uid = (sessionStorage.getItem('ggd.uid') || localStorage.getItem('ggd.uid')) ||
-  (() => { const v = (crypto?.randomUUID?.() || ('uid_' + Math.random().toString(36).slice(2,10))); sessionStorage.setItem('ggd.uid', v); localStorage.setItem('ggd.uid', v); return v; })();
+const ROOM_CODE = "lobby01";
+const uid =
+  sessionStorage.getItem("uid") ||
+  (() => {
+    const v = crypto.randomUUID();
+    sessionStorage.setItem("uid", v);
+    return v;
+  })();
 console.log("🆔 Current UID:", uid);
 
 // === Socket connection ===
 socket.on("connect", () => {
   console.log("✅ Connected to server:", socket.id);
-  const myName = (localStorage.getItem('ggd.name') || `Player_${uid.slice(0,4)}`);
-  const myChar = (localStorage.getItem('ggd.char') || 'mini_brown');
   socket.emit("game:join", {
     room: ROOM_CODE,
     uid,
-    name: myName,
-    char: myChar,
+    name: `Player_${uid.slice(0, 4)}`,
     color: "#00ffcc",
     x: playerWorldX,
     y: playerWorldY,
@@ -1119,10 +1266,9 @@ socket.on("connect", () => {
 });
 
 // === Snapshot handling ===
+let remotePlayers = {};
 let lastPlayersSnapshot = [];
 let lastActiveUIDs = new Set();
-let remotePlayers = window.remotePlayers || {};
-let remoteNameplates = {};
 
 socket.on("snapshot", (payload) => {
   if (!payload?.players) return;
@@ -1133,9 +1279,8 @@ socket.on("snapshot", (payload) => {
   // ✅ ลบเฉพาะ player ที่ "หายไป" จาก snapshot รอบนี้เท่านั้น
   for (const id of lastActiveUIDs) {
     if (!newSet.has(id) && remotePlayers[id]) {
-      try { remotePlayers[id].remove(); } catch(_){}
+      remotePlayers[id].remove();
       delete remotePlayers[id];
-      if (remoteNameplates[id]) { try { remoteNameplates[id].remove(); } catch(_){} delete remoteNameplates[id]; }
     }
   }
 
@@ -1151,8 +1296,7 @@ function renderRemotePlayers() {
     let el = remotePlayers[p.uid];
     if (!el) {
       el = document.createElement("img");
-      const charName = p.char || 'mini_brown';
-      el.src = `assets/Characters/${charName}/idle_1.png`;
+      el.src = "assets/images/idle_1.png";
       el.className = "remote-player";
       Object.assign(el.style, {
         position: "absolute",
@@ -1168,16 +1312,6 @@ function renderRemotePlayers() {
       el._lastUpdate = performance.now();
       gameContainer.appendChild(el);
       remotePlayers[p.uid] = el;
-
-      // Create nameplate for remote player
-      const np = document.createElement('div');
-      np.className = 'remote-nameplate';
-      np.textContent = p.name || `Player_${(p.uid||'xxxx').slice(0,4)}`;
-      Object.assign(np.style, {
-        position: 'absolute', color: '#fff', fontWeight: '700', textShadow: '0 2px 6px #000', zIndex: 350
-      });
-      gameContainer.appendChild(np);
-      remoteNameplates[p.uid] = np;
     }
 
     const cx = parseFloat(el.dataset.x);
@@ -1196,14 +1330,6 @@ function renderRemotePlayers() {
       el.style.transform = `translate(${tx}px, ${ty}px)`;
       el.dataset.tx = tx;
       el.dataset.ty = ty;
-      // Move nameplate to follow
-      const np = remoteNameplates[p.uid];
-      if (np) {
-        np.style.left = `${tx + 64}px`; // half of 128
-        np.style.top  = `${ty - 8}px`;
-        np.style.transform = 'translate(-50%, -100%)';
-        np.textContent = p.name || np.textContent;
-      }
     }
 
     el.dataset.x = nx;
@@ -1222,14 +1348,10 @@ function sendPlayerPosition() {
   const now = performance.now();
   if (!isMoving || now - lastSent < SEND_INTERVAL) return;
   lastSent = now;
-  const myName = (localStorage.getItem('ggd.name') || `Player_${uid.slice(0,4)}`);
-  const myChar = (localStorage.getItem('ggd.char') || 'mini_brown');
   socket.emit("player:move", {
     uid,
     x: playerWorldX,
     y: playerWorldY,
-    name: myName,
-    char: myChar,
   });
 }
 
@@ -1244,13 +1366,3 @@ socket.on("error", (error) => {
 });
 
 // ===== End Multiplayer Section =====
-
-
-
-
-
-
-
-
-
-
