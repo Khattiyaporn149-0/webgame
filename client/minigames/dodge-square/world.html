@@ -1,11 +1,11 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Heist - Minigame Overworld</title>
   <link rel="stylesheet" href="world.css">
-  <script src="../config.js"></script>
+  <script src="../config.js"></script>  <script src="../mg-bridge.js"></script>
 </head>
 <body>
   <!-- 🌌 Overworld Canvas -->
@@ -101,7 +101,19 @@
     <div class="mini-box">
       <button class="close" id="btnCloseMiniSwitch">×</button>
       <h2>Power Switch</h2>
-      <div id="switchPanel" class="switch-panel"></div>
+      <div class="switch-area">
+        <div id="switchPanel" class="switch-panel"></div>
+        <div class="battery" aria-hidden="true">
+          <div class="battery-frame">
+            <div id="batteryFill" class="battery-fill" style="width:0%"></div>
+          </div>
+          <div id="batteryLabel" class="battery-label">0 / 5</div>
+        </div>
+        <div class="switch-timer">
+          <div id="switchTime">20</div>
+          <div class="switch-hint">ปิดเวลา: ต้องเปิดให้ครบก่อนหมดเวลา</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -236,8 +248,52 @@
     </div>
   </div>
 
+  <!-- Mop The Floor -->
+  <div class="overlay" id="miniOverlayMop" aria-hidden="true">
+    <div class="mini-box">
+      <button class="close" id="btnCloseMiniMop">x</button>
+      <h2>Mop The Floor</h2>
+      <canvas id="mopCanvas" width="800" height="450"></canvas>
+      <div class="panel">
+        <button id="mopStart">เริ่ม</button>
+        <button id="mopReset">สุ่มคราบใหม่</button>
+        <span style="margin-left:12px;">สะอาด: <span id="mopPct">0</span>%</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Script -->
   <script src="world.js"></script>
+  <script>
+    // Optional: when parent sends mg:init with a hint of which game to open, focus that overlay.
+    if (window.MGBridge) {
+      window.MGBridge.onInit((data)=>{
+        const key = (data && (data.game || data.id)) || (new URLSearchParams(location.search).get('game'));
+        if (!key) return; // user will pick inside overworld
+        // Overworld reacts to E near objects; here we provide a visual hint by highlighting label shortly.
+        // (Opening functions are scoped inside world.js, so we avoid direct calls to keep compatibility.)
+        try {
+          const map = {
+            dodge:'miniOverlayDodge', react:'miniOverlayReact', aim:'miniOverlayAim', tap:'miniOverlayTap',
+            wires:'miniOverlayWires', upload:'miniOverlayUpload', mix:'miniOverlayMix', switch:'miniOverlaySwitch',
+            card:'miniOverlayCard', timer:'miniOverlayTimer', align:'miniOverlayAlign', simon:'miniOverlaySimon',
+            pipes:'miniOverlayPipes', math:'miniOverlayMath', rhythm:'miniOverlayRhythm', pattern:'miniOverlayPattern',
+            lights:'miniOverlayLights', mole:'miniOverlayMole', slider:'miniOverlaySlider', mop:'miniOverlayMop', broom:'miniOverlayMop'
+          };
+          const id = map[String(key).toLowerCase()];
+          if (!id) return;
+          const el = document.getElementById(id);
+          if (!el) return;
+          // flash border to hint location (non-invasive)
+          el.style.outline = '3px solid #00eaff';
+          setTimeout(()=>{ el.style.outline='none'; }, 1200);
+        } catch(_){}
+      });
+    }
+  </script>
 </body>
 </html>
+
+
+
 
