@@ -550,9 +550,25 @@
         </div>
     </div>
 
+
+    <div class="nametag"></div>
+
     <!-- แผงดีบัก -->
     <div id="debug-panel" style="position:fixed; left:10px; bottom:10px; background:#0009; color:#0f0; font-family:monospace; font-size:12px; line-height:1.4; padding:8px 10px; border:1px solid #0f0; border-radius:6px; z-index:1200; display:none;"></div>
     
+        <!-- ROLE ICON HUD -->
+    <div id="role-icon-hud">
+        <img id="role-icon-img" src="assets/role/none.png" alt="Role Icon">
+        <span id="role-icon-text">Loading...</span>
+    </div>
+
+    <!-- CHAT BOX -->
+    <div id="chat-container">
+        <div id="chat-messages"></div>
+        <input id="chat-input" type="text" placeholder="พิมพ์ข้อความ..." maxlength="80">
+        <div id="chat-hint">💬 กด Enter เพื่อเปิดแชท</div>
+    </div>
+
     <audio id="sfx-interact" src="assets/sounds/interaction_success.mp3"></audio>
     <audio id="sfx-heist" src="assets/sounds/heist_alarm.mp3"></audio>
     <audio id="bgm-music" src="assets/sounds/bgm_loop.mp3" loop></audio>

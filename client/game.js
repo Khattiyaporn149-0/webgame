@@ -744,6 +744,8 @@ function checkInteractions() {
   interactionHint && (interactionHint.style.display = canInteract && !isMapFullScreen ? 'block' : 'none');
 }
 
+
+
 // *******************************************
 // 🧩 SYSTEM: Generic Object Interaction System
 // *******************************************
@@ -1242,15 +1244,22 @@ function renderRemotePlayers() {
 
     el.dataset.x = nx;
     el.dataset.y = ny;
+
+    // ✅ Bubble ของ remote player
+    if (el._chatBubble) {
+      const bx = p.x + containerX + 64;
+      const by = p.y + containerY - 70;
+      el._chatBubble.style.left = `${bx}px`;
+      el._chatBubble.style.top = `${by}px`;
+    }
   }
 
   requestAnimationFrame(renderRemotePlayers);
 }
-renderRemotePlayers();
 
 // === Send position with throttle ===
-let lastSent = 0;
-const SEND_INTERVAL = 80; // ส่งทุก 80ms พอ
+let lastSent = 0;                   // 🟢 ประกาศก่อนใช้
+const SEND_INTERVAL = 80;           // ส่งทุก 80ms พอ
 
 function sendPlayerPosition() {
   const now = performance.now();
