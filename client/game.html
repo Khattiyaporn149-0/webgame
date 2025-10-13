@@ -469,6 +469,127 @@
             white-space: nowrap;
             }
 
+            /* ROLE ICON HUD (เวอร์ชันใหม่ ข้างล่าง minimap) */
+            #role-icon-hud {
+            position: fixed;
+            bottom: 25px;        /* ขยับมาล่างแทน top */
+            left: 40px;         /* ชิดขวาแต่ไม่เกินขอบ */
+            display: flex;
+            flex-direction: column;  /* วางแนวตั้ง: icon บน, text ล่าง */
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+
+            background: rgba(0, 0, 0, 0.65);
+            color: #fff;
+            padding: 10px 16px;
+            border-radius: 16px;
+            font-family: "Bai Jamjuree";
+            font-size: 16px;
+            font-weight: 500;
+            z-index: 600;
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 0 20px rgba(0,255,128,0.3);
+            transition: transform 0.25s ease, box-shadow 0.4s ease;
+            }
+
+            /* Icon ใหญ่ขึ้น */
+            #role-icon-img {
+            width: 72px;
+            height: 72px;
+            border-radius: 12px;
+            image-rendering: pixelated;
+            box-shadow: 0 0 15px rgba(255,255,255,0.3);
+            transition: transform 0.25s ease;
+            }
+
+            /* Hover เอฟเฟกต์เล็กน้อย */
+            #role-icon-hud:hover #role-icon-img {
+            transform: scale(1.1);
+            }
+
+            /* Glow สีทีม */
+            #role-icon-hud.visitor {
+            box-shadow: 0 0 20px 5px rgba(0,255,128,0.6);
+            }
+            #role-icon-hud.thief {
+            box-shadow: 0 0 20px 5px rgba(255,60,60,0.6);
+            }
+
+            /* === CHAT BOX === */
+            #chat-container {
+            position: fixed;
+            bottom: 20px;
+            right: 1px;
+            transform: translateX(-20%);
+            width: 300px;
+            background: rgba(10, 15, 25, 0.85);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            padding: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.6);
+            font-family: "Bai Jamjuree", sans-serif;
+            z-index: 9999;
+            }
+
+            #chat-messages {
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 14px;
+            color: #fff;
+            padding: 4px;
+            margin-bottom: 6px;
+            }   
+
+            #chat-input {
+            width: 90%;
+            padding: 6px 8px;
+            border: none;
+            outline: none;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+            }
+
+            #chat-input::placeholder {
+            color: rgba(255,255,255,0.5);
+            }
+
+            .chat-bubble {
+            position: absolute;
+            color: #fff;
+            background: rgba(0,0,0,0.7);
+            padding: 6px 10px;
+            border-radius: 12px;
+            font-size: 14px;
+            transform: translate(-50%, -100%);
+            opacity: 0;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: none;
+            z-index: 900;
+            }
+            @keyframes bubbleFloat {
+            0% { transform: translate(-50%, -110%) scale(1); opacity: 1; }
+            80% { transform: translate(-50%, -140%) scale(1.05); opacity: 1; }
+            100% { transform: translate(-50%, -160%) scale(0.95); opacity: 0; }
+            }
+
+            .chat-bubble.show {
+            opacity: 1;
+            transform: translate(-50%, -120%);
+            }
+
+            #chat-hint {
+            font-size: 13px;
+            color: rgba(255,255,255,0.6);
+            text-align: center;
+            margin-top: 4px;
+            font-style: italic;
+            }
+
+
     </style>
 </head>
 <body>
@@ -545,11 +666,25 @@
         </div>
     </div>
 
+
     <div class="nametag"></div>
 
     <!-- แผงดีบัก -->
     <div id="debug-panel" style="position:fixed; left:10px; bottom:10px; background:#0009; color:#0f0; font-family:monospace; font-size:12px; line-height:1.4; padding:8px 10px; border:1px solid #0f0; border-radius:6px; z-index:1200; display:none;"></div>
     
+        <!-- ROLE ICON HUD -->
+    <div id="role-icon-hud">
+        <img id="role-icon-img" src="assets/role/none.png" alt="Role Icon">
+        <span id="role-icon-text">Loading...</span>
+    </div>
+
+    <!-- CHAT BOX -->
+    <div id="chat-container">
+        <div id="chat-messages"></div>
+        <input id="chat-input" type="text" placeholder="พิมพ์ข้อความ..." maxlength="80">
+        <div id="chat-hint">💬 กด Enter เพื่อเปิดแชท</div>
+    </div>
+
     <audio id="sfx-interact" src="assets/sounds/interaction_success.mp3"></audio>
     <audio id="sfx-heist" src="assets/sounds/heist_alarm.mp3"></audio>
     <audio id="bgm-music" src="assets/sounds/bgm_loop.mp3" loop></audio>
@@ -561,3 +696,4 @@
 </html>
 
 
+ 

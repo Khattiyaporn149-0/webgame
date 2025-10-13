@@ -43,12 +43,22 @@ const VISITOR_ABILITIES = {
 };
 
 const THIEF_ABILITIES = {
-    'Hacker': 'สามารถสุ่มปิดไฟในห้องหนึ่งเป็นเวลาสั้นๆ',
-    'Shadow': 'เคลื่อนไหวได้เงียบและเร็วขึ้นเล็กน้อย',
-    'Distractor': 'สามารถสร้างเสียงรบกวนปลอมได้ในแผนที่'
+    'Hacker': 'สามารถสุ่มปิดไฟในห้องหนึ่งเป็นเวลาสั้นๆ'
 };
 
 // game.js: เพิ่มโค้ดใหม่ (เลือกตำแหน่งที่เหมาะสม)
+export const ROLE_CONFIG = {
+  Visitor: {
+    Engineer: { taskSpeedMul: 1.35, sabotageFixMul: 1.30, debuffDurMul: 0.8 },
+    Scientist:{ visionMul: 1.35, hintEverySec: 12, blackoutVisionMul: 0.5 },
+    Janitor:  { charges: 2, cleanseRadius: 120, castMs: 2000, cdMs: 0 }
+  },
+  Thief: {
+    Hacker:   { charges: 3, cdMs: 25000, durMs: 6000, camJamMs: 8000, maxRoomRange: 1100 },
+    Shadow:   { speedMul: 1.06, noiseMul: 0.6, forbidSprintStack: true, traceForScientistMs: 1500 },
+    Distractor:{ cdMs: 18000, durMs: 6000, fakePing:true, janitorCleanseable:true }
+  }
+};
 
 // *******************************************
 // Collision (object-rect only, no tiles)
@@ -86,16 +96,10 @@ let playerWorldY = 3500;
 
 // ตำแหน่งจุดภารกิจ (กระจายให้เหมาะสมกับแผนที่ 8192x8192)
 const MISSION_SPOTS_DATA = [
-    // ภารกิจผู้เยี่ยมชม: มุมซ้ายล่าง
-    { id: 'mission-guest', type: 'guest', x: 1500, y: 7000, width: 90, height: 90 }, 
-    // ภารกิจหัวขโมย: มุมขวาบน
-    { id: 'mission-heist', type: 'heist', x: 7000, y: 1500, width: 90, height: 90 }, 
-    // จุดเรียกประชุม: กลางแผนที่
-    { id: 'mission-meeting', type: 'meeting', x: 4000, y: 4000, width: 150, height: 150 },
-    // จุดโต้ตอบอื่นๆ (เช่น CCTV, ไฟฉุกเฉิน) สามารถเพิ่มได้ที่นี่
-    { id: 'mission-cctv', type: 'Open_CCTV', x: 6000, y: 6000, width: 90, height: 90 }
+//
 ];
 
+let isChatFocused = false;
 
 // อ้างอิงองค์ประกอบ DOM
 const gameContainer = document.getElementById('game-container');
@@ -854,6 +858,8 @@ function checkInteractions() {
     interactionHint.style.display = canInteract && !isMapFullScreen ? 'block' : 'none';
 }
 
+
+
 // *******************************************
 // 🧩 SYSTEM: Generic Object Interaction System
 // *******************************************
@@ -951,94 +957,72 @@ function handleObjectInteraction(obj) {
 // 2. Game Loop (แก้ไข Logic การเคลื่อนที่และการชน)
 // *******************************************
 function worldGameLoop(timestamp) {
-    
-    // NEW: หยุด Game Loop ถ้า Role Reveal ยังทำงานอยู่
-    if (isRoleRevealed) {
-        updateAnimation(timestamp); 
-        requestAnimationFrame(worldGameLoop); 
-        return; 
-    }
-    
-    if (isMeetingActive) {
-        updateAnimation(timestamp); 
-        requestAnimationFrame(worldGameLoop); 
-        return; 
-    }
-    
-    let deltaX = 0;
-    let deltaY = 0;
-
-    // 1. ตรวจสอบการกดปุ่มและคำนวณการเปลี่ยนแปลงตำแหน่ง
-    if (keysPressed['ArrowUp'] || keysPressed['KeyW']) { deltaY -= PLAYER_SPEED; }
-    if (keysPressed['ArrowDown'] || keysPressed['KeyS']) { deltaY += PLAYER_SPEED; }
-    if (keysPressed['ArrowLeft'] || keysPressed['KeyA']) { deltaX -= PLAYER_SPEED; }
-    if (keysPressed['ArrowRight'] || keysPressed['KeyD']) { deltaX += PLAYER_SPEED; }
-
-    
-    const wasMoving = isMoving;
-    isMoving = (deltaX !== 0 || deltaY !== 0);
-
-    if (isMoving) {
-        let nextPlayerWorldX = playerWorldX + deltaX;
-        let nextPlayerWorldY = playerWorldY + deltaY;
-
-        // *******************************************
-        // NEW/FIXED: Logic การเคลื่อนที่และการชน (Collision)
-        // *******************************************
-        
-        // ตรวจสอบการชนแกน X
-        // ลองเคลื่อนที่ไป X ใหม่ (ใช้ Y เดิม)
-        if (!checkCollision(nextPlayerWorldX, playerWorldY, playerWidth, playerHeight)) {
-            playerWorldX = nextPlayerWorldX; // ไม่ชน, อนุญาตให้เคลื่อนที่
-        }
-        
-        // ตรวจสอบการชนแกน Y
-        // ลองเคลื่อนที่ไป Y ใหม่ (ใช้ X ล่าสุด)
-        if (!checkCollision(playerWorldX, nextPlayerWorldY, playerWidth, playerHeight)) {
-            playerWorldY = nextPlayerWorldY; // ไม่ชน, อนุญาตให้เคลื่อนที่
-        }
-
-        // *******************************************
-        // END: Logic การเคลื่อนที่และการชน
-        // *******************************************
-
-        // 2. จำกัดขอบเขตผู้เล่น (Boundaries Check)
-        const MAX_WORLD_X = CONTAINER_WIDTH - playerWidth; 
-        const MAX_WORLD_Y = CONTAINER_HEIGHT - playerHeight; 
-        
-        playerWorldX = Math.max(0, playerWorldX);
-        playerWorldX = Math.min(MAX_WORLD_X, playerWorldX);
-        playerWorldY = Math.max(0, playerWorldY);
-        playerWorldY = Math.min(MAX_WORLD_Y, playerWorldY);
-
-        // 3. การควบคุมกล้อง (Camera/Viewport)
-        containerX = -(playerWorldX - VIEWPORT_WIDTH / 2 + playerWidth / 2);
-        containerY = -(playerWorldY - VIEWPORT_HEIGHT / 2 + playerHeight / 2);
-
-        // จำกัดขอบเขตการ Pan
-        const maxContainerX = VIEWPORT_WIDTH - CONTAINER_WIDTH;
-        const maxContainerY = VIEWPORT_HEIGHT - CONTAINER_HEIGHT;
-        containerX = Math.min(0, containerX); 
-        containerX = Math.max(maxContainerX, containerX); 
-        containerY = Math.min(0, containerY); 
-        containerY = Math.max(maxContainerY, containerY); 
-        
-        updateDisplay();
-  if (!playerNameTag) playerNameTag = createNametag(displayName);
-
-    }
-    
-    checkInteractions();
-    checkObjectInteractions(); // ตรวจสอบการโต้ตอบกับวัตถุ
-    
-    if (isMoving || wasMoving !== isMoving) {
-        updateAnimation(timestamp);
-    }
-    
-    sendPlayerPosition();
+  // หยุดถ้าอยู่ใน Role Reveal หรือ Meeting
+  if (isRoleRevealed || isMeetingActive) {
+    updateAnimation(timestamp);
     requestAnimationFrame(worldGameLoop);
-}
+    return;
+  }
 
+  let deltaX = 0;
+  let deltaY = 0;
+
+  // การเคลื่อนที่
+  if (keysPressed['ArrowUp'] || keysPressed['KeyW']) deltaY -= PLAYER_SPEED;
+  if (keysPressed['ArrowDown'] || keysPressed['KeyS']) deltaY += PLAYER_SPEED;
+  if (keysPressed['ArrowLeft'] || keysPressed['KeyA']) deltaX -= PLAYER_SPEED;
+  if (keysPressed['ArrowRight'] || keysPressed['KeyD']) deltaX += PLAYER_SPEED;
+
+  const wasMoving = isMoving;
+  isMoving = (deltaX !== 0 || deltaY !== 0);
+
+  if (isMoving) {
+    let nextPlayerWorldX = playerWorldX + deltaX;
+    let nextPlayerWorldY = playerWorldY + deltaY;
+
+    // Collision Check
+    if (!checkCollision(nextPlayerWorldX, playerWorldY, playerWidth, playerHeight))
+      playerWorldX = nextPlayerWorldX;
+    if (!checkCollision(playerWorldX, nextPlayerWorldY, playerWidth, playerHeight))
+      playerWorldY = nextPlayerWorldY;
+
+    // Clamp boundaries
+    const MAX_WORLD_X = CONTAINER_WIDTH - playerWidth;
+    const MAX_WORLD_Y = CONTAINER_HEIGHT - playerHeight;
+    playerWorldX = Math.min(Math.max(0, playerWorldX), MAX_WORLD_X);
+    playerWorldY = Math.min(Math.max(0, playerWorldY), MAX_WORLD_Y);
+
+    // Camera follow
+    containerX = -(playerWorldX - VIEWPORT_WIDTH / 2 + playerWidth / 2);
+    containerY = -(playerWorldY - VIEWPORT_HEIGHT / 2 + playerHeight / 2);
+    const maxContainerX = VIEWPORT_WIDTH - CONTAINER_WIDTH;
+    const maxContainerY = VIEWPORT_HEIGHT - CONTAINER_HEIGHT;
+    containerX = Math.min(0, Math.max(maxContainerX, containerX));
+    containerY = Math.min(0, Math.max(maxContainerY, containerY));
+
+    updateDisplay();
+
+    // ✅ อัปเดต bubble ของตัวเอง
+    if (player._chatBubble) {
+      const bx = playerWorldX + containerX + playerWidth / 2;
+      const by = playerWorldY + containerY - 50;
+      player._chatBubble.style.left = `${bx}px`;
+      player._chatBubble.style.top = `${by}px`;
+    }
+
+    if (!playerNameTag) playerNameTag = createNametag(displayName);
+  }
+
+  // ตรวจสอบ Interaction
+  checkInteractions();
+  checkObjectInteractions();
+
+  if (isMoving || wasMoving !== isMoving)
+    updateAnimation(timestamp);
+
+  sendPlayerPosition();
+  requestAnimationFrame(worldGameLoop);
+}
 
 
 // *******************************************
@@ -1050,185 +1034,144 @@ function initializeGame() {
     playerWidth = player.offsetWidth;
     playerHeight = player.offsetHeight;
 
-    // *** จำลองการดึง Character Asset Path จาก Database/Multiplayer ***
+    document.getElementById('chat-container').style.display = 'none';
+
+    // *** โหลด asset ตัวละคร ***
     const currentPlayerCharacterAsset = player.src; 
-    
-    // *** จำลองการกำหนดบทบาทและสุ่มความสามารถ ***
+
+    // *** สุ่มบทบาท (Visitor / Thief) ***
     const roles = ['Thief', 'Visitor']; 
     playerRole = roles[Math.floor(Math.random() * roles.length)]; 
 
-    let abilityName;
+    let abilityName = '';
+    playerAbility = '';
 
-    // *** NEW: แสดงผลตัวละครใน Modal ***
     if (roleCharacterImage) {
         roleCharacterImage.src = currentPlayerCharacterAsset; 
     }
 
-    // NEW: โหลดข้อมูลการชนก่อนเริ่มเกม
     loadCollisionData(); 
-
     updateDisplay();
-  if (!playerNameTag) playerNameTag = createNametag(displayName);
+    if (!playerNameTag) playerNameTag = createNametag(displayName);
 
-
-    
-    // ล้าง Class Animation เก่าออกก่อน
+    // ล้างคลาสเก่าออกก่อน
     roleNameText.classList.remove('role-name-visitor', 'role-name-thief');
-    if(roleCharacterDisplay) {
-        roleCharacterDisplay.classList.remove('character-glow-visitor', 'character-glow-thief');
-    }
-    
+    roleCharacterDisplay?.classList.remove('character-glow-visitor', 'character-glow-thief');
 
+    // === กำหนดบทบาทและความสามารถ ===
     if (playerRole === 'Visitor') {
         const abilityPool = VISITOR_ABILITIES;
         const abilities = Object.keys(abilityPool);
         abilityName = abilities[Math.floor(Math.random() * abilities.length)];
         playerAbility = abilityPool[abilityName];
         roleTeamText.textContent = `ฝ่าย: ผู้เยี่ยมชม`;
-        roleTeamText.style.color = '#4CAF50'; // สีเขียว
-        
-        // กำหนด Class Animation สีเขียว (เฉพาะเงาเรืองแสง)
+        roleTeamText.style.color = '#4CAF50';
         roleNameText.classList.add('role-name-visitor');
-        if(roleCharacterDisplay) {
-            roleCharacterDisplay.classList.add('character-glow-visitor'); 
-        }
-        
-    } else if (playerRole === 'Thief') {
+        roleCharacterDisplay?.classList.add('character-glow-visitor');
+    } else {
         const abilityPool = THIEF_ABILITIES;
         const abilities = Object.keys(abilityPool);
         abilityName = abilities[Math.floor(Math.random() * abilities.length)];
         playerAbility = abilityPool[abilityName];
         roleTeamText.textContent = `ฝ่าย: หัวขโมย`;
-        roleTeamText.style.color = '#FF0000'; // สีแดง
-        
-        // กำหนด Class Animation สีแดง (เฉพาะเงาเรืองแสง)
+        roleTeamText.style.color = '#FF0000';
         roleNameText.classList.add('role-name-thief');
-        if(roleCharacterDisplay) {
-            roleCharacterDisplay.classList.add('character-glow-thief'); 
-        }
-    }
-    
-    // แสดงผลบทบาทและความสามารถบน Modal
-    roleNameText.textContent = abilityName.toUpperCase();
-    roleAbilityText.textContent = playerAbility; 
-    
-    // แสดง Modal และตั้งค่าสถานะ
-    roleRevealModal.style.display = 'flex'; 
-    isRoleRevealed = true; 
-    
-    // ลบข้อความ Prompt ออกจาก HTML (ถ้ามี)
-    const promptText = roleRevealModal.querySelector('p[style*="margin-top: 30px;"]');
-    if (promptText) {
-        promptText.style.display = 'none';
+        roleCharacterDisplay?.classList.add('character-glow-thief');
     }
 
-    // *** ตั้งเวลาซ่อน Modal และเริ่ม Game Loop อัตโนมัติ ***
+    // === อัปเดต Role Modal ===
+    roleNameText.textContent = abilityName.toUpperCase();
+    roleAbilityText.textContent = playerAbility; 
+    roleRevealModal.style.display = 'flex'; 
+    isRoleRevealed = true; 
+
+    // ลบ prompt เก่าออก
+    const promptText = roleRevealModal.querySelector('p[style*="margin-top: 30px;"]');
+    if (promptText) promptText.style.display = 'none';
+
+    // === ตั้งเวลาให้ modal หาย แล้วเริ่มเกม ===
     setTimeout(() => {
-        // เริ่ม Fade out 
         roleRevealModal.style.opacity = '0'; 
-        
-        // ซ่อนหลังจาก Fade out เสร็จ (1 วินาทีตาม CSS transition)
         setTimeout(() => {
             roleRevealModal.style.display = 'none';
             isRoleRevealed = false;
-            
-            // เริ่ม Game Loop (world demo)
             requestAnimationFrame(worldGameLoop); 
-            
-            // เพิ่ม Log Event เมื่อเกมเริ่มจริง
+
             addLogEvent(`คุณได้รับบทบาทเป็น: ${playerRole} (${abilityName})`, playerRole === 'Thief' ? 'heist' : 'general');
             addLogEvent(`สิ่งที่ทำได้: ${playerAbility}`, 'general');
-            
-            // เพิ่มคำแนะนำ Minimap
-            addLogEvent('กด [M] เพื่อสลับเปิด/ปิดแผนที่เต็มจอ (Minimap แสดงตลอดเวลา)');
-            
-        }, 1000); 
-    }, ROLE_REVEAL_DURATION); 
+            addLogEvent('กด [M] เพื่อเปิด/ปิดแผนที่');
 
-    // **********************************************
-    
-    // ถ้าเป็นโจร ให้ซ่อนแถบสถานะผู้เยี่ยมชม (คงเดิม)
+            // ✅ อัปเดต HUD role-icon หลังสุ่มเสร็จ
+            updateRoleIconHUD(playerRole, abilityName);
+            flashRoleHud();
+              const chatBox = document.getElementById('chat-container');
+            if (chatBox) chatBox.style.display = 'block';
+
+            addLogEvent("ระบบพร้อมใช้งาน: สามารถกด Enter เพื่อพิมพ์แชทได้ 💬");
+
+
+        }, 1000);
+    }, ROLE_REVEAL_DURATION);
+
+    // ถ้าเป็นโจร ซ่อนแถบภารกิจ
     if (playerRole === 'Thief') {
         document.getElementById('mission-status-container').style.display = 'none';
     }
-    // ******************************
 
     containerX = -(playerWorldX - VIEWPORT_WIDTH / 2 + playerWidth / 2);
     containerY = -(playerWorldY - VIEWPORT_HEIGHT / 2 + playerHeight / 2);
-    
+
     const maxContainerX = VIEWPORT_WIDTH - CONTAINER_WIDTH;
     const maxContainerY = VIEWPORT_HEIGHT - CONTAINER_HEIGHT;
-    containerX = Math.min(0, containerX); 
-    containerX = Math.max(maxContainerX, containerX);
-    containerY = Math.min(0, containerY);
-    containerY = Math.max(maxContainerY, containerY);
+    containerX = Math.min(0, Math.max(maxContainerX, containerX));
+    containerY = Math.min(0, Math.max(maxContainerY, containerY));
 
     updateDisplay();
-  if (!playerNameTag) playerNameTag = createNametag(displayName);
+    if (!playerNameTag) playerNameTag = createNametag(displayName);
 
     player.src = idleFrames[0];
-    
     bgmMusic.volume = 0.4; 
     bgmMusic.play().catch(e => console.log("BGM playback blocked by browser:", e)); 
-    
+
+    const chatInput = document.getElementById('chat-input');
+    const chatHint = document.getElementById('chat-hint');
+    if (chatInput && chatHint) {
+    chatInput.addEventListener('focus', () => chatHint.style.display = 'none');
+    chatInput.addEventListener('blur', () => chatHint.style.display = 'block');
+    }
+
 }
 
 
+// === HUD Role Icon ===
+function updateRoleIconHUD(role, abilityName) {
+    const iconImg = document.getElementById('role-icon-img');
+    const iconText = document.getElementById('role-icon-text');
+    const hud = document.getElementById('role-icon-hud');
+    if (!iconImg || !iconText || !hud) return;
 
-// การจัดการการกดปุ่ม (ปรับปรุง: เพิ่ม KeyM)
-document.addEventListener('keydown', (e) => {
-    // เพิ่ม KeyM, KeyW, KeyA, KeyS, KeyD และ F3-F4, Backquote ในรายการป้องกัน Default Action
-    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', INTERACTION_KEY, 'KeyM', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'F3', 'F4', 'Backquote'].includes(e.code)) {
-        e.preventDefault(); 
-    }
-    keysPressed[e.code] = true;
+    // ใช้ชื่อ ability (ไม่ใช่คำอธิบาย)
+    const path = `assets/role/${abilityName}.png`;
+    iconImg.src = path;
+    iconText.textContent = `${abilityName} (${role})`;
 
-    // NEW: Toggle Full Map on 'M' key
-    if (e.code === 'KeyM' && !isMeetingActive) {
-        toggleFullScreenMap();
-    }
+    // สี Glow ตามฝ่าย
+    hud.style.boxShadow = role === 'Thief' 
+        ? '0 0 15px 3px #ff3333' 
+        : '0 0 15px 3px #00ff80';
+}
 
-    // DEBUG toggles
-    if (e.code === 'F3') { DEBUG_SHOW_COLLISION_BOXES = !DEBUG_SHOW_COLLISION_BOXES; console.log('DEBUG_SHOW_COLLISION_BOXES =', DEBUG_SHOW_COLLISION_BOXES); renderDebugOverlay(); }
-    if (e.code === 'F4') { DEBUG_SHOW_PLAYER_HITBOX = !DEBUG_SHOW_PLAYER_HITBOX; console.log('DEBUG_SHOW_PLAYER_HITBOX =', DEBUG_SHOW_PLAYER_HITBOX); renderDebugOverlay(); }
-    if (e.code === 'Backquote') {
-        const anyOn = DEBUG_SHOW_COLLISION_BOXES || DEBUG_SHOW_PLAYER_HITBOX;
-        const next = !anyOn;
-        DEBUG_SHOW_COLLISION_BOXES = next;
-        DEBUG_SHOW_PLAYER_HITBOX = false;
-        console.log('DEBUG ALL =', next);
-        renderDebugOverlay();
-    }
-});
+function flashRoleHud() {
+    const hud = document.getElementById('role-icon-hud');
+    if (!hud) return;
+    hud.style.transition = 'transform 0.25s, box-shadow 0.3s';
+    hud.style.transform = 'scale(1.2)';
+    setTimeout(()=> hud.style.transform = 'scale(1)', 250);
+}
 
-document.addEventListener('keyup', (e) => {
-    keysPressed[e.code] = false;
-});
-
-
-// การผูก Event Listeners สำหรับ Meeting UI (คงเดิม)
-endMeetingButton?.addEventListener('click', endMeeting);
-
-votingButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        handleVote(button.getAttribute('data-target'));
-    });
-});
-
-// รับเหตุการณ์เปลี่ยนขนาดหน้าต่าง เพื่ออัปเดตตำแหน่ง/สเกลแผนที่ให้ยังคงอยู่กลางจอในโหมด Full Map
-window.addEventListener('resize', () => { try { updateMiniMapDisplay(); } catch(_){} });
-
-// ติดตามตำแหน่งเมาส์เพื่อช่วยดีบักพิกัด World
-window.addEventListener('mousemove', (e) => {
-    if (!gameContainer) return;
-    const rect = gameContainer.getBoundingClientRect();
-    // world = screen - containerScreenTopLeft
-    debugMouseWorldX = e.clientX - rect.left;
-    debugMouseWorldY = e.clientY - rect.top;
-    // อัปเดตแผงดีบักทันทีเมื่อเปิดโหมด
-    updateDebugPanel();
-});
-
+const hud = document.getElementById('role-icon-hud');
+hud.classList.remove('visitor', 'thief');
+hud.classList.add(playerRole.toLowerCase());
 
 // เริ่มต้นเกม
 try {
@@ -1337,7 +1280,7 @@ function renderRemotePlayers() {
         width: "128px",
         height: "128px",
         imageRendering: "pixelated",
-        willChange: "transform"
+        willChange: "transform",
       });
       el.dataset.x = p.x;
       el.dataset.y = p.y;
@@ -1360,17 +1303,15 @@ function renderRemotePlayers() {
 
     const tx = Math.round(nx);
     const ty = Math.round(ny);
-    
-    // Nametag for remote players
-    if (!el._nametag) {
-      el._nametag = createNametag(p.name || `Player_${p.uid.slice(0,4)}`);
-    }
-    // Update nametag position relative to player
-    const tagX = p.x + containerX + 64;
-    const tagY = p.y + containerY - 40;
-    el._nametag.style.left = `${tagX}px`;
-    el._nametag.style.top = `${tagY}px`;
 
+    // Nametag
+    if (!el._nametag) {
+      el._nametag = createNametag(p.name || `Player_${p.uid.slice(0, 4)}`);
+    }
+    el._nametag.style.left = `${p.x + containerX + 64}px`;
+    el._nametag.style.top = `${p.y + containerY - 40}px`;
+
+    // Remote player movement
     if (tx !== +el.dataset.tx || ty !== +el.dataset.ty) {
       el.style.transform = `translate(${tx}px, ${ty}px)`;
       el.dataset.tx = tx;
@@ -1379,15 +1320,22 @@ function renderRemotePlayers() {
 
     el.dataset.x = nx;
     el.dataset.y = ny;
+
+    // ✅ Bubble ของ remote player
+    if (el._chatBubble) {
+      const bx = p.x + containerX + 64;
+      const by = p.y + containerY - 70;
+      el._chatBubble.style.left = `${bx}px`;
+      el._chatBubble.style.top = `${by}px`;
+    }
   }
 
   requestAnimationFrame(renderRemotePlayers);
 }
-renderRemotePlayers();
 
 // === Send position with throttle ===
-let lastSent = 0;
-const SEND_INTERVAL = 80; // ส่งทุก 80ms พอ
+let lastSent = 0;                   // 🟢 ประกาศก่อนใช้
+const SEND_INTERVAL = 80;           // ส่งทุก 80ms พอ
 
 function sendPlayerPosition() {
   const now = performance.now();
@@ -1409,5 +1357,239 @@ socket.on("disconnect", (reason) => {
 socket.on("error", (error) => {
   console.error("⚠️ Socket error:", error);
 });
+
+
+// ===== CHAT SYSTEM (Fixed multi-use + start after Role Reveal) =====
+const chatContainer = document.getElementById("chat-container");
+const chatMessages = document.getElementById("chat-messages");
+const chatInput = document.getElementById("chat-input");
+
+let chatMode = false;
+let chatReady = false; // 🚫 ยังไม่เปิดใช้จนกว่า role เผยหมด
+
+// ฟังก์ชันเปิดระบบแชทหลัง role reveal จบ
+function enableChatSystem() {
+  chatReady = true;
+  console.log("💬 Chat system is now active.");
+}
+
+// เรียกตอนท้าย initializeGame() หลัง role reveal modal หาย
+// เช่นใน setTimeout(..., ROLE_REVEAL_DURATION):
+//    enableChatSystem();
+
+document.addEventListener("keydown", (e) => {
+  // ถ้ายังไม่พร้อม -> ห้ามใช้ระบบแชท
+  if (!chatReady || isRoleRevealed) return;
+
+  // ถ้ายังไม่ได้อยู่ในโหมดแชทและกด Enter -> เปิดช่องพิมพ์
+  if (!chatMode && e.key === "Enter") {
+    chatMode = true;
+    chatInput.style.display = "block";
+    chatInput.focus();
+    e.preventDefault();
+    return;
+  }
+
+  // ถ้าอยู่ในโหมดแชทแล้วกด Enter -> ส่งข้อความ
+  if (chatMode && e.key === "Enter") {
+    const msg = chatInput.value.trim();
+    if (msg !== "") {
+      socket.emit("chat:message", { uid, name: displayName, text: msg });
+      addChatMessage(displayName, msg);
+      showChatBubble(uid, msg);
+    }
+
+    chatInput.value = "";
+    chatInput.blur();
+    chatInput.style.display = "none";
+    chatMode = false;
+    e.preventDefault();
+    return;
+  }
+
+  // ถ้าอยู่ในโหมดแชท -> ห้ามเดิน
+  if (chatMode) return;
+});
+
+// เมื่อ focus input -> ปิดการเคลื่อนไหว
+chatInput.addEventListener("focus", () => (chatMode = true));
+
+// แสดงข้อความในกล่อง log ด้านล่าง
+function addChatMessage(sender, text) {
+  const p = document.createElement("p");
+  p.innerHTML = `<b style="color:#00ffc6">${sender}:</b> ${text}`;
+  chatMessages.appendChild(p);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  if (chatMessages.children.length > 30)
+    chatMessages.removeChild(chatMessages.firstChild);
+}
+
+function appendChatMessage(sender, message) {
+  const chatBox = document.getElementById('chat-messages');
+  if (!chatBox) return;
+
+  const div = document.createElement('div');
+  div.textContent = `${sender}: ${message}`;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+
+  // ✅ ให้แสดง bubble ของตัวเอง
+  showChatBubble(uid, message);
+}
+
+// แสดง bubble ซ้อนขึ้น
+function showChatBubble(playerId, text) {
+  const isSelf = playerId === uid;
+  const playerEl = isSelf ? player : remotePlayers[playerId];
+  if (!playerEl) return;
+
+  if (!playerEl._chatStack) playerEl._chatStack = [];
+
+  const bubble = document.createElement("div");
+  bubble.className = "chat-bubble";
+  bubble.textContent = text;
+  document.body.appendChild(bubble);
+  playerEl._chatStack.push(bubble);
+
+  function updateStackPositions() {
+    const baseX =
+      (isSelf ? playerWorldX : parseFloat(playerEl.dataset.tx) || 0) +
+      containerX +
+      playerWidth / 2;
+    const baseY =
+      (isSelf ? playerWorldY : parseFloat(playerEl.dataset.ty) || 0) +
+      containerY -
+      30;
+    playerEl._chatStack.forEach((b, i) => {
+      const bx = baseX;
+      const by = baseY - i * 28;
+      b.style.left = `${bx}px`;
+      b.style.top = `${by}px`;
+    });
+  }
+
+  function followHead() {
+    if (!playerEl._chatStack?.length) return;
+    updateStackPositions();
+    requestAnimationFrame(followHead);
+  }
+  requestAnimationFrame(followHead);
+
+  bubble.classList.add("show");
+
+  setTimeout(() => {
+    bubble.classList.remove("show");
+    setTimeout(() => {
+      bubble.remove();
+      const idx = playerEl._chatStack.indexOf(bubble);
+      if (idx >= 0) playerEl._chatStack.splice(idx, 1);
+    }, 300);
+  }, 3000);
+}
+
+// ฟังข้อความจาก server
+socket.on("chat:message", (data) => {
+  if (!data?.text || !data?.uid) return;
+  addChatMessage(data.name || "Unknown", data.text);
+  showChatBubble(data.uid, data.text);
+});
+
+
+// การจัดการการกดปุ่ม (ปรับปรุง: เพิ่ม KeyM)
+// ============================================
+// KEYBOARD HANDLING + CHAT SYSTEM
+// ============================================
+document.addEventListener('keydown', (e) => {
+  const chatInput = document.getElementById('chat-input');
+
+  // ถ้าโฟกัสช่องแชทอยู่และไม่ใช่ Enter → อย่าให้เกมจับปุ่ม
+  if (isChatFocused && e.code !== 'Enter') return;
+
+  // ป้องกัน scroll หรือ input แปลก ๆ
+  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+       INTERACTION_KEY, 'KeyM', 'KeyW', 'KeyA', 'KeyS', 'KeyD',
+       'F3', 'F4', 'Backquote'].includes(e.code)) {
+    e.preventDefault();
+  }
+
+  // =======================================
+  // 💬 Enter key behavior
+  // =======================================
+  if (e.code === 'Enter') {
+  if (!chatInput) return;
+
+  if (!isChatFocused) {
+    // ✅ ล้างปุ่มค้างก่อนเข้าสู่โหมดพิมพ์
+    for (const k in keysPressed) keysPressed[k] = false;
+
+    chatInput.focus();
+    isChatFocused = true;
+  } else {
+    const msg = chatInput.value.trim();
+    if (msg.length > 0) {
+      appendChatMessage('คุณ', msg);
+      socket.emit("chat:message", { uid, name: displayName, text: msg });
+      chatInput.value = '';
+    }
+    chatInput.blur();
+    isChatFocused = false;
+  }
+
+  e.preventDefault();
+  return;
+}
+
+  // =======================================
+  // ปุ่มอื่น ๆ ของเกม (ทำงานเฉพาะเมื่อไม่ได้พิมพ์)
+  // =======================================
+  if (e.code === 'KeyM' && !isMeetingActive) {
+    toggleFullScreenMap();
+    return;
+  }
+
+  if (e.code === 'F3') { DEBUG_SHOW_COLLISION_BOXES = !DEBUG_SHOW_COLLISION_BOXES; renderDebugOverlay(); return; }
+  if (e.code === 'F4') { DEBUG_SHOW_PLAYER_HITBOX = !DEBUG_SHOW_PLAYER_HITBOX; renderDebugOverlay(); return; }
+  if (e.code === 'Backquote') {
+    const next = !(DEBUG_SHOW_COLLISION_BOXES || DEBUG_SHOW_PLAYER_HITBOX);
+    DEBUG_SHOW_COLLISION_BOXES = next;
+    DEBUG_SHOW_PLAYER_HITBOX = false;
+    renderDebugOverlay();
+    return;
+  }
+
+  // ปุ่มปกติของเกม
+  keysPressed[e.code] = true;
+});
+
+document.addEventListener('keyup', (e) => {
+  if (!isChatFocused) keysPressed[e.code] = false;
+});
+
+
+
+// การผูก Event Listeners สำหรับ Meeting UI (คงเดิม)
+endMeetingButton?.addEventListener('click', endMeeting);
+
+votingButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        handleVote(button.getAttribute('data-target'));
+    });
+});
+
+// รับเหตุการณ์เปลี่ยนขนาดหน้าต่าง เพื่ออัปเดตตำแหน่ง/สเกลแผนที่ให้ยังคงอยู่กลางจอในโหมด Full Map
+window.addEventListener('resize', () => { try { updateMiniMapDisplay(); } catch(_){} });
+
+// ติดตามตำแหน่งเมาส์เพื่อช่วยดีบักพิกัด World
+window.addEventListener('mousemove', (e) => {
+    if (!gameContainer) return;
+    const rect = gameContainer.getBoundingClientRect();
+    // world = screen - containerScreenTopLeft
+    debugMouseWorldX = e.clientX - rect.left;
+    debugMouseWorldY = e.clientY - rect.top;
+    // อัปเดตแผงดีบักทันทีเมื่อเปิดโหมด
+    updateDebugPanel();
+});
+
+
 
 // ===== End Multiplayer Section =====
