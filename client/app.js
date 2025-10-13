@@ -38,7 +38,7 @@ const state = {
   sfx: parseFloat(localStorage.getItem("ggd.sfx") || "0.9"),
   master: parseFloat(localStorage.getItem("ggd.master") || "1"),
   region: localStorage.getItem("ggd.region") || "asia",
-  version: "V.test1.3.8"
+  version: "V.test1.5.8"
 };
 
 // If unified GameSettings exists (from common-settings.js), initialize from it
