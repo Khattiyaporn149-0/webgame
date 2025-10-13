@@ -1,50 +1,53 @@
-let playerNameTag = null;
-// game.js - โค้ดที่ปรับปรุงใหม่ทั้งหมด พร้อมระบบบทบาทและความสามารถพิเศษ
+﻿// game.js - โค้ดที่ปรับปรุงใหม่ทั้งหมด พร้อมระบบบทบาทและความสามารถพิเศษ
 
 // *******************************************
 // ตัวแปรการตั้งค่า
 // *******************************************
-const PLAYER_SPEED = 6; // <<< ความเร็ว 6
-const VISION_RADIUS = 300;
-const FOG_COLOR = 'rgba(0, 0, 0, 0.95)';
-const ANIMATION_FRAME_RATE = 80;
+
+const PLAYER_SPEED = 20; // <<< ความเร็ว 6
+const VISION_RADIUS = 300; 
+const FOG_COLOR = 'rgba(0, 0, 0, 0.95)'; 
+const ANIMATION_FRAME_RATE = 80; 
 
 // การตั้งค่าภารกิจและการโต้ตอบ
-const INTERACTION_RADIUS = 150;
+const INTERACTION_RADIUS = 200; 
 const INTERACTION_KEY = 'KeyE'; // ปุ่มโต้ตอบ (ใช้เรียกประชุมด้วย)
 
 // การตั้งค่า Log
-const MAX_LOG_MESSAGES = 5;
-const LOG_FADE_DURATION_MS = 10000;
+const MAX_LOG_MESSAGES = 5; 
+const LOG_FADE_DURATION_MS = 10000; 
 
 // ตัวแปรสถานะภารกิจ
 let currentMissionProgress = 0;
-const MAX_MISSION_PROGRESS = 10;
-const MISSION_INCREASE_AMOUNT = 1;
+const MAX_MISSION_PROGRESS = 10; 
+const MISSION_INCREASE_AMOUNT = 1; 
 
 // *******************************************
 // NEW: ตัวแปรสถานะบทบาทและความสามารถ
 // *******************************************
-let playerRole = 'Loading...';
+let playerRole = 'Loading...'; 
 let playerAbility = 'None'; // ตัวแปรสำหรับเก็บคำอธิบายความสามารถ
 
 // *** NEW: ระยะเวลาแสดง Role Reveal (หน่วยเป็นมิลลิวินาที) ***
 const ROLE_REVEAL_DURATION = 5000; // 5 วินาที
+// *******************************************
 
 // *******************************************
 // NEW: ข้อมูลความสามารถพิเศษ
 // *******************************************
 const VISITOR_ABILITIES = {
-  Engineer: 'ซ่อมแซมได้เร็วขึ้น',
-  Scientist: 'มองเห็นจุดภารกิจได้ไกลขึ้น',
-  Janitor: 'สามารถซ่อนหลักฐานที่ถูกขโมยได้ 1 ครั้ง',
+    'Engineer': 'ซ่อมแซมได้เร็วขึ้น',
+    'Scientist': 'มองเห็นจุดภารกิจได้ไกลขึ้น',
+    'Janitor': 'สามารถซ่อนหลักฐานที่ถูกขโมยได้ 1 ครั้ง'
 };
 
 const THIEF_ABILITIES = {
-  Hacker: 'สามารถสุ่มปิดไฟในห้องหนึ่งเป็นเวลาสั้นๆ',
-  Shadow: 'เคลื่อนไหวได้เงียบและเร็วขึ้นเล็กน้อย',
-  Distractor: 'สามารถสร้างเสียงรบกวนปลอมได้ในแผนที่',
+    'Hacker': 'สามารถสุ่มปิดไฟในห้องหนึ่งเป็นเวลาสั้นๆ',
+    'Shadow': 'เคลื่อนไหวได้เงียบและเร็วขึ้นเล็กน้อย',
+    'Distractor': 'สามารถสร้างเสียงรบกวนปลอมได้ในแผนที่'
 };
+
+// game.js: เพิ่มโค้ดใหม่ (เลือกตำแหน่งที่เหมาะสม)
 
 // *******************************************
 // Collision (object-rect only, no tiles)
@@ -52,66 +55,95 @@ const THIEF_ABILITIES = {
 let collisionObjects = []; // Array<{x,y,w,h}> ในพิกัดโลก 8192x8192
 
 // *******************************************
+
+// *******************************************
 // NEW: ตัวแปรสำหรับ Minimap
 // *******************************************
 let isMapFullScreen = false;
 const MINIMAP_SIZE_PIXELS = 150; // ขนาด Minimap (150px)
-const MAP_SCALE = MINIMAP_SIZE_PIXELS / 8192; // (สำรอง เผื่อใช้)
-const FOCUSED_MAP_SCALE = 0.5; // ซูมสำหรับ Minimap โฟกัสผู้เล่น
+// สัดส่วนการย่อแผนที่สำหรับ Minimap
+const MAP_SCALE = MINIMAP_SIZE_PIXELS / 8192; 
+
+// *** NEW: ซูมสำหรับ Minimap โฟกัสผู้เล่น ***
+const FOCUSED_MAP_SCALE = 0.5; 
+// *******************************************
+
 
 // *******************************************
 // NEW: ขนาดแผนที่และตำแหน่งเริ่มต้น
 // *******************************************
-const CONTAINER_WIDTH = 8192;
-const CONTAINER_HEIGHT = 8192;
+
+const CONTAINER_WIDTH = 8192 ;
+const CONTAINER_HEIGHT = 8192 ;
+
+// พาธไฟล์แผนที่ .tmj ที่ใช้งาน
+// ไม่ใช้ไฟล์ TMJ อีกต่อไป (ลบการพึ่งพา Tiled)
 
 // ตำแหน่งเริ่มต้นผู้เล่น (กลางแผนที่ 8192x8192)
-let playerWorldX = 3500;
-let playerWorldY = 3500;
+let playerWorldX = 3500; 
+let playerWorldY = 3500; 
 
-// ตำแหน่งจุดภารกิจ
+// ตำแหน่งจุดภารกิจ (กระจายให้เหมาะสมกับแผนที่ 8192x8192)
 const MISSION_SPOTS_DATA = [
-  { id: 'mission-guest', type: 'guest', x: 1500, y: 7000, width: 90, height: 90 },
-  { id: 'mission-heist', type: 'heist', x: 7000, y: 1500, width: 90, height: 90 },
-  { id: 'mission-meeting', type: 'meeting', x: 4000, y: 4000, width: 150, height: 150 },
-  { id: 'mission-cctv', type: 'Open_CCTV', x: 6000, y: 6000, width: 90, height: 90 },
+    // ภารกิจผู้เยี่ยมชม: มุมซ้ายล่าง
+    { id: 'mission-guest', type: 'guest', x: 1500, y: 7000, width: 90, height: 90 }, 
+    // ภารกิจหัวขโมย: มุมขวาบน
+    { id: 'mission-heist', type: 'heist', x: 7000, y: 1500, width: 90, height: 90 }, 
+    // จุดเรียกประชุม: กลางแผนที่
+    { id: 'mission-meeting', type: 'meeting', x: 4000, y: 4000, width: 150, height: 150 },
+    // จุดโต้ตอบอื่นๆ (เช่น CCTV, ไฟฉุกเฉิน) สามารถเพิ่มได้ที่นี่
+    { id: 'mission-cctv', type: 'Open_CCTV', x: 6000, y: 6000, width: 90, height: 90 }
 ];
+
 
 // อ้างอิงองค์ประกอบ DOM
 const gameContainer = document.getElementById('game-container');
 const player = document.getElementById('player');
-const playerWrap = document.getElementById('player-wrap');
-const nameplateEl = document.getElementById('nameplate');
 const minimapBase = document.getElementById('minimap-base');
 const debugCanvas = document.getElementById('debug-overlay');
 const debugPanel = document.getElementById('debug-panel');
 let debugCtx = debugCanvas ? debugCanvas.getContext('2d') : null;
-let lastDebugRenderMs = 0;
+let lastDebugRenderMs = 0; 
 const DEBUG_MAX_FPS = 30; // throttle debug overlay
 
 // Debug flags
 let DEBUG_SHOW_COLLISION_BOXES = false; // F3
-let DEBUG_SHOW_PLAYER_HITBOX = false; // F4
+let DEBUG_SHOW_PLAYER_HITBOX = false;   // F4
+// เปิดดีบักอัตโนมัติเมื่อมีพารามิเตอร์ ?debug=1 ใน URL
+
+if (DEBUG_SHOW_PLAYER_HITBOX) {
+  const hitW = playerWidth * 0.8;
+  const hitH = playerHeight * 0.6;
+  const offsetX = (playerWidth - hitW) / 2;
+  const offsetY = (playerHeight - hitH) / 2 + 20;
+  const x = (playerWorldX + offsetX) - viewLeft;
+  const y = (playerWorldY + offsetY) - viewTop;
+
+  debugCtx.strokeStyle = 'rgba(0,200,255,0.9)';
+  debugCtx.lineWidth = 2;
+  debugCtx.strokeRect(x, y, hitW, hitH);
+}
+
 
 try {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('debug') === '1') {
-    DEBUG_SHOW_COLLISION_BOXES = true;
-    DEBUG_SHOW_PLAYER_HITBOX = false;
-  }
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('debug') === '1') {
+        DEBUG_SHOW_COLLISION_BOXES = true;
+        DEBUG_SHOW_PLAYER_HITBOX = false;
+    }
 } catch (_) {}
-
 let debugMouseWorldX = 0;
 let debugMouseWorldY = 0;
-let lastFogUpdateMs = 0;
+let lastFogUpdateMs = 0; 
 const FOG_MAX_FPS = 30; // throttle fog-of-war updates
 const visionOverlay = document.getElementById('vision-overlay');
-const interactionHint = document.getElementById('interaction-hint');
-const logContainer = document.getElementById('log-container');
+const interactionHint = document.getElementById('interaction-hint'); 
+const logContainer = document.getElementById('log-container'); 
 
 // การอ้างอิง Mission UI
 const missionProgressBar = document.getElementById('mission-bar-fill');
 const missionProgressText = document.getElementById('mission-progress-text');
+try { updateMissionStatus(); } catch {}
 
 // การอ้างอิง Meeting UI
 const meetingModal = document.getElementById('meeting-modal');
@@ -124,480 +156,524 @@ const roleRevealModal = document.getElementById('role-reveal-modal');
 const roleNameText = document.getElementById('role-name-text');
 const roleTeamText = document.getElementById('role-team-text');
 const roleAbilityText = document.getElementById('role-ability-text');
-const roleCharacterImage = document.getElementById('role-character-image');
-const roleCharacterDisplay = document.getElementById('role-character-display');
+const roleCharacterImage = document.getElementById('role-character-image'); 
+const roleCharacterDisplay = document.getElementById('role-character-display'); 
+// **************************************
 
 // การอ้างอิง Audio Elements
 const sfxInteract = document.getElementById('sfx-interact');
 const sfxHeist = document.getElementById('sfx-heist');
 const bgmMusic = document.getElementById('bgm-music');
 
-// การอ้างอิง Minimap UI
+// การอ้างอิง Minimap UI - NEW
 const mapOverlay = document.getElementById('map-overlay');
 const minimapContent = document.getElementById('minimap-content');
 const minimapPlayerDot = document.getElementById('minimap-player-dot');
 const minimapMissionDots = {
-  'mission-guest': document.getElementById('minimap-guest-dot'),
-  'mission-heist': document.getElementById('minimap-heist-dot'),
-  'mission-meeting': document.getElementById('minimap-meeting-dot'),
-  // ถ้ามีจุด cctv บน minimap ให้เพิ่ม id ด้วย
-  // 'mission-cctv': document.getElementById('minimap-cctv-dot'),
+    'mission-guest': document.getElementById('minimap-guest-dot'),
+    'mission-heist': document.getElementById('minimap-heist-dot'),
+    'mission-meeting': document.getElementById('minimap-meeting-dot'),
 };
+
 
 // สถานะเกมหลัก
 const keysPressed = {};
-let isMoving = false;
-let isMeetingActive = false;
-let isRoleRevealed = false;
+let isMoving = false; 
+let isMeetingActive = false; 
+let isRoleRevealed = false; // NEW: สถานะ Role Reveal
 
-// ตำแหน่งกล้องและขนาดหน้าจอ
+// ตำแหน่งกล้องและขนาดหน้าจอ (คงเดิม)
 let containerX = 0;
 let containerY = 0;
 let VIEWPORT_WIDTH = window.innerWidth;
 let VIEWPORT_HEIGHT = window.innerHeight;
-let playerWidth = 200;
-let playerHeight = 200;
+let playerWidth = 200; 
+let playerHeight = 200; 
 
 // *******************************************
-// 4. การจัดการแอนิเมชัน
+// Placeholder (เก็บเฉยๆ ไม่ใช้ Tiled แล้ว)
 // *******************************************
-const idleFrames = ['assets/images/idle_1.png'];
+const WALL_COLLISION_BOXES = []; 
+
+
+// *******************************************
+// 4. การจัดการแอนิเมชัน (คงเดิม)
+// *******************************************
+const idleFrames = ['assets/images/idle_1.png']; 
 const walkFrames = [
-  'assets/images/walk_1.png',
-  'assets/images/walk_2.png',
-  'assets/images/walk_3.png',
-  'assets/images/walk_4.png',
-  'assets/images/walk_5.png',
-  'assets/images/walk_6.png',
-  'assets/images/walk_7.png',
-  'assets/images/walk_8.png',
-];
+    'assets/images/walk_1.png', 'assets/images/walk_2.png', 'assets/images/walk_3.png', 
+    'assets/images/walk_4.png', 'assets/images/walk_5.png', 'assets/images/walk_6.png',
+    'assets/images/walk_7.png', 'assets/images/walk_8.png'
+]; 
 let currentAnimation = 'idle';
 let currentFrameIndex = 0;
 let lastFrameTime = 0;
 
 function updateAnimation(timestamp) {
-  if (timestamp - lastFrameTime >= ANIMATION_FRAME_RATE) {
-    lastFrameTime = timestamp;
-
-    let frames;
-    if (isMoving) {
-      frames = walkFrames;
-      if (currentAnimation !== 'walking') {
-        currentAnimation = 'walking';
-        currentFrameIndex = 0;
-      }
-    } else {
-      frames = idleFrames;
-      if (currentAnimation !== 'idle') {
-        currentAnimation = 'idle';
-        currentFrameIndex = 0;
-      }
+    if (timestamp - lastFrameTime >= ANIMATION_FRAME_RATE) {
+        lastFrameTime = timestamp;
+        
+        let frames;
+        if (isMoving) {
+            frames = walkFrames;
+            if (currentAnimation !== 'walking') {
+                currentAnimation = 'walking';
+                currentFrameIndex = 0; 
+            }
+        } else {
+            frames = idleFrames;
+            if (currentAnimation !== 'idle') {
+                currentAnimation = 'idle';
+                currentFrameIndex = 0; 
+            }
+        }
+        
+        currentFrameIndex = (currentFrameIndex + 1) % frames.length;
+        player.src = frames[currentFrameIndex];
     }
-
-    currentFrameIndex = (currentFrameIndex + 1) % frames.length;
-    if (player) player.src = frames[currentFrameIndex];
-  }
 }
 
+
+
 // *******************************************
-// 1. ฟังก์ชันแสดงผล
+// 1. ฟังก์ชันแสดงผล 
 // *******************************************
 function updateDisplay() {
-  if (!gameContainer || !player || !visionOverlay) return;
+     // กำหนดตำแหน่งของจุดภารกิจใน DOM ให้ตรงกับพิกัดใน MISSION_SPOTS_DATA
+    MISSION_SPOTS_DATA.forEach(spot => {
+        const element = document.getElementById(spot.id);
+        if (element) {
+            element.style.left = `${spot.x}px`;
+            element.style.top = `${spot.y}px`;
+        }
+    });
 
-  // ตำแหน่ง mission spots
-  for (const spot of MISSION_SPOTS_DATA) {
-    const el = document.getElementById(spot.id);
-    if (!el) continue;
-    el.style.left = `${spot.x}px`;
-    el.style.top = `${spot.y}px`;
-  }
+    player.style.transform = `translate(${playerWorldX}px, ${playerWorldY}px)`;
+    gameContainer.style.transform = `translate(${containerX}px, ${containerY}px)`;
 
-  // world → screen
-  if (playerWrap) {
-    playerWrap.style.transform = `translate3d(${playerWorldX}px, ${playerWorldY}px, 0)`;
-  }
-  if (player) {
-    player.style.transform = '';
-  }
-  gameContainer.style.transform = `translate3d(${containerX}px, ${containerY}px, 0)`;
+    // อัปเดต Fog of War
+    const playerScreenX_Center = playerWorldX + containerX + (playerWidth / 2);
+    const playerScreenY_Center = playerWorldY + containerY + (playerHeight / 2);
 
-  // Fog of War (throttle)
-  const playerScreenX = playerWorldX + containerX + playerWidth / 2;
-  const playerScreenY = playerWorldY + containerY + playerHeight / 2;
-  const now = performance.now();
-  if (isMoving || now - lastFogUpdateMs > 1000 / FOG_MAX_FPS) {
-    lastFogUpdateMs = now;
-    const cx = Math.round(playerScreenX);
-    const cy = Math.round(playerScreenY);
-    visionOverlay.style.background = `radial-gradient(
-      circle at ${cx}px ${cy}px,
-      transparent 0px,
-      transparent ${VISION_RADIUS}px,
-      ${FOG_COLOR} ${VISION_RADIUS + 50}px
-    )`;
-  }
+    const nowFog = performance.now();
+    if (nowFog - lastFogUpdateMs > (1000 / FOG_MAX_FPS) || isMoving) {
+        lastFogUpdateMs = nowFog;
+        visionOverlay.style.background = `radial-gradient(
+            circle at ${playerScreenX_Center}px ${playerScreenY_Center}px, 
+            transparent 0px, 
+            transparent ${VISION_RADIUS}px, 
+            ${FOG_COLOR} ${VISION_RADIUS + 50}px
+        )`;
+    }
+    
+    // NEW: อัปเดต Minimap
+    updateMiniMapDisplay();
 
-  // Minimap + Nametag + Debug
-  updateMiniMapDisplay();
-  updateNametagPosition();
-  renderDebugOverlay();
-}
-
-function updateNametagPosition() {
-  if (!playerNameTag) return;
-  const tagX = playerWorldX + containerX + playerWidth / 2;
-  const tagY = playerWorldY + containerY - 8;
-  playerNameTag.style.left = `${tagX}px`;
-  playerNameTag.style.top = `${tagY}px`;
+    // DEBUG: วาด Overlay ถ้ามีการเปิดโหมดดีบัก
+    renderDebugOverlay();
 }
 
 function updateDebugPanel() {
-  if (!debugPanel) return;
-  const anyOn = DEBUG_SHOW_COLLISION_BOXES || DEBUG_SHOW_PLAYER_HITBOX;
-  debugPanel.style.display = anyOn ? 'block' : 'none';
-  if (!anyOn) return;
+    if (!debugPanel) return;
+    const anyOn = DEBUG_SHOW_COLLISION_BOXES || DEBUG_SHOW_PLAYER_HITBOX;
+    debugPanel.style.display = anyOn ? 'block' : 'none';
+    if (!anyOn) return;
 
-  debugPanel.innerText = [
-    `PlayerWorld: ${Math.round(playerWorldX)}, ${Math.round(playerWorldY)}`,
-    `Container: ${Math.round(containerX)}, ${Math.round(containerY)}`,
-    `MouseWorld: ${Math.round(debugMouseWorldX)}, ${Math.round(debugMouseWorldY)}`,
-    `CollisionRects: ${collisionObjects?.length || 0}`,
-  ]
-    .filter(Boolean)
-    .join('\n');
+    const playerCenterX = playerWorldX + (playerWidth/2);
+    const playerCenterY = playerWorldY + (playerHeight/2);
+    debugPanel.innerText = [
+        `PlayerWorld: ${Math.round(playerWorldX)}, ${Math.round(playerWorldY)}`,
+        `Container: ${Math.round(containerX)}, ${Math.round(containerY)}`,
+        `MouseWorld: ${Math.round(debugMouseWorldX)}, ${Math.round(debugMouseWorldY)}`,
+        `CollisionRects: ${collisionObjects?.length || 0}`
+    ].filter(Boolean).join('\n');
 }
 
 function renderDebugOverlay() {
-  if (!debugCtx || !debugCanvas) return;
-  const anyOn = DEBUG_SHOW_COLLISION_BOXES || DEBUG_SHOW_PLAYER_HITBOX;
-  if (!anyOn) {
-    debugCtx.clearRect(0, 0, debugCanvas.width, debugCanvas.height);
-    updateDebugPanel();
-    return;
-  }
-  const now = performance.now();
-  const minDelta = 1000 / DEBUG_MAX_FPS;
-  if (now - lastDebugRenderMs < minDelta) return;
-  lastDebugRenderMs = now;
+    if (!debugCtx || !debugCanvas) return;
+    const anyOn = DEBUG_SHOW_COLLISION_BOXES || DEBUG_SHOW_PLAYER_HITBOX;
+    if (!anyOn) { debugCtx.clearRect(0,0,debugCanvas.width, debugCanvas.height); updateDebugPanel(); return; }
+    const now = performance.now();
+    const minDelta = 1000 / DEBUG_MAX_FPS;
+    if (now - lastDebugRenderMs < minDelta) { return; }
+    lastDebugRenderMs = now;
 
-  if (debugCanvas.width !== VIEWPORT_WIDTH) debugCanvas.width = VIEWPORT_WIDTH;
-  if (debugCanvas.height !== VIEWPORT_HEIGHT) debugCanvas.height = VIEWPORT_HEIGHT;
+    // Ensure canvas matches current viewport size (not full map) for performance
+    if (debugCanvas.width !== VIEWPORT_WIDTH) debugCanvas.width = VIEWPORT_WIDTH;
+    if (debugCanvas.height !== VIEWPORT_HEIGHT) debugCanvas.height = VIEWPORT_HEIGHT;
 
-  debugCtx.clearRect(0, 0, debugCanvas.width, debugCanvas.height);
+    debugCtx.clearRect(0,0,debugCanvas.width, debugCanvas.height);
 
-  // Visible region in world coordinates
-  const viewLeft = Math.max(0, -containerX);
-  const viewTop = Math.max(0, -containerY);
-  const viewRight = Math.min(CONTAINER_WIDTH, viewLeft + VIEWPORT_WIDTH);
-  const viewBottom = Math.min(CONTAINER_HEIGHT, viewTop + VIEWPORT_HEIGHT);
+    // Visible region in world coordinates
+    const viewLeft = Math.max(0, -containerX);
+    const viewTop = Math.max(0, -containerY);
+    const viewRight = Math.min(CONTAINER_WIDTH, viewLeft + VIEWPORT_WIDTH);
+    const viewBottom = Math.min(CONTAINER_HEIGHT, viewTop + VIEWPORT_HEIGHT);
 
-  // Draw collision boxes (object layer)
-  if (DEBUG_SHOW_COLLISION_BOXES && collisionObjects && collisionObjects.length) {
-    debugCtx.strokeStyle = 'rgba(255,165,0,0.85)';
-    debugCtx.lineWidth = 2;
-    for (const r of collisionObjects) {
-      const rx2 = r.x + r.w;
-      const ry2 = r.y + r.h;
-      if (r.x > viewRight || rx2 < viewLeft || r.y > viewBottom || ry2 < viewTop) continue;
-      debugCtx.strokeRect(r.x - viewLeft, r.y - viewTop, r.w, r.h);
+    // (ลบระบบ Grid/Tiles ออกไปแล้ว)
+
+    // Draw collision boxes (object layer)
+    if (DEBUG_SHOW_COLLISION_BOXES && collisionObjects && collisionObjects.length) {
+        debugCtx.strokeStyle = 'rgba(255,165,0,0.85)'; // orange
+        debugCtx.lineWidth = 2;
+        for (const r of collisionObjects) {
+            const rx2 = r.x + r.w;
+            const ry2 = r.y + r.h;
+            if (r.x > viewRight || rx2 < viewLeft || r.y > viewBottom || ry2 < viewTop) continue; // skip off-screen
+            debugCtx.strokeRect(r.x - viewLeft, r.y - viewTop, r.w, r.h);
+        }
     }
-  }
 
-  // Draw player hitbox (foot box)
-  if (DEBUG_SHOW_PLAYER_HITBOX) {
-    const effectiveWidth = playerWidth * 0.5;
-    const effectiveHeight = playerHeight * 0.25;
-    const offsetX = (playerWidth - effectiveWidth) / 2;
-    const offsetY = playerHeight - effectiveHeight;
-    const x = playerWorldX + offsetX - viewLeft;
-    const y = playerWorldY + offsetY - viewTop;
-    debugCtx.strokeStyle = 'rgba(0,200,255,0.9)';
-    debugCtx.lineWidth = 2;
-    debugCtx.strokeRect(x, y, effectiveWidth, effectiveHeight);
-  }
+    // Draw player hitbox (foot box used for collision)
+    if (DEBUG_SHOW_PLAYER_HITBOX) {
+        const effectiveWidth = playerWidth * 0.5;
+        const effectiveHeight = playerHeight * 0.25;
+        const offsetX = (playerWidth - effectiveWidth) / 2;
+        const offsetY = playerHeight - effectiveHeight;
+        const x = (playerWorldX + offsetX) - viewLeft;
+        const y = (playerWorldY + offsetY) - viewTop;
+        debugCtx.strokeStyle = 'rgba(0,200,255,0.9)';
+        debugCtx.lineWidth = 2;
+        debugCtx.strokeRect(x, y, effectiveWidth, effectiveHeight);
+    }
 
-  updateDebugPanel();
+
+    console.log("Sample wall:", collisionObjects[0]);
+console.log("Player:", playerWorldX, playerWorldY);
+
+    updateDebugPanel();
 }
 
+
+
+
 // *******************************************
-// 6. การจัดการ Log Event และ Audio
+// 6. การจัดการ Log Event และ Audio (คงเดิม)
 // *******************************************
 function addLogEvent(message, type = 'general') {
-  const logElement = document.createElement('p');
-  logElement.className = 'log-message';
-  logElement.textContent = message;
+    const logElement = document.createElement('p');
+    logElement.className = 'log-message';
+    logElement.textContent = message;
 
-  if (type === 'heist') logElement.classList.add('heist');
-
-  if (logContainer.firstChild) logContainer.insertBefore(logElement, logContainer.firstChild);
-  else logContainer.appendChild(logElement);
-
-  while (logContainer.children.length > MAX_LOG_MESSAGES) {
-    logContainer.removeChild(logContainer.lastChild);
-  }
-
-  setTimeout(() => {
-    logElement.style.opacity = '0';
-  }, LOG_FADE_DURATION_MS);
-  setTimeout(() => {
-    if (logElement.parentElement === logContainer) {
-      logContainer.removeChild(logElement);
+    if (type === 'heist') {
+        logElement.classList.add('heist');
     }
-  }, LOG_FADE_DURATION_MS + 1000);
+
+    if (logContainer.firstChild) {
+        logContainer.insertBefore(logElement, logContainer.firstChild);
+    } else {
+        logContainer.appendChild(logElement);
+    }
+
+    while (logContainer.children.length > MAX_LOG_MESSAGES) {
+        logContainer.removeChild(logContainer.lastChild);
+    }
+
+    setTimeout(() => { logElement.style.opacity = '0'; }, LOG_FADE_DURATION_MS);
+    setTimeout(() => {
+        if (logElement.parentElement === logContainer) {
+            logContainer.removeChild(logElement);
+        }
+    }, LOG_FADE_DURATION_MS + 1000); 
 }
 
 function playSound(audioElement) {
-  if (!audioElement) return;
-  audioElement.currentTime = 0;
-  audioElement.play().catch((e) => {
-    console.warn('Audio playback blocked or file missing:', e);
-  });
+    audioElement.currentTime = 0; 
+    audioElement.play().catch(e => console.log("Audio playback blocked by browser:", e)); 
 }
 
+
 // *******************************************
-// 7. การจัดการแถบสถานะภารกิจ
+// 7. การจัดการแถบสถานะภารกิจ (คงเดิม)
 // *******************************************
 function updateMissionStatus() {
-  currentMissionProgress = Math.min(currentMissionProgress, MAX_MISSION_PROGRESS);
-  const progressPercent = Math.round((currentMissionProgress / MAX_MISSION_PROGRESS) * 100);
+    currentMissionProgress = Math.min(currentMissionProgress, MAX_MISSION_PROGRESS);
 
-  missionProgressBar && (missionProgressBar.style.width = `${progressPercent}%`);
-  missionProgressText && (missionProgressText.textContent = `${progressPercent}%`);
+    const progressPercent = Math.round((currentMissionProgress / MAX_MISSION_PROGRESS) * 100);
 
-  if (currentMissionProgress >= MAX_MISSION_PROGRESS) {
-    console.log('*** ผู้เยี่ยมชมทำภารกิจครบแล้ว! ***');
-    addLogEvent('✅ ภารกิจทั้งหมดของผู้เยี่ยมชมเสร็จสมบูรณ์แล้ว! (ฝ่ายผู้เยี่ยมชมชนะ)', 'heist');
-  }
+    missionProgressBar.style.width = `${progressPercent}%`;
+    missionProgressText.textContent = `${progressPercent}%`;
+
+    if (currentMissionProgress >= MAX_MISSION_PROGRESS) {
+        console.log("*** ผู้เยี่ยมชมทำภารกิจครบแล้ว! ***");
+        addLogEvent("✅ ภารกิจทั้งหมดของผู้เยี่ยมชมเสร็จสมบูรณ์แล้ว! (ฝ่ายผู้เยี่ยมชมชนะ)", 'heist'); 
+    }
 }
 
 // *******************************************
 // 8. การจัดการระบบประชุม (Meeting System)
 // *******************************************
 function startMeeting() {
-  if (isMeetingActive) return;
-  isMeetingActive = true;
-  meetingModal && (meetingModal.style.display = 'flex');
+    if (isMeetingActive) return;
 
-  bgmMusic && bgmMusic.pause();
+    isMeetingActive = true;
+    meetingModal.style.display = 'flex'; 
+    
+    bgmMusic.pause();
+    
+    voteResultText.textContent = ""; 
+    votingButtons.forEach(btn => btn.disabled = false);
 
-  voteResultText && (voteResultText.textContent = '');
-  votingButtons.forEach((btn) => (btn.disabled = false));
+    // NEW: ซ่อน Minimap
+    mapOverlay.style.display = 'none';
 
-  mapOverlay && (mapOverlay.style.display = 'none');
-
-  console.log('!!! การประชุมฉุกเฉินเริ่มต้น !!!');
-  addLogEvent('🚨 ผู้เล่นเรียกประชุมฉุกเฉิน!', 'heist');
+    console.log("!!! การประชุมฉุกเฉินเริ่มต้น !!!");
+    addLogEvent("🚨 ผู้เล่นเรียกประชุมฉุกเฉิน!", 'heist');
 }
 
 function endMeeting() {
-  isMeetingActive = false;
-  meetingModal && (meetingModal.style.display = 'none');
+    isMeetingActive = false;
+    meetingModal.style.display = 'none'; 
+    
+    bgmMusic.play().catch(e => console.log("BGM playback blocked:", e));
 
-  bgmMusic && bgmMusic.play().catch((e) => console.log('BGM playback blocked:', e));
+    // NEW: แสดง Minimap กลับมา
+    mapOverlay.style.display = 'block';
 
-  mapOverlay && (mapOverlay.style.display = 'block');
-
-  console.log('!!! สิ้นสุดการประชุม !!!');
-  addLogEvent('การประชุมสิ้นสุดลงแล้ว', 'general');
+    console.log("!!! สิ้นสุดการประชุม !!!");
+    addLogEvent("การประชุมสิ้นสุดลงแล้ว", 'general');
 }
 
 function handleVote(target) {
-  if (!isMeetingActive) return;
+    if (!isMeetingActive) return;
 
-  if (voteResultText) voteResultText.textContent = `โหวตไปยัง: ${target}! รอผลโหวตสุดท้าย...`;
-  votingButtons.forEach((btn) => (btn.disabled = true));
-
-  setTimeout(() => {
-    endMeeting();
-  }, 3000);
+    voteResultText.textContent = `โหวตไปยัง: ${target}! รอผลโหวตสุดท้าย...`;
+    votingButtons.forEach(btn => btn.disabled = true);
+    
+    setTimeout(() => {
+        endMeeting();
+    }, 3000); 
 }
 
+
 // *******************************************
-// 9. การจัดการ Minimap และ Full Map
+// 9. การจัดการ Minimap และ Full Map (แก้ไขให้เป็นวงกลมในโหมด Fullscreen)
 // *******************************************
 function toggleFullScreenMap() {
-  if (isMeetingActive) return;
+    // ป้องกันการเปิดแผนที่เต็มจอระหว่างการประชุม
+    if (isMeetingActive) return; 
 
-  isMapFullScreen = !isMapFullScreen;
+    isMapFullScreen = !isMapFullScreen;
+    
+    if (isMapFullScreen) {
+        // เปิดโหมดแผนที่เต็มจอ (Minimap ขนาดใหญ่ขึ้นและอยู่ตรงกลาง)
+        mapOverlay.classList.add('fullscreen');
+        // ล้าง inline transform เพื่อไม่ให้ทับ CSS ของคลาส .fullscreen
+        mapOverlay.style.transform = '';
+        
+        // ซ่อน UI อื่นๆ ที่อาจรบกวน 
+        visionOverlay.style.display = 'none';
+        document.getElementById('log-container').style.opacity = '0';
+        document.getElementById('mission-status-container').style.opacity = '0';
+        document.getElementById('interaction-hint').style.display = 'none';
+    } else {
+        // ปิดโหมดแผนที่เต็มจอ กลับเป็น Minimap เล็ก
+        mapOverlay.classList.remove('fullscreen');
+        
+        // ลบ inline transform (ให้กลับไปพึ่งพา CSS ปกติที่มุมขวาบน)
+        mapOverlay.style.transform = ''; 
+        
+        // เปิด UI ที่ซ่อนไว้กลับมา 
+        visionOverlay.style.display = 'block';
+        document.getElementById('log-container').style.opacity = '1';
+        document.getElementById('mission-status-container').style.opacity = '1';
+    }
 
-  if (isMapFullScreen) {
-    mapOverlay?.classList.add('fullscreen');
-    mapOverlay && (mapOverlay.style.transform = '');
-    visionOverlay && (visionOverlay.style.display = 'none');
-    document.getElementById('log-container') && (document.getElementById('log-container').style.opacity = '0');
-    document.getElementById('mission-status-container') &&
-      (document.getElementById('mission-status-container').style.opacity = '0');
-    document.getElementById('interaction-hint') && (document.getElementById('interaction-hint').style.display = 'none');
-  } else {
-    mapOverlay?.classList.remove('fullscreen');
-    mapOverlay && (mapOverlay.style.transform = '');
-    visionOverlay && (visionOverlay.style.display = 'block');
-    document.getElementById('log-container') && (document.getElementById('log-container').style.opacity = '1');
-    document.getElementById('mission-status-container') &&
-      (document.getElementById('mission-status-container').style.opacity = '1');
-  }
-
-  updateMiniMapDisplay();
+    // อัปเดตการแสดงผลแผนที่ทันที
+    updateMiniMapDisplay(); 
 }
 
 function updateMiniMapDisplay() {
-  if (!mapOverlay || !minimapContent || !minimapPlayerDot) return;
+    if (!mapOverlay || !minimapContent || !minimapPlayerDot) return;
+    let scale;
+    let offsetX = 0;
+    let offsetY = 0;
+    let currentMapOverlaySize; // ขนาดของวงกลม Minimap/Full Map ในปัจจุบัน
 
-  let scale;
-  let offsetX = 0;
-  let offsetY = 0;
-  let currentMapOverlaySize;
+    const currentViewPortWidth = window.innerWidth;
+    const currentViewPortHeight = window.innerHeight;
 
-  const currentViewPortHeight = window.innerHeight;
+    // 1. คำนวณพิกัดโลกของผู้เล่น (จุดศูนย์กลาง)
+    const playerCenterX = playerWorldX + (playerWidth / 2); 
+    const playerCenterY = playerWorldY + (playerHeight / 2); 
+    
+    if (isMapFullScreen) {
+        // --- Full Map (วงกลมขนาดใหญ่ตรงกลาง) Logic ---
+        
+        // ขนาดวงกลม Full Map ถูกกำหนดเป็น 80% ของความสูงหน้าจอ (80vh) ใน CSS
+        currentMapOverlaySize = Math.floor(currentViewPortHeight * 0.8);
+        
+        // คำนวณ Scale เพื่อให้แผนที่เต็มพื้นที่วงกลมใหญ่ (ใช้ขนาด 80vh)
+        scale = currentMapOverlaySize / CONTAINER_WIDTH; 
+        
+        // 2. คำนวณตำแหน่งที่ Minimap Content ควรเลื่อน (เพื่อให้ผู้เล่นอยู่ตรงกลางวงกลมใหญ่)
+        const scaledPlayerX = playerCenterX * scale;
+        const scaledPlayerY = playerCenterY * scale;
 
-  const playerCenterX = playerWorldX + playerWidth / 2;
-  const playerCenterY = playerWorldY + playerHeight / 2;
+        // ตำแหน่งที่ต้องเลื่อน: (จุดกึ่งกลางของวงกลมใหญ่) - (ตำแหน่งผู้เล่นที่ถูก Scale)
+        offsetX = (currentMapOverlaySize / 2) - scaledPlayerX;
+        offsetY = (currentMapOverlaySize / 2) - scaledPlayerY;
 
-  if (isMapFullScreen) {
-    currentMapOverlaySize = Math.floor(currentViewPortHeight * 0.8);
-    scale = currentMapOverlaySize / CONTAINER_WIDTH;
+        // 3. จำกัดขอบเขตการเลื่อนของ Minimap Content (ป้องกันแผนที่หลุดขอบ)
+        const mapAreaWidth = CONTAINER_WIDTH * scale;
+        const mapAreaHeight = CONTAINER_HEIGHT * scale;
+        
+        // ใช้ currentMapOverlaySize แทน MINIMAP_SIZE_PIXELS
+        const maxOffsetLeft = currentMapOverlaySize - mapAreaWidth;
+        const minOffsetRight = 0;
 
-    const scaledPlayerX = playerCenterX * scale;
-    const scaledPlayerY = playerCenterY * scale;
+        offsetX = Math.min(minOffsetRight, offsetX);
+        offsetX = Math.max(maxOffsetLeft, offsetX);
+        
+        const maxOffsetTop = currentMapOverlaySize - mapAreaHeight;
+        const minOffsetBottom = 0;
 
-    offsetX = currentMapOverlaySize / 2 - scaledPlayerX;
-    offsetY = currentMapOverlaySize / 2 - scaledPlayerY;
+        offsetY = Math.min(minOffsetBottom, offsetY);
+        offsetY = Math.max(maxOffsetTop, offsetY);
+        
+    } else {
+        // --- Minimap (Focused/Radar) Logic (150px) ---
+        currentMapOverlaySize = MINIMAP_SIZE_PIXELS;
+        scale = FOCUSED_MAP_SCALE; 
 
-    const mapAreaWidth = CONTAINER_WIDTH * scale;
-    const mapAreaHeight = CONTAINER_HEIGHT * scale;
+        // 2. คำนวณตำแหน่งที่ Minimap Content ควรเลื่อน (เพื่อให้ผู้เล่นอยู่ตรงกลาง Minimap Overlay)
+        const scaledPlayerX = playerCenterX * scale;
+        const scaledPlayerY = playerCenterY * scale;
 
-    const maxOffsetLeft = currentMapOverlaySize - mapAreaWidth;
-    const minOffsetRight = 0;
-    offsetX = Math.min(minOffsetRight, Math.max(maxOffsetLeft, offsetX));
+        // ตำแหน่งที่ต้องเลื่อน: (จุดกึ่งกลางของ Minimap) - (ตำแหน่งผู้เล่นที่ถูก Scale)
+        offsetX = (currentMapOverlaySize / 2) - scaledPlayerX;
+        offsetY = (currentMapOverlaySize / 2) - scaledPlayerY;
 
-    const maxOffsetTop = currentMapOverlaySize - mapAreaHeight;
-    const minOffsetBottom = 0;
-    offsetY = Math.min(minOffsetBottom, Math.max(maxOffsetTop, offsetY));
-  } else {
-    currentMapOverlaySize = MINIMAP_SIZE_PIXELS;
-    scale = FOCUSED_MAP_SCALE;
+        // 3. จำกัดขอบเขตการเลื่อนของ Minimap Content (ป้องกันแผนที่หลุดขอบ)
+        const mapAreaWidth = CONTAINER_WIDTH * scale;
+        const mapAreaHeight = CONTAINER_HEIGHT * scale;
+        
+        const maxOffsetLeft = currentMapOverlaySize - mapAreaWidth;
+        const minOffsetRight = 0;
 
-    const scaledPlayerX = playerCenterX * scale;
-    const scaledPlayerY = playerCenterY * scale;
+        offsetX = Math.min(minOffsetRight, offsetX);
+        offsetX = Math.max(maxOffsetLeft, offsetX);
+        
+        const maxOffsetTop = currentMapOverlaySize - mapAreaHeight;
+        const minOffsetBottom = 0;
 
-    offsetX = currentMapOverlaySize / 2 - scaledPlayerX;
-    offsetY = currentMapOverlaySize / 2 - scaledPlayerY;
-
-    const mapAreaWidth = CONTAINER_WIDTH * scale;
-    const mapAreaHeight = CONTAINER_HEIGHT * scale;
-
-    const maxOffsetLeft = currentMapOverlaySize - mapAreaWidth;
-    const minOffsetRight = 0;
-    offsetX = Math.min(minOffsetRight, Math.max(maxOffsetLeft, offsetX));
-
-    const maxOffsetTop = currentMapOverlaySize - mapAreaHeight;
-    const minOffsetBottom = 0;
-    offsetY = Math.min(minOffsetBottom, Math.max(maxOffsetTop, offsetY));
-  }
-
-  minimapContent.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-
-  const playerMapX = playerWorldX + playerWidth / 2;
-  const playerMapY = playerWorldY + playerHeight / 2;
-
-  minimapPlayerDot.style.left = `${playerMapX}px`;
-  minimapPlayerDot.style.top = `${playerMapY}px`;
-
-  const inverseScale = 1 / scale;
-  const dotTransformStyle = `translate(-50%, -50%) scale(${inverseScale})`;
-  minimapPlayerDot.style.transform = dotTransformStyle;
-
-  MISSION_SPOTS_DATA.forEach((spot) => {
-    const dot = minimapMissionDots[spot.id];
-    if (dot) {
-      dot.style.left = `${spot.x + spot.width / 2}px`;
-      dot.style.top = `${spot.y + spot.height / 2}px`;
-      dot.style.transform = dotTransformStyle;
+        offsetY = Math.min(minOffsetBottom, offsetY);
+        offsetY = Math.max(maxOffsetTop, offsetY);
     }
-  });
+    
+    // 4. ปรับใช้ Transform กับ Map Content
+    minimapContent.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+    
+    // 5. กำหนดตำแหน่ง Dot ทุกจุด
+    const playerMapX = playerWorldX + (playerWidth / 2); 
+    const playerMapY = playerWorldY + (playerHeight / 2); 
+
+    minimapPlayerDot.style.left = `${playerMapX}px`;
+    minimapPlayerDot.style.top = `${playerMapY}px`;
+    
+    // 6. ปรับขนาด Dot ให้มีขนาดคงที่บนจอ (Anti-scale)
+    const inverseScale = 1 / scale; 
+    const dotTransformStyle = `translate(-50%, -50%) scale(${inverseScale})`; 
+
+    minimapPlayerDot.style.transform = dotTransformStyle;
+    
+    // อัปเดตตำแหน่งจุดภารกิจ
+    MISSION_SPOTS_DATA.forEach(spot => {
+        const dot = minimapMissionDots[spot.id];
+        if (dot) {
+            dot.style.left = `${spot.x + (spot.width / 2)}px`;
+            dot.style.top = `${spot.y + (spot.height / 2)}px`;
+            dot.style.transform = dotTransformStyle;
+        }
+    });
 }
 
-// *******************************************
-// Load Collision Data (SVG/JSON)
-// *******************************************
+// game.js: ฟังก์ชัน loadCollisionData() (ไม่มี Tiled; ใช้ SVG/JSON)
 async function loadCollisionData() {
-  collisionObjects = [];
-  try {
-    const res = await fetch('assets/maps/collision.svg', { cache: 'no-cache' });
-    if (res.ok) {
-      const svgText = await res.text();
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(svgText, 'image/svg+xml');
-      const svgEl = doc.documentElement;
+    collisionObjects = [];
+    // 1) ลองโหลดจาก SVG ก่อน
+    try {   
+        const res = await fetch('assets/maps/collision.svg', { cache: 'no-cache' });
+        if (res.ok) {
+            const svgText = await res.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(svgText, 'image/svg+xml');
+            const svgEl = doc.documentElement;
 
-      let baseW = CONTAINER_WIDTH;
-      let baseH = CONTAINER_HEIGHT;
-      const vb = svgEl.getAttribute('viewBox');
-      if (vb) {
-        const parts = vb.split(/\s+/).map(Number);
-        if (parts.length === 4) {
-          baseW = parts[2] || baseW;
-          baseH = parts[3] || baseH;
+            // คำนวณสเกลจากขนาด SVG -> ขนาดโลกเกม (8192x8192)
+            let baseW = CONTAINER_WIDTH;
+            let baseH = CONTAINER_HEIGHT;
+            const vb = svgEl.getAttribute('viewBox');
+            if (vb) {
+                const parts = vb.split(/\s+/).map(Number);
+                if (parts.length === 4) {
+                    baseW = parts[2] || baseW;
+                    baseH = parts[3] || baseH;
+                }
+            } else {
+                const wAttr = parseFloat((svgEl.getAttribute('width')||'').replace('px',''));
+                const hAttr = parseFloat((svgEl.getAttribute('height')||'').replace('px',''));
+                if (!Number.isNaN(wAttr) && wAttr>0) baseW = wAttr;
+                if (!Number.isNaN(hAttr) && hAttr>0) baseH = hAttr;
+            }
+            const sx = CONTAINER_WIDTH / baseW;
+            const sy = CONTAINER_HEIGHT / baseH;
+
+            const rects = Array.from(doc.getElementsByTagName('rect'));
+            for (const r of rects) {
+                const x = parseFloat(r.getAttribute('x')||'0');
+                const y = parseFloat(r.getAttribute('y')||'0');
+                const w = parseFloat(r.getAttribute('width')||'0');
+                const h = parseFloat(r.getAttribute('height')||'0');
+                if (w>0 && h>0) {
+                    collisionObjects.push({ x: x*sx, y: y*sy, w: w*sx, h: h*sy });
+                }
+            }
+            console.log(`➕ Loaded ${collisionObjects.length} collision rectangles from SVG`);
+            return;
         }
-      } else {
-        const wAttr = parseFloat((svgEl.getAttribute('width') || '').replace('px', ''));
-        const hAttr = parseFloat((svgEl.getAttribute('height') || '').replace('px', ''));
-        if (!Number.isNaN(wAttr) && wAttr > 0) baseW = wAttr;
-        if (!Number.isNaN(hAttr) && hAttr > 0) baseH = hAttr;
-      }
-      const sx = CONTAINER_WIDTH / baseW;
-      const sy = CONTAINER_HEIGHT / baseH;
+    } catch (e) {
+        console.warn('SVG collision load failed:', e);
+    }
 
-      const rects = Array.from(doc.getElementsByTagName('rect'));
-      for (const r of rects) {
-        const x = parseFloat(r.getAttribute('x') || '0');
-        const y = parseFloat(r.getAttribute('y') || '0');
-        const w = parseFloat(r.getAttribute('width') || '0');
-        const h = parseFloat(r.getAttribute('height') || '0');
-        if (w > 0 && h > 0) {
-          collisionObjects.push({ x: x * sx, y: y * sy, w: w * sx, h: h * sy });
+    // 2) Fallback: โหลดจาก JSON
+    try {
+        const res = await fetch('assets/maps/collision.json', { cache: 'no-cache' });
+        if (res.ok) {
+            const data = await res.json();
+            let rects = [];
+            if (Array.isArray(data)) rects = data;
+            else if (Array.isArray(data.rects)) rects = data.rects;
+            collisionObjects = rects
+                .map(o => ({ x: +o.x||0, y: +o.y||0, w: +o.w||0, h: +o.h||0 }))
+                .filter(o => o.w>0 && o.h>0);
+            console.log(`➕ Loaded ${collisionObjects.length} collision rectangles from JSON`);
+            return;
         }
-      }
-      console.log(`➕ Loaded ${collisionObjects.length} collision rectangles from SVG`);
-      return;
+    } catch (e) {
+        console.warn('JSON collision load failed:', e);
     }
-  } catch (e) {
-    console.warn('SVG collision load failed:', e);
-  }
 
-  try {
-    const res = await fetch('assets/maps/collision.json', { cache: 'no-cache' });
-    if (res.ok) {
-      const data = await res.json();
-      let rects = [];
-      if (Array.isArray(data)) rects = data;
-      else if (Array.isArray(data.rects)) rects = data.rects;
-      collisionObjects = rects
-        .map((o) => ({ x: +o.x || 0, y: +o.y || 0, w: +o.w || 0, h: +o.h || 0 }))
-        .filter((o) => o.w > 0 && o.h > 0);
-      console.log(`➕ Loaded ${collisionObjects.length} collision rectangles from JSON`);
-      return;
-    }
-  } catch (e) {
-    console.warn('JSON collision load failed:', e);
-  }
+    for (const r of collisionObjects) {
+        r.x *= 8;
+        r.y *= 8;
+        r.w *= 8;
+        r.h *= 8;
+        }
+console.log("🔧 Applied manual scale x8 to collision boxes");
 
-  // ถ้าไม่มีข้อมูลเลย จะเตือนและวิ่งต่อแบบไม่มีชน
-  console.warn('No collision data found (SVG/JSON). Running without collisions.');
+    console.warn('No collision data found (SVG/JSON). Running without collisions.');
 }
-
-// *******************************************
-// Collision (axis-aligned) สำหรับสี่เหลี่ยม
-// *******************************************
+// game.js: ฟังก์ชัน checkCollision() (ฉบับยืนยัน)
+// 🔧 HITBOX FIXED
 function checkCollision(nextX, nextY, playerW, playerH) {
   if (!collisionObjects?.length) return false;
 
-  const hitW = playerW * 0.2;
-  const hitH = playerH * 0.2;
+  // ปรับสัดส่วน hitbox ให้ตรงกับภาพตัวละคร
+  const hitW = playerW * 0.2;       // แคบลงหน่อย ให้ชนตรงกลาง
+  const hitH = playerH * 0.2;       // สูงประมาณถึงไหล่
   const offsetX = (playerW - hitW) / 2;
-  const offsetY = playerH - hitH;
+  const offsetY = (playerH - hitH) ;  // 🔥 ยก hitbox ขึ้นมาประมาณ 20%
 
   const box = {
     left: nextX + offsetX,
@@ -616,18 +692,32 @@ function checkCollision(nextX, nextY, playerW, playerH) {
   return false;
 }
 
-// (ตัวอย่าง advance collision รองรับ circle/polygon — เก็บไว้ใช้ภายหลัง)
+// 🔍 DEBUG OVERLAY FIX
+if (DEBUG_SHOW_PLAYER_HITBOX) {
+  const hitW = playerW * 0.005;       // แคบลงหน่อย ให้ชนตรงกลาง
+  const hitH = playerH * 0.00005;
+  const offsetX = (playerWidth - hitW) / 2;
+  const offsetY = (playerHeight - hitH) * 0.2;
+  const x = (playerWorldX + offsetX) - viewLeft;
+  const y = (playerWorldY + offsetY) - viewTop;
+  debugCtx.strokeStyle = 'rgba(0,255,255,0.9)';
+  debugCtx.lineWidth = 2;
+  debugCtx.strokeRect(x, y, hitW, hitH);
+}
+
+// game.js: ฟังก์ชัน checkCollisionAdvanced() (สำหรับรูปทรงอื่นๆ)
 function checkCollisionAdvanced(nextX, nextY, playerW, playerH) {
+  // ปรับ hitbox ให้ตรงพื้นจริง (เหมือนฟังก์ชันข้างบน)
   const hitW = playerW * 0.3;
   const hitH = playerH * 0.4;
   const offsetX = (playerW - hitW) / 2;
-  const offsetY = (playerH - hitH) / 2;
+  const offsetY = (playerH - hitH) / 2; // เพิ่ม 20px ลงล่าง
 
   const box = {
     left: nextX + offsetX,
     top: nextY + offsetY,
     right: nextX + offsetX + hitW,
-    bottom: nextY + offsetY + hitH,
+    bottom: nextY + offsetY + hitH
   };
 
   if (!collisionObjects?.length) return false;
@@ -636,8 +726,14 @@ function checkCollisionAdvanced(nextX, nextY, playerW, playerH) {
     if (r.type === 'rect') {
       const rx2 = r.x + r.w;
       const ry2 = r.y + r.h;
-      if (box.left < rx2 && box.right > r.x && box.top < ry2 && box.bottom > r.y) return true;
-    } else if (r.type === 'circle') {
+      if (
+        box.left < rx2 &&
+        box.right > r.x &&
+        box.top < ry2 &&
+        box.bottom > r.y
+      ) return true;
+    }
+    else if (r.type === 'circle') {
       const cx = r.x;
       const cy = r.y;
       const radius = r.r;
@@ -646,196 +742,344 @@ function checkCollisionAdvanced(nextX, nextY, playerW, playerH) {
       const dx = cx - closestX;
       const dy = cy - closestY;
       if (dx * dx + dy * dy < radius * radius) return true;
-    } else if (r.type === 'polygon' && r.points?.length >= 3) {
+    }
+    else if (r.type === 'polygon' && r.points?.length >= 3) {
+      // polygon collision (simple point-in-poly)
       const corners = [
         { x: box.left, y: box.top },
         { x: box.right, y: box.top },
         { x: box.left, y: box.bottom },
-        { x: box.right, y: box.bottom },
+        { x: box.right, y: box.bottom }
       ];
-      if (corners.some((pt) => pointInPolygon(pt, r.points))) return true;
+      if (corners.some(pt => pointInPolygon(pt, r.points))) return true;
     }
   }
   return false;
 }
 
+// helper function สำหรับ polygon collision
 function pointInPolygon(point, vertices) {
   let inside = false;
   for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
-    const xi = vertices[i].x,
-      yi = vertices[i].y;
-    const xj = vertices[j].x,
-      yj = vertices[j].y;
-    const intersect =
-      yi > point.y !== yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
+    const xi = vertices[i].x, yi = vertices[i].y;
+    const xj = vertices[j].x, yj = vertices[j].y;
+    const intersect = ((yi > point.y) !== (yj > point.y)) &&
+                      (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
     if (intersect) inside = !inside;
   }
   return inside;
 }
 
 // *******************************************
-// 5. การจัดการภารกิจและการโต้ตอบ (Mission Spots)
+// 5. การจัดการภารกิจและการโต้ตอบ (คงเดิม)
 // *******************************************
 function getDistance(x1, y1, x2, y2) {
-  const dx = x1 - x2;
-  const dy = y1 - y2;
-  return Math.sqrt(dx * dx + dy * dy);
+    const dx = x1 - x2;
+    const dy = y1 - y2;
+    return Math.sqrt(dx * dx + dy * dy);
 }
 
 function checkInteractions() {
-  if (playerRole === 'Loading...') return;
+    // ต้องรอจนกว่าจะได้รับบทบาทก่อน
+    if (playerRole === 'Loading...') return;
+    
+    const playerCenterX = playerWorldX + playerWidth / 2;
+    const playerCenterY = playerWorldY + playerHeight / 2;
 
-  const playerCenterX = playerWorldX + playerWidth / 2;
-  const playerCenterY = playerWorldY + playerHeight / 2;
+    const missionSpots = MISSION_SPOTS_DATA.map(spotData => ({ 
+        ...spotData, 
+        element: document.getElementById(spotData.id) 
+    }));
 
-  const missionSpots = MISSION_SPOTS_DATA.map((spotData) => ({
-    ...spotData,
-    element: document.getElementById(spotData.id) || null,
-  }));
+    let canInteract = false;
 
-  let canInteract = false;
-
-  for (const spot of missionSpots) {
-    if (!spot.element) continue;
-
-    if (spot.type === 'heist' && playerRole !== 'Thief') {
-      spot.element.style.display = 'none';
-      continue;
-    } else {
-      spot.element.style.display = 'block';
-    }
-
-    const spotCenterX = spot.x + spot.width / 2;
-    const spotCenterY = spot.y + spot.height / 2;
-    const distance = getDistance(playerCenterX, playerCenterY, spotCenterX, spotCenterY);
-
-    if (distance <= INTERACTION_RADIUS) {
-      canInteract = true;
-      spot.element.style.opacity = 1.0;
-
-      if (keysPressed[INTERACTION_KEY]) {
-        keysPressed[INTERACTION_KEY] = false;
-
-        if (spot.type === 'guest' && playerRole === 'Visitor') {
-          addLogEvent(`ผู้เยี่ยมชมซ่อมแซมที่ ${spot.id} สำเร็จ!`);
-          if (currentMissionProgress < MAX_MISSION_PROGRESS) {
-            currentMissionProgress += MISSION_INCREASE_AMOUNT;
-            updateMissionStatus();
-          }
-          sfxInteract && playSound(sfxInteract);
-        } else if (spot.type === 'heist' && playerRole === 'Thief') {
-          addLogEvent(`🚨 พบการขโมยที่ [${spot.id}]!`, 'heist');
-          sfxHeist && playSound(sfxHeist);
-        } else if (spot.type === 'meeting') {
-          startMeeting();
-          sfxInteract && playSound(sfxInteract);
-        } else if (spot.type === 'Open_CCTV') {
-          addLogEvent('📹 เปิดกล้องวงจรปิด (CCTV) แล้ว', 'general');
-          sfxInteract && playSound(sfxInteract);
+    for (const spot of missionSpots) {
+        // การจัดการการแสดงจุดภารกิจตามบทบาท (เพื่อจำลองการทำงาน)
+        if (spot.type === 'heist' && playerRole !== 'Thief') {
+            spot.element.style.display = 'none'; // ซ่อนจุดขโมยถ้าไม่ใช่โจร
+        } else if (spot.type === 'guest' && playerRole === 'Thief') {
+             // โจรยังเห็นจุดซ่อมแซมได้
+             spot.element.style.display = 'block'; 
         } else {
-          addLogEvent('คุณไม่สามารถโต้ตอบกับวัตถุนี้ได้', 'general');
+            spot.element.style.display = 'block';
         }
-      }
-    } else {
-      spot.element.style.opacity = 0.6;
+        
+        // ข้ามจุดที่ถูกซ่อนไป
+        if (spot.element.style.display === 'none') continue;
+        
+
+        const spotCenterX = spot.x + spot.width / 2;
+        const spotCenterY = spot.y + spot.height / 2;
+        const distance = getDistance(playerCenterX, playerCenterY, spotCenterX, spotCenterY);
+
+        if (distance <= INTERACTION_RADIUS) {
+            canInteract = true;
+            spot.element.style.opacity = 1.0; 
+            
+            // ตรวจสอบการกดปุ่ม E
+            if (keysPressed[INTERACTION_KEY]) {
+                keysPressed[INTERACTION_KEY] = false; // เคลียร์ปุ่ม E
+
+                // *** ตรวจสอบบทบาทก่อนทำภารกิจ ***
+                if (spot.type === 'guest' && playerRole === 'Visitor') {
+                    // ภารกิจของผู้เยี่ยมชม
+                    addLogEvent(`ผู้เยี่ยมชมซ่อมแซมสิ่งของที่ ${spot.id} สำเร็จ!`);
+                    
+                    if (currentMissionProgress < MAX_MISSION_PROGRESS) {
+                        currentMissionProgress += MISSION_INCREASE_AMOUNT;
+                        updateMissionStatus();
+                    }
+                    playSound(sfxInteract); 
+                    
+                } else if (spot.type === 'heist' && playerRole === 'Thief') {
+                    // ภารกิจของหัวขโมย
+                    const message = `🚨 หลักฐาน: พบการขโมยเกิดขึ้นที่ [${spot.id}]! 🚨`;
+                    addLogEvent(message, 'heist');
+                    playSound(sfxHeist); 
+                } else if (spot.type === 'meeting') {
+                    // จุดประชุมฉุกเฉิน (ทุกคนทำได้)
+                    startMeeting();
+                    playSound(sfxInteract); 
+                } else {
+                    // แจ้งเตือนเมื่อพยายามโต้ตอบจุดภารกิจของฝ่ายตรงข้าม
+                    addLogEvent("คุณไม่สามารถโต้ตอบกับวัตถุนี้ได้", 'general');
+                }
+            }
+        } else {
+            spot.element.style.opacity = 0.6;
+        }
     }
-  }
-
-  interactionHint && (interactionHint.style.display = canInteract && !isMapFullScreen ? 'block' : 'none');
+    
+    // ซ่อนคำแนะนำโต้ตอบเมื่ออยู่ในโหมดแผนที่เต็มจอ
+    interactionHint.style.display = canInteract && !isMapFullScreen ? 'block' : 'none';
 }
-
-
 
 // *******************************************
 // 🧩 SYSTEM: Generic Object Interaction System
 // *******************************************
 
-// 1) วัตถุที่โต้ตอบได้
-const INTERACTABLE_OBJECTS = [
-  { id: 'printer', x: 3400, y: 3470, width: 100, height: 110, type: 'printer', active: true },
-  { id: 'tree_middle_room', x: 4750, y: 4300, width: -50, height: -100, type: 'tree', active: true },
-  { id: 'Telephone', x: 4100, y: 4390, width: -100, height: 200, type: 'Telephone', active: true },
-  { id: 'Scrupture1', x: 3570, y: 1500, width: 50, height: -200, type: 'Scrupture', active: true },
-  { id: 'tree_upper_room1', x: 3200, y: 500, width: -180, height: 30, type: 'tree', active: true },
-  { id: 'hidden_switch', x: 4280, y: 550, width: -50, height: -50, type: 'switch(?)', active: true },
-  { id: 'Scrupture2', x: 4780, y: 1200, width: -800, height: -400, type: 'Scrupture', active: true },
-  { id: 'tree_upper_room2', x: 4440, y: 1160, width: -220, height: -220, type: 'tree', active: true },
-  { id: 'Broom', x: 1500, y: 3280, width: -200, height: -200, type: 'broom', active: true },
-  { id: 'computer1', x: 3520, y: 7020, width: -350, height: -350, type: 'computer', active: true },
-  { id: 'computer2', x: 4320, y: 7180, width: -700, height: -350, type: 'computer', active: true },
-  { id: 'computer3', x: 4750, y: 6900, width: -100, height: -400, type: 'computer', active: true },
-  { id: 'monitor', x: 4980, y: 7500, width: -2000, height: -400, type: 'monitor', active: true },
-  { id: 'matchine', x: 6580, y: 3160, width: -380, height: -200, type: 'matchine', active: true },
-  { id: 'battery', x: 7120, y: 4260, width: -600, height: -600, type: 'battery', active: true },
-  { id: 'power', x: 7420, y: 7850, width: -200, height: -150, type: 'power', active: true },
+// 1️⃣ ข้อมูล Object ที่โต้ตอบได้ (เพิ่มอันใหม่ได้เรื่อยๆ)
+    const INTERACTABLE_OBJECTS = [
+    { id: 'printer', x: 3400, y: 3470, width: 100, height: 110, type: 'printer', active: true},
+    { id: 'tree_middle_room', x: 4750, y: 4300, width: -50,height: -100, type: 'tree', active: true },
+    { id: 'Telephone', x: 4100, y: 4390, width: -100, height: 200, type: 'Telephone', active: true },
+    { id: 'Scrupture1', x: 3570, y: 1500, width: 50, height: -200, type: 'Scrupture', active: true },
+    { id: 'tree_upper_room1', x: 3200, y: 500, width: -180,height: 30, type: 'tree', active: true },
+    { id: 'hidden_switch', x: 4280, y: 550, width: -50,height: -50, type: 'switch(?)', active: true, mg: 'align' },
+    { id: 'Scrupture2', x: 4780, y: 1200, width: -800, height: -400, type: 'Scrupture', active: true },
+    { id: 'tree_upper_room2', x: 4440, y: 1160, width: -220,height: -220, type: 'tree', active: true },
+    { id: 'Broom', x: 1500, y: 3280, width: -200,height: -200, type: 'broom', active: true, mg: 'mop'},
+    { id: 'computer1', x: 3520, y: 7020, width: -350,height: -350, type: 'computer', active: true },
+    { id: 'computer2', x: 4320, y: 7180, width: -700,height: -350, type: 'computer', active: true , mg: 'upload'},
+    { id: 'computer3', x: 4750, y: 6900, width: -100,height: -400, type: 'computer', active: true },
+    { id: 'monitor', x: 4980, y: 7500, width: -2000,height: -400, type: 'monitor', active: true , mg: 'dodge'},
+    { id: 'matchine', x: 6580, y: 3160, width: -380,height: -200, type: 'matchine', active: true, mg: 'rhythm' },
+    { id: 'battery', x: 7120, y: 4260, width: -600,height: -600, type: 'battery', active: true , mg: 'switch'},
+    { id: 'power', x: 7420, y: 7850, width: -200,height: -150, type: 'power', active: true , mg: 'wires'},
+    { id: '้hackbox', x: 1512, y: 6132, width: -200, height: -150, type: 'hackbox', active: true , mg: 'math'}
 ];
 
-// normalize สี่เหลี่ยมที่มี width/height ติดลบ
-function normRect(obj) {
-  let { x, y, width: w, height: h } = obj;
-  if (w < 0) {
-    x = x + w;
-    w = Math.abs(w);
-  }
-  if (h < 0) {
-    y = y + h;
-    h = Math.abs(h);
-  }
-  return { x, y, w, h };
+// === One-object minigame glue (drop-in) ===
+// 1) ดึงรายการมินิเกมจากโฟลเดอร์
+const __REG_PATH = 'minigames/registry.json';
+let __regCache = null;
+async function __loadReg(){
+  if (__regCache) return __regCache;
+  try { const r = await fetch(__REG_PATH, { cache:'no-store' }); __regCache = await r.json(); }
+  catch { __regCache = {}; }
+  return __regCache;
+}
+function __urlFor(key){
+  const k = String(key||'overworld').toLowerCase();
+  const reg = __regCache || {};
+  return reg[k] || reg.overworld || ('minigames/dodge-square/world.html?game=' + encodeURIComponent(k));
 }
 
-// วาดวัตถุ (เฉพาะตอนเปิด DEBUG_SHOW_COLLISION_BOXES)
+// 2) overlay + iframe ครั้งเดียว
+let __mgModal, __mgFrame, __pending=null, __closing=false;
+let __awaitingCompleteTimeout = null;
+function __ensureOverlay(){
+  if (__mgModal) return;
+  __mgModal = document.createElement('div');
+  __mgModal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:9999';
+  __mgModal.innerHTML = `
+  <div style="position:fixed; inset:0; display:flex; flex-direction:column;">
+    <button id="__mgCloseTop" title="Close" style="position:absolute; top:10px; right:12px; z-index:2; background:#ff4d4d; color:#fff; border:0; width:32px; height:32px; border-radius:50%; font-weight:800; cursor:pointer">✖</button>
+    <div style="height:6px; background:rgba(11,19,36,.9)"><div id="__mgFill" style="height:100%; width:0%; background:#2b64ff"></div></div>
+    <iframe id="__mgFrame" title="Minigame" src="about:blank" style="flex:1; width:100%; border:0; background:#000" allow="autoplay; fullscreen"></iframe>
+  </div>`;
+  document.body.appendChild(__mgModal); document.getElementById("__mgCloseTop")?.addEventListener("click", __closeMini);
+  __mgFrame = __mgModal.querySelector('#__mgFrame');
+  // Hide internal close buttons inside iframe and block ESC inside minigame
+  __mgFrame?.addEventListener('load', ()=>{
+    try {
+      const doc = __mgFrame.contentDocument || __mgFrame.contentWindow?.document;
+      if (doc){
+        const style = doc.createElement('style');
+        style.textContent = `.mini-box button.close{ display:none !important; } canvas#world{ display:none !important; }`;
+        doc.head.appendChild(style);
+        try { doc.addEventListener('keydown', (ev)=>{ if (ev.key==='Escape'){ ev.preventDefault(); ev.stopPropagation(); } }, true); } catch {}
+      }
+    } catch {}
+  });
+  // no external close button
+  // no backdrop close
+  window.addEventListener('message', __onMsg);
+}
+function __setProgress(p){ const f=document.getElementById('__mgFill'); if (f) f.style.width = Math.max(0,Math.min(100,p|0))+'%'; }
+
+async function __openMiniFor(obj){
+  if (!obj?.mg) return;
+  if (typeof obj.active !== 'undefined' && obj.active === false) { addLogEvent?.('\u26a0\ufe0f ภารกิจนี้ถูกทำแล้วในรอบนี้'); return; }
+  __ensureOverlay();
+  await __loadReg();
+  const key = (obj.mg?.key || obj.mg).toLowerCase();
+  const difficulty = obj.mg?.difficulty || 'normal';
+  __pending = { obj, key, difficulty };
+  try { __mgFrame.src = __urlFor(key); } catch {}
+  __mgModal.style.display = 'flex';
+  __setProgress(0);
+}
+function __closeMini(){
+  if (__closing) return; __closing = true;
+  try { __mgFrame?.contentWindow?.postMessage?.({ type:"mg:abort" }, "*"); } catch {}
+  __mgModal.style.display = "none";
+  try { __mgFrame.src = "about:blank"; } catch {}
+  __setProgress(0);
+  __pending = null;
+  setTimeout(()=>{ __closing=false; }, 150);
+}
+
+// 3) ฟัง mg-bridge จาก world.html ในโฟลเดอร์มินิเกม
+function __onMsg(e){
+  if (!__mgFrame) return;
+  const d = e.data || {};
+  if (!d || typeof d !== 'object') return;
+  // Accept messages from the expected iframe OR (fallback) messages that include the same game key
+  const srcMatches = e.source === __mgFrame.contentWindow;
+  const keyFromMsg = (d.key || d.id || '')?.toString().toLowerCase();
+  const pendingKey = (__pending && (__pending.key || (__pending.obj && (__pending.obj.mg && (__pending.obj.mg.key || __pending.obj.mg))))) || '';
+  const pendingKeyLower = pendingKey ? String(pendingKey).toLowerCase() : '';
+  // DEBUG: log incoming mg messages
+  try { if (d.type && String(d.type).startsWith('mg:')) console.log('[game.js] recv mg msg', d, 'srcMatches=', srcMatches, 'keyFromMsg=', keyFromMsg, 'pendingKey=', pendingKeyLower); } catch(_){}
+  if (!srcMatches && !(keyFromMsg && pendingKeyLower && keyFromMsg === pendingKeyLower)) return;
+
+  if (d.type === 'mg:ready'){
+    if (__pending){ try { __setProgress(0); } catch {} }
+  }
+  else if (d.type === 'mg:progress'){
+  const p = Number(d.percent||0);
+  __setProgress(p);
+  if (p >= 100 && !__closing) {
+    // Wait briefly for an explicit mg:complete from the minigame before force-closing.
+    // Some minigames show an animation and call complete slightly later; aborting too early causes mg:cancel.
+    try { if (__awaitingCompleteTimeout) clearTimeout(__awaitingCompleteTimeout); } catch(_){}
+    __awaitingCompleteTimeout = setTimeout(()=>{ if (!__closing) __closeMini(); }, 1000);
+  }
+}
+  else if (d.type === 'mg:complete'){
+    try { if (__awaitingCompleteTimeout) { clearTimeout(__awaitingCompleteTimeout); __awaitingCompleteTimeout = null; } } catch(_){}
+    try {
+      __setProgress(100);
+      addLogEvent?.('✅ Minigame complete!');
+      // Normal flow: update using pending object
+      if (typeof currentMissionProgress==='number' && typeof updateMissionStatus==='function'){
+        if (__pending && __pending.obj) {
+          currentMissionProgress = Math.min(currentMissionProgress + (Number(__pending?.obj?.mg?.progress)||1), MAX_MISSION_PROGRESS);
+          updateMissionStatus();
+        } else {
+          // Fallback: try to locate object by key in payload (robust against races)
+          try {
+            const keyFromMsg = (d.key || d.id || '')?.toString().toLowerCase();
+            if (keyFromMsg) {
+              const found = (typeof INTERACTABLE_OBJECTS !== 'undefined' && Array.isArray(INTERACTABLE_OBJECTS))
+                ? INTERACTABLE_OBJECTS.find(o => {
+                    const mg = o.mg; if (!mg) return false;
+                    if (typeof mg === 'string') return String(mg).toLowerCase() === keyFromMsg;
+                    if (typeof mg === 'object' && mg.key) return String(mg.key).toLowerCase() === keyFromMsg;
+                    return false;
+                  })
+                : null;
+              if (found) {
+                currentMissionProgress = Math.min(currentMissionProgress + (Number(found?.mg?.progress)||1), MAX_MISSION_PROGRESS);
+                updateMissionStatus();
+                found.active = false;
+              }
+            }
+          } catch(_){}
+        }
+      }
+    } catch {}
+    if (__pending?.obj) __pending.obj.active = false;
+    setTimeout(()=> __closeMini(), 300);
+  }
+  else if (d.type === 'mg:cancel'){
+    addLogEvent?.('⏹️ Minigame closed');
+    __closeMini();
+  }
+}
+
+// 4) hook เข้าฟังก์ชันโต้ตอบเดิม: ถ้า obj มี mg ให้เปิดมินิเกม
+(function __hook(){
+  const orig = typeof handleObjectInteraction === 'function' ? handleObjectInteraction : null;
+  window.handleObjectInteraction = function(obj){
+    if (obj?.mg) return __openMiniFor(obj);
+    if (orig) return orig.call(this, obj);
+  };
+})();
+
+// 2️⃣ ฟังก์ชันวาดวัตถุ (ตัวอย่างให้วาดจุด debug)
 function renderInteractableObjects() {
   if (!debugCtx || !DEBUG_SHOW_COLLISION_BOXES) return;
   debugCtx.strokeStyle = 'rgba(0,255,100,0.8)';
   debugCtx.lineWidth = 2;
-
-  const viewLeft = Math.max(0, -containerX);
-  const viewTop = Math.max(0, -containerY);
-
-  for (const raw of INTERACTABLE_OBJECTS) {
-    const { x, y, w, h } = normRect(raw);
-    const sx = x - viewLeft;
-    const sy = y - viewTop;
-    debugCtx.strokeRect(sx, sy, w, h);
+  for (const obj of INTERACTABLE_OBJECTS) {
+    const x = obj.x - Math.max(0, -containerX);
+    const y = obj.y - Math.max(0, -containerY);
+    debugCtx.strokeRect(x, y, obj.width, obj.height);
   }
 }
 
+// 3️⃣ ฟังก์ชันตรวจโต้ตอบกับ Object
 function checkObjectInteractions() {
-  const pcx = playerWorldX + playerWidth / 2;
-  const pcy = playerWorldY + playerHeight / 2;
+  const playerCenterX = playerWorldX + playerWidth / 2;
+  const playerCenterY = playerWorldY + playerHeight / 2;
 
   let nearObj = null;
-  for (const raw of INTERACTABLE_OBJECTS) {
-    if (!raw.active) continue;
-    const { x, y, w, h } = normRect(raw);
-    const ocx = x + w / 2;
-    const ocy = y + h / 2;
-    const dist = getDistance(pcx, pcy, ocx, ocy);
+  for (const obj of INTERACTABLE_OBJECTS) {
+    if (!obj.active) continue;
+    const objCenterX = obj.x + obj.width / 2;
+    const objCenterY = obj.y + obj.height / 2;
+    const dist = getDistance(playerCenterX, playerCenterY, objCenterX, objCenterY);
+
     if (dist < INTERACTION_RADIUS) {
-      nearObj = { ...raw, x, y, width: w, height: h };
+      nearObj = obj;
       break;
     }
   }
 
+  // แสดง Hint ถ้าอยู่ใกล้
   if (nearObj) {
-    interactionHint && (interactionHint.style.display = 'block');
-    interactionHint && (interactionHint.textContent = `Press E to interact with ${nearObj.type}`);
+    interactionHint.style.display = 'block';
+    interactionHint.textContent = `Press E to interact with ${nearObj.type}`;
     if (keysPressed[INTERACTION_KEY]) {
       keysPressed[INTERACTION_KEY] = false;
       handleObjectInteraction(nearObj);
     }
   } else {
-    interactionHint && interactionHint.style.display !== 'none' && (interactionHint.style.display = 'none');
+    if (interactionHint.style.display !== 'none')
+      interactionHint.style.display = 'none';
   }
 }
 
+// 4️⃣ ฟังก์ชันทำงานเมื่อโต้ตอบจริง
 function handleObjectInteraction(obj) {
+  try { if (obj && obj.mg) { __openMiniFor(obj); return; } } catch {}
   switch (obj.type) {
     case 'door':
       addLogEvent('🚪 คุณเปิดประตูแล้ว!');
       playSound(sfxInteract);
-      obj.active = false;
+      obj.active = false; // ทำได้ครั้งเดียว
       break;
     case 'console':
       addLogEvent('💻 คุณใช้งานคอนโซล ระบบทำงานแล้ว!');
@@ -852,244 +1096,284 @@ function handleObjectInteraction(obj) {
   }
 }
 
+
+
 // *******************************************
 // 2. Game Loop (แก้ไข Logic การเคลื่อนที่และการชน)
 // *******************************************
 function worldGameLoop(timestamp) {
-  if (isRoleRevealed || isMeetingActive) {
-    updateAnimation(timestamp);
+    
+    // NEW: หยุด Game Loop ถ้า Role Reveal ยังทำงานอยู่
+    if (isRoleRevealed) {
+        updateAnimation(timestamp); 
+        requestAnimationFrame(worldGameLoop); 
+        return; 
+    }
+    
+    if (isMeetingActive) {
+        updateAnimation(timestamp); 
+        requestAnimationFrame(worldGameLoop); 
+        return; 
+    }
+    
+    let deltaX = 0;
+    let deltaY = 0;
+
+    // 1. ตรวจสอบการกดปุ่มและคำนวณการเปลี่ยนแปลงตำแหน่ง
+    if (keysPressed['ArrowUp'] || keysPressed['KeyW']) { deltaY -= PLAYER_SPEED; }
+    if (keysPressed['ArrowDown'] || keysPressed['KeyS']) { deltaY += PLAYER_SPEED; }
+    if (keysPressed['ArrowLeft'] || keysPressed['KeyA']) { deltaX -= PLAYER_SPEED; }
+    if (keysPressed['ArrowRight'] || keysPressed['KeyD']) { deltaX += PLAYER_SPEED; }
+
+    
+    const wasMoving = isMoving;
+    isMoving = (deltaX !== 0 || deltaY !== 0);
+
+    if (isMoving) {
+        let nextPlayerWorldX = playerWorldX + deltaX;
+        let nextPlayerWorldY = playerWorldY + deltaY;
+
+        // *******************************************
+        // NEW/FIXED: Logic การเคลื่อนที่และการชน (Collision)
+        // *******************************************
+        
+        // ตรวจสอบการชนแกน X
+        // ลองเคลื่อนที่ไป X ใหม่ (ใช้ Y เดิม)
+        if (!checkCollision(nextPlayerWorldX, playerWorldY, playerWidth, playerHeight)) {
+            playerWorldX = nextPlayerWorldX; // ไม่ชน, อนุญาตให้เคลื่อนที่
+        }
+        
+        // ตรวจสอบการชนแกน Y
+        // ลองเคลื่อนที่ไป Y ใหม่ (ใช้ X ล่าสุด)
+        if (!checkCollision(playerWorldX, nextPlayerWorldY, playerWidth, playerHeight)) {
+            playerWorldY = nextPlayerWorldY; // ไม่ชน, อนุญาตให้เคลื่อนที่
+        }
+
+        // *******************************************
+        // END: Logic การเคลื่อนที่และการชน
+        // *******************************************
+
+        // 2. จำกัดขอบเขตผู้เล่น (Boundaries Check)
+        const MAX_WORLD_X = CONTAINER_WIDTH - playerWidth; 
+        const MAX_WORLD_Y = CONTAINER_HEIGHT - playerHeight; 
+        
+        playerWorldX = Math.max(0, playerWorldX);
+        playerWorldX = Math.min(MAX_WORLD_X, playerWorldX);
+        playerWorldY = Math.max(0, playerWorldY);
+        playerWorldY = Math.min(MAX_WORLD_Y, playerWorldY);
+
+        // 3. การควบคุมกล้อง (Camera/Viewport)
+        containerX = -(playerWorldX - VIEWPORT_WIDTH / 2 + playerWidth / 2);
+        containerY = -(playerWorldY - VIEWPORT_HEIGHT / 2 + playerHeight / 2);
+
+        // จำกัดขอบเขตการ Pan
+        const maxContainerX = VIEWPORT_WIDTH - CONTAINER_WIDTH;
+        const maxContainerY = VIEWPORT_HEIGHT - CONTAINER_HEIGHT;
+        containerX = Math.min(0, containerX); 
+        containerX = Math.max(maxContainerX, containerX); 
+        containerY = Math.min(0, containerY); 
+        containerY = Math.max(maxContainerY, containerY); 
+        
+        updateDisplay();
+    }
+    
+    checkInteractions();
+    checkObjectInteractions(); // ตรวจสอบการโต้ตอบกับวัตถุ
+    
+    if (isMoving || wasMoving !== isMoving) {
+        updateAnimation(timestamp);
+    }
+    
+    sendPlayerPosition();
     requestAnimationFrame(worldGameLoop);
-    return;
-  }
+}
 
-  let deltaX = 0;
-  let deltaY = 0;
 
-  if (keysPressed['ArrowUp'] || keysPressed['KeyW']) deltaY -= PLAYER_SPEED;
-  if (keysPressed['ArrowDown'] || keysPressed['KeyS']) deltaY += PLAYER_SPEED;
-  if (keysPressed['ArrowLeft'] || keysPressed['KeyA']) deltaX -= PLAYER_SPEED;
-  if (keysPressed['ArrowRight'] || keysPressed['KeyD']) deltaX += PLAYER_SPEED;
 
-  const wasMoving = isMoving;
-  isMoving = deltaX !== 0 || deltaY !== 0;
+// *******************************************
+// 3. การเริ่มต้นเกมและ Event Listeners (ปรับปรุงใหม่)
+// *******************************************
+function initializeGame() {
+    VIEWPORT_WIDTH = window.innerWidth;
+    VIEWPORT_HEIGHT = window.innerHeight;
+    playerWidth = player.offsetWidth;
+    playerHeight = player.offsetHeight;
 
-  if (isMoving) {
-    let nextPlayerWorldX = playerWorldX + deltaX;
-    let nextPlayerWorldY = playerWorldY + deltaY;
+    // *** จำลองการดึง Character Asset Path จาก Database/Multiplayer ***
+    const currentPlayerCharacterAsset = player.src; 
+    
+    // *** จำลองการกำหนดบทบาทและสุ่มความสามารถ ***
+    const roles = ['Thief', 'Visitor']; 
+    playerRole = roles[Math.floor(Math.random() * roles.length)]; 
 
-    if (!checkCollision(nextPlayerWorldX, playerWorldY, playerWidth, playerHeight)) {
-      playerWorldX = nextPlayerWorldX;
+    let abilityName;
+
+    // *** NEW: แสดงผลตัวละครใน Modal ***
+    if (roleCharacterImage) {
+        roleCharacterImage.src = currentPlayerCharacterAsset; 
     }
-    if (!checkCollision(playerWorldX, nextPlayerWorldY, playerWidth, playerHeight)) {
-      playerWorldY = nextPlayerWorldY;
+
+    // NEW: โหลดข้อมูลการชนก่อนเริ่มเกม
+    loadCollisionData(); 
+
+    updateDisplay();
+
+    
+    // ล้าง Class Animation เก่าออกก่อน
+    roleNameText.classList.remove('role-name-visitor', 'role-name-thief');
+    if(roleCharacterDisplay) {
+        roleCharacterDisplay.classList.remove('character-glow-visitor', 'character-glow-thief');
+    }
+    
+
+    if (playerRole === 'Visitor') {
+        const abilityPool = VISITOR_ABILITIES;
+        const abilities = Object.keys(abilityPool);
+        abilityName = abilities[Math.floor(Math.random() * abilities.length)];
+        playerAbility = abilityPool[abilityName];
+        roleTeamText.textContent = `ฝ่าย: ผู้เยี่ยมชม`;
+        roleTeamText.style.color = '#4CAF50'; // สีเขียว
+        
+        // กำหนด Class Animation สีเขียว (เฉพาะเงาเรืองแสง)
+        roleNameText.classList.add('role-name-visitor');
+        if(roleCharacterDisplay) {
+            roleCharacterDisplay.classList.add('character-glow-visitor'); 
+        }
+        
+    } else if (playerRole === 'Thief') {
+        const abilityPool = THIEF_ABILITIES;
+        const abilities = Object.keys(abilityPool);
+        abilityName = abilities[Math.floor(Math.random() * abilities.length)];
+        playerAbility = abilityPool[abilityName];
+        roleTeamText.textContent = `ฝ่าย: หัวขโมย`;
+        roleTeamText.style.color = '#FF0000'; // สีแดง
+        
+        // กำหนด Class Animation สีแดง (เฉพาะเงาเรืองแสง)
+        roleNameText.classList.add('role-name-thief');
+        if(roleCharacterDisplay) {
+            roleCharacterDisplay.classList.add('character-glow-thief'); 
+        }
+    }
+    
+    // แสดงผลบทบาทและความสามารถบน Modal
+    roleNameText.textContent = abilityName.toUpperCase();
+    roleAbilityText.textContent = playerAbility; 
+    
+    // แสดง Modal และตั้งค่าสถานะ
+    roleRevealModal.style.display = 'flex'; 
+    isRoleRevealed = true; 
+    
+    // ลบข้อความ Prompt ออกจาก HTML (ถ้ามี)
+    const promptText = roleRevealModal.querySelector('p[style*="margin-top: 30px;"]');
+    if (promptText) {
+        promptText.style.display = 'none';
     }
 
-    const MAX_WORLD_X = CONTAINER_WIDTH - playerWidth;
-    const MAX_WORLD_Y = CONTAINER_HEIGHT - playerHeight;
-    playerWorldX = Math.max(0, Math.min(MAX_WORLD_X, playerWorldX));
-    playerWorldY = Math.max(0, Math.min(MAX_WORLD_Y, playerWorldY));
+    // *** ตั้งเวลาซ่อน Modal และเริ่ม Game Loop อัตโนมัติ ***
+    setTimeout(() => {
+        // เริ่ม Fade out 
+        roleRevealModal.style.opacity = '0'; 
+        
+        // ซ่อนหลังจาก Fade out เสร็จ (1 วินาทีตาม CSS transition)
+        setTimeout(() => {
+            roleRevealModal.style.display = 'none';
+            isRoleRevealed = false;
+            
+            // เริ่ม Game Loop (world demo)
+            requestAnimationFrame(worldGameLoop); 
+            
+            // เพิ่ม Log Event เมื่อเกมเริ่มจริง
+            addLogEvent(`คุณได้รับบทบาทเป็น: ${playerRole} (${abilityName})`, playerRole === 'Thief' ? 'heist' : 'general');
+            addLogEvent(`สิ่งที่ทำได้: ${playerAbility}`, 'general');
+            
+            // เพิ่มคำแนะนำ Minimap
+            addLogEvent('กด [M] เพื่อสลับเปิด/ปิดแผนที่เต็มจอ (Minimap แสดงตลอดเวลา)');
+            
+        }, 1000); 
+    }, ROLE_REVEAL_DURATION); 
+
+    // **********************************************
+    
+    // ถ้าเป็นโจร ให้ซ่อนแถบสถานะผู้เยี่ยมชม (คงเดิม)
+    if (playerRole === 'Thief') {
+        document.getElementById('mission-status-container').style.display = 'none';
+    }
+    // ******************************
 
     containerX = -(playerWorldX - VIEWPORT_WIDTH / 2 + playerWidth / 2);
     containerY = -(playerWorldY - VIEWPORT_HEIGHT / 2 + playerHeight / 2);
-
+    
     const maxContainerX = VIEWPORT_WIDTH - CONTAINER_WIDTH;
     const maxContainerY = VIEWPORT_HEIGHT - CONTAINER_HEIGHT;
-    containerX = Math.min(0, Math.max(maxContainerX, containerX));
-    containerY = Math.min(0, Math.max(maxContainerY, containerY));
-  }
+    containerX = Math.min(0, containerX); 
+    containerX = Math.max(maxContainerX, containerX);
+    containerY = Math.min(0, containerY);
+    containerY = Math.max(maxContainerY, containerY);
 
-  // ✅ อัปเดตภาพทุกเฟรม (ไม่ผูกกับ isMoving อย่างเดียว)
-  updateDisplay();
-
-  checkInteractions();
-  checkObjectInteractions();
-
-  if (isMoving || wasMoving !== isMoving) {
-    updateAnimation(timestamp);
-  }
-
-  sendPlayerPosition();
-  requestAnimationFrame(worldGameLoop);
+    updateDisplay();
+    player.src = idleFrames[0];
+    
+    bgmMusic.volume = 0.4; 
+    bgmMusic.play().catch(e => console.log("BGM playback blocked by browser:", e)); 
+    
 }
 
-// *******************************************
-// 3. การเริ่มต้นเกมและ Event Listeners
-// *******************************************
-function initializeGame() {
-  VIEWPORT_WIDTH = window.innerWidth;
-  VIEWPORT_HEIGHT = window.innerHeight;
-  playerWidth = player?.offsetWidth || playerWidth;
-  playerHeight = player?.offsetHeight || playerHeight;
 
-  const currentPlayerCharacterAsset = player?.src;
 
-  // สุ่มบทบาท/ความสามารถ
-  const roles = ['Thief', 'Visitor'];
-  playerRole = roles[Math.floor(Math.random() * roles.length)];
-  let abilityName;
-
-  // รูปตัวละครใน Role Reveal
-  if (roleCharacterImage && currentPlayerCharacterAsset) roleCharacterImage.src = currentPlayerCharacterAsset;
-
-  // โหลดข้อมูลการชน (async แต่ไม่ block)
-  loadCollisionData();
-
-  // เตรียมคลาส/ข้อความ Role Reveal
-  roleNameText && roleNameText.classList.remove('role-name-visitor', 'role-name-thief');
-  roleCharacterDisplay &&
-    roleCharacterDisplay.classList.remove('character-glow-visitor', 'character-glow-thief');
-
-  if (playerRole === 'Visitor') {
-    const abilities = Object.keys(VISITOR_ABILITIES);
-    abilityName = abilities[Math.floor(Math.random() * abilities.length)];
-    playerAbility = VISITOR_ABILITIES[abilityName];
-    roleTeamText && (roleTeamText.textContent = 'ฝ่าย: ผู้เยี่ยมชม');
-    roleTeamText && (roleTeamText.style.color = '#4CAF50');
-    roleNameText && roleNameText.classList.add('role-name-visitor');
-    roleCharacterDisplay && roleCharacterDisplay.classList.add('character-glow-visitor');
-  } else {
-    const abilities = Object.keys(THIEF_ABILITIES);
-    abilityName = abilities[Math.floor(Math.random() * abilities.length)];
-    playerAbility = THIEF_ABILITIES[abilityName];
-    roleTeamText && (roleTeamText.textContent = 'ฝ่าย: หัวขโมย');
-    roleTeamText && (roleTeamText.style.color = '#FF0000');
-    roleNameText && roleNameText.classList.add('role-name-thief');
-    roleCharacterDisplay && roleCharacterDisplay.classList.add('character-glow-thief');
-  }
-
-  roleNameText && (roleNameText.textContent = abilityName.toUpperCase());
-  roleAbilityText && (roleAbilityText.textContent = playerAbility);
-  roleRevealModal && (roleRevealModal.style.display = 'flex');
-  isRoleRevealed = true;
-
-  // กล้องเริ่มต้นให้อยู่กลางจอ
-  containerX = -(playerWorldX - VIEWPORT_WIDTH / 2 + playerWidth / 2);
-  containerY = -(playerWorldY - VIEWPORT_HEIGHT / 2 + playerHeight / 2);
-  const maxContainerX = VIEWPORT_WIDTH - CONTAINER_WIDTH;
-  const maxContainerY = VIEWPORT_HEIGHT - CONTAINER_HEIGHT;
-  containerX = Math.min(0, Math.max(maxContainerX, containerX));
-  containerY = Math.min(0, Math.max(maxContainerY, containerY));
-
-  // สร้าง nametag (ครั้งเดียว)
-  try {
-    if (nameplateEl && !nameplateEl.textContent) {
-      nameplateEl.textContent = displayName;
-    }
-  } catch (_) {}
-
-  // วาดครั้งแรก
-  updateDisplay();
-
-  // ตั้งภาพนิ่ง/เสียง
-  if (player) player.src = idleFrames[0];
-  if (bgmMusic) {
-    bgmMusic.volume = 0.4;
-    bgmMusic.play().catch((e) => console.log('BGM playback blocked by browser:', e));
-  }
-
-  const promptText = roleRevealModal?.querySelector('p[style*="margin-top: 30px;"]');
-  if (promptText) promptText.style.display = 'none';
-
-  setTimeout(() => {
-    if (roleRevealModal) roleRevealModal.style.opacity = '0';
-    setTimeout(() => {
-      if (roleRevealModal) roleRevealModal.style.display = 'none';
-      isRoleRevealed = false;
-
-      requestAnimationFrame(worldGameLoop);
-
-      addLogEvent(
-        `คุณได้รับบทบาทเป็น: ${playerRole} (${abilityName})`,
-        playerRole === 'Thief' ? 'heist' : 'general'
-      );
-      addLogEvent(`สิ่งที่ทำได้: ${playerAbility}`, 'general');
-      addLogEvent('กด [M] เพื่อสลับเปิด/ปิดแผนที่เต็มจอ (Minimap แสดงตลอดเวลา)');
-    }, 1000);
-  }, ROLE_REVEAL_DURATION);
-
-  if (playerRole === 'Thief') {
-    const ms = document.getElementById('mission-status-container');
-    ms && (ms.style.display = 'none');
-  }
-
-  // การจัดการการกดปุ่ม
-  document.addEventListener('keydown', (e) => {
-    if (
-      [
-        'Space',
-        'ArrowUp',
-        'ArrowDown',
-        'ArrowLeft',
-        'ArrowRight',
-        INTERACTION_KEY,
-        'KeyM',
-        'KeyW',
-        'KeyA',
-        'KeyS',
-        'KeyD',
-        'F3',
-        'F4',
-        'Backquote',
-      ].includes(e.code)
-    ) {
-      e.preventDefault();
+// การจัดการการกดปุ่ม (ปรับปรุง: เพิ่ม KeyM)
+document.addEventListener('keydown', (e) => {
+    // เพิ่ม KeyM, KeyW, KeyA, KeyS, KeyD และ F3-F4, Backquote ในรายการป้องกัน Default Action
+    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', INTERACTION_KEY, 'KeyM', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'F3', 'F4', 'Backquote'].includes(e.code)) {
+        e.preventDefault(); 
     }
     keysPressed[e.code] = true;
 
+    // NEW: Toggle Full Map on 'M' key
     if (e.code === 'KeyM' && !isMeetingActive) {
-      toggleFullScreenMap();
+        toggleFullScreenMap();
     }
 
     // DEBUG toggles
-    if (e.code === 'F3') {
-      DEBUG_SHOW_COLLISION_BOXES = !DEBUG_SHOW_COLLISION_BOXES;
-      console.log('DEBUG_SHOW_COLLISION_BOXES =', DEBUG_SHOW_COLLISION_BOXES);
-      renderDebugOverlay();
-    }
-    if (e.code === 'F4') {
-      DEBUG_SHOW_PLAYER_HITBOX = !DEBUG_SHOW_PLAYER_HITBOX;
-      console.log('DEBUG_SHOW_PLAYER_HITBOX =', DEBUG_SHOW_PLAYER_HITBOX);
-      renderDebugOverlay();
-    }
+    if (e.code === 'F3') { DEBUG_SHOW_COLLISION_BOXES = !DEBUG_SHOW_COLLISION_BOXES; console.log('DEBUG_SHOW_COLLISION_BOXES =', DEBUG_SHOW_COLLISION_BOXES); renderDebugOverlay(); }
+    if (e.code === 'F4') { DEBUG_SHOW_PLAYER_HITBOX = !DEBUG_SHOW_PLAYER_HITBOX; console.log('DEBUG_SHOW_PLAYER_HITBOX =', DEBUG_SHOW_PLAYER_HITBOX); renderDebugOverlay(); }
     if (e.code === 'Backquote') {
-      const anyOn = DEBUG_SHOW_COLLISION_BOXES || DEBUG_SHOW_PLAYER_HITBOX;
-      const next = !anyOn;
-      DEBUG_SHOW_COLLISION_BOXES = next;
-      DEBUG_SHOW_PLAYER_HITBOX = false;
-      console.log('DEBUG ALL =', next);
-      renderDebugOverlay();
+        const anyOn = DEBUG_SHOW_COLLISION_BOXES || DEBUG_SHOW_PLAYER_HITBOX;
+        const next = !anyOn;
+        DEBUG_SHOW_COLLISION_BOXES = next;
+        DEBUG_SHOW_PLAYER_HITBOX = false;
+        console.log('DEBUG ALL =', next);
+        renderDebugOverlay();
     }
-  });
+});
 
-  document.addEventListener('keyup', (e) => {
+document.addEventListener('keyup', (e) => {
     keysPressed[e.code] = false;
-  });
+});
 
-  // Meeting UI
-  endMeetingButton?.addEventListener('click', endMeeting);
-  votingButtons.forEach((button) => {
+
+// การผูก Event Listeners สำหรับ Meeting UI (คงเดิม)
+endMeetingButton?.addEventListener('click', endMeeting);
+
+votingButtons.forEach(button => {
     button.addEventListener('click', () => {
-      handleVote(button.getAttribute('data-target'));
+        handleVote(button.getAttribute('data-target'));
     });
-  });
+});
 
-  // resize
-  window.addEventListener('resize', () => {
-    try {
-      updateMiniMapDisplay();
-      updateNametagPosition();
-    } catch (_) {}
-  });
+// รับเหตุการณ์เปลี่ยนขนาดหน้าต่าง เพื่ออัปเดตตำแหน่ง/สเกลแผนที่ให้ยังคงอยู่กลางจอในโหมด Full Map
+window.addEventListener('resize', () => { try { updateMiniMapDisplay(); } catch(_){} });
 
-  // ตำแหน่งเมาส์เพื่อดีบัก
-  window.addEventListener('mousemove', (e) => {
+// ติดตามตำแหน่งเมาส์เพื่อช่วยดีบักพิกัด World
+window.addEventListener('mousemove', (e) => {
     if (!gameContainer) return;
     const rect = gameContainer.getBoundingClientRect();
+    // world = screen - containerScreenTopLeft
     debugMouseWorldX = e.clientX - rect.left;
     debugMouseWorldY = e.clientY - rect.top;
+    // อัปเดตแผงดีบักทันทีเมื่อเปิดโหมด
     updateDebugPanel();
-  });
-}
+});
+
 
 // เริ่มต้นเกม
 try {
@@ -1097,90 +1381,56 @@ try {
   if (hasWorldDOM) {
     window.addEventListener('load', initializeGame);
   }
-} catch (_) {}
+} catch(_) {}
+// client/game.js (ES module)
 
 // ===== Multiplayer Section (Socket.IO Integration) =====
-// import { io } from "/socket.io/socket.io.esm.min.js";
-const socket = io('https://webgame-25n5.onrender.com');
-// const socket = io("http://localhost:3000");
+//import { io } from "/socket.io/socket.io.esm.min.js"; // โหลด socket.io client module
+
+const socket = io("https://webgame-25n5.onrender.com");
+// ===== Multiplayer Section (Socket.IO Integration) =====
+//const socket = io("http://localhost:3000");
 window.socket = socket;
 
 // === Player identity ===
-const ROOM_CODE = 'lobby01';
+const ROOM_CODE = "lobby01";
 const uid =
-  sessionStorage.getItem('uid') ||
+  sessionStorage.getItem("uid") ||
   (() => {
     const v = crypto.randomUUID();
-    sessionStorage.setItem('uid', v);
+    sessionStorage.setItem("uid", v);
     return v;
   })();
-
-const CHAR_KEY_SCOPED = `ggd.char.${ROOM_CODE}.${uid}`;
-function getMyChar() {
-  return sessionStorage.getItem(CHAR_KEY_SCOPED) || localStorage.getItem(CHAR_KEY_SCOPED) || 'mini_brown';
-}
-
-// === Determine player display name ===
-const displayName =
-  localStorage.getItem('ggd.name') || localStorage.getItem('playerName') || `Player_${uid.slice(0, 4)}`;
-console.log('🆔 Current UID:', uid, '👤 Name:', displayName);
+console.log("🆔 Current UID:", uid);
 
 // === Socket connection ===
-try {
-  if (nameplateEl) nameplateEl.textContent = displayName;
-} catch (_) {}
-socket.on('connect', () => {
-  console.log('✅ Connected to server:', socket.id);
-  socket.emit('game:join', {
+socket.on("connect", () => {
+  console.log("✅ Connected to server:", socket.id);
+  socket.emit("game:join", {
     room: ROOM_CODE,
     uid,
-    name: displayName,
-    color: '#00ffcc',
+    name: `Player_${uid.slice(0, 4)}`,
+    color: "#00ffcc",
     x: playerWorldX,
     y: playerWorldY,
   });
 });
-
-// === Nametag Creation Helper ===
-function createNametag(name) {
-  const tag = document.createElement('div');
-  tag.className = 'nametag';
-  tag.textContent = name;
-  Object.assign(tag.style, {
-    position: 'fixed',
-    left: '0px',
-    top: '0px',
-    color: '#fff',
-    background: 'rgba(0,0,0,0.55)',
-    padding: '3px 8px',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '700',
-    pointerEvents: 'none',
-    textShadow: '0 0 4px #000',
-    transform: 'translate(-50%, -100%)',
-    zIndex: 100000, // สูงกว่า vision-overlay
-  });
-  document.body.appendChild(tag);
-  return tag;
-}
 
 // === Snapshot handling ===
 let remotePlayers = {};
 let lastPlayersSnapshot = [];
 let lastActiveUIDs = new Set();
 
-socket.on('snapshot', (payload) => {
+socket.on("snapshot", (payload) => {
   if (!payload?.players) return;
   lastPlayersSnapshot = payload.players;
 
-  const newSet = new Set(payload.players.map((p) => p.uid));
+  const newSet = new Set(payload.players.map(p => p.uid));
 
-  // ลบเฉพาะ player ที่หายไปจาก snapshot รอบนี้
+  // ✅ ลบเฉพาะ player ที่ "หายไป" จาก snapshot รอบนี้เท่านั้น
   for (const id of lastActiveUIDs) {
     if (!newSet.has(id) && remotePlayers[id]) {
       remotePlayers[id].remove();
-      if (remotePlayers[id]._nametag) remotePlayers[id]._nametag.remove();
       delete remotePlayers[id];
     }
   }
@@ -1189,22 +1439,22 @@ socket.on('snapshot', (payload) => {
   lastActiveUIDs = newSet;
 });
 
-// --- Render Loop สำหรับ remote players ---
+// --- Render Loop (ลื่นมากกว่า) ---
 function renderRemotePlayers() {
   for (const p of lastPlayersSnapshot) {
     if (p.uid === uid) continue;
 
     let el = remotePlayers[p.uid];
     if (!el) {
-      el = document.createElement('img');
-      el.src = 'assets/images/idle_1.png';
-      el.className = 'remote-player';
+      el = document.createElement("img");
+      el.src = "assets/images/idle_1.png";
+      el.className = "remote-player";
       Object.assign(el.style, {
-        position: 'absolute',
-        width: '128px',
-        height: '128px',
-        imageRendering: 'pixelated',
-        willChange: 'transform',
+        position: "absolute",
+        width: "128px",
+        height: "128px",
+        imageRendering: "pixelated",
+        willChange: "transform"
       });
       el.dataset.x = p.x;
       el.dataset.y = p.y;
@@ -1227,15 +1477,6 @@ function renderRemotePlayers() {
 
     const tx = Math.round(nx);
     const ty = Math.round(ny);
-
-    if (!el._nametag) {
-      el._nametag = createNametag(p.name || `Player_${p.uid.slice(0, 4)}`);
-    }
-    const tagX = tx + containerX + 64;
-    const tagY = ty + containerY - 12;
-    el._nametag.style.left = `${tagX}px`;
-    el._nametag.style.top = `${tagY}px`;
-
     if (tx !== +el.dataset.tx || ty !== +el.dataset.ty) {
       el.style.transform = `translate(${tx}px, ${ty}px)`;
       el.dataset.tx = tx;
@@ -1244,38 +1485,51 @@ function renderRemotePlayers() {
 
     el.dataset.x = nx;
     el.dataset.y = ny;
-
-    // ✅ Bubble ของ remote player
-    if (el._chatBubble) {
-      const bx = p.x + containerX + 64;
-      const by = p.y + containerY - 70;
-      el._chatBubble.style.left = `${bx}px`;
-      el._chatBubble.style.top = `${by}px`;
-    }
   }
 
   requestAnimationFrame(renderRemotePlayers);
 }
+renderRemotePlayers();
 
 // === Send position with throttle ===
-let lastSent = 0;                   // 🟢 ประกาศก่อนใช้
-const SEND_INTERVAL = 80;           // ส่งทุก 80ms พอ
+let lastSent = 0;
+const SEND_INTERVAL = 80; // ส่งทุก 80ms พอ
 
 function sendPlayerPosition() {
   const now = performance.now();
   if (!isMoving || now - lastSent < SEND_INTERVAL) return;
   lastSent = now;
-  socket.emit('player:move', {
+  socket.emit("player:move", {
     uid,
     x: playerWorldX,
     y: playerWorldY,
   });
 }
 
-// === Handle disconnect / errors ===
-socket.on('disconnect', (reason) => {
-  console.log('❌ Disconnected from server:', reason);
+// === Handle disconnect ===
+socket.on("disconnect", (reason) => {
+  console.log("❌ Disconnected from server:", reason);
 });
-socket.on('error', (error) => {
-  console.error('⚠️ Socket error:', error);
+
+// === Handle errors ===
+socket.on("error", (error) => {
+  console.error("⚠️ Socket error:", error);
 });
+
+// ===== End Multiplayer Section =====
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

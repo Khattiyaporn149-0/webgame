@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Minigames Launcher</title>
+  <style>
+    body{margin:0;font-family:system-ui, Arial, sans-serif;background:#0b1324;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh}
+    .box{background:#14182b;border:1px solid #2b3554;border-radius:12px;padding:20px;max-width:560px;width:92%}
+    h1{margin:0 0 8px 0;font-size:22px}
+    p{margin:6px 0 14px 0;color:#cfd8ff}
+    a.btn{display:inline-block;background:#2b64ff;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600}
+    a.btn:hover{background:#5b84ff}
+    ul{margin:10px 0 0 18px}
+  </style>
+  <script>
+    // Auto-redirect straight to the overworld if possible
+    window.addEventListener('DOMContentLoaded', () => {
+      try { window.location.replace('dodge-square/world.html'); } catch(_) {}
+    });
+  </script>
+  <noscript>
+    <meta http-equiv="refresh" content="0; url=dodge-square/world.html" />
+  </noscript>
+  </head>
+  <body>
+    <div class="box">
+      <h1>Minigames Launcher</h1>
+      <p>ถ้าเบราว์เซอร์ไม่พาไปอัตโนมัติ ให้กดปุ่มด้านล่างเพื่อเริ่มเล่น</p>
+      <a class="btn" href="dodge-square/world.html">เริ่ม Overworld + มินิเกม</a>
+      <ul>
+        <li>เดินด้วย WASD/ลูกศร</li>
+        <li>กด E ที่จุดเพื่อเปิดมินิเกม</li>
+        <li>กด Esc เพื่อปิดหน้ามินิเกม</li>
+      </ul>
+    </div>
+  </body>
+  </html>
+
