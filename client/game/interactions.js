@@ -3,6 +3,27 @@ import { CONST, state, refs } from './core.js';
 import { getRole } from './roles.js';
 import { openMinigameForObject } from './minigames.js';
 
+// --- Endgame trigger (safe, single-file; dynamic import overlay) ---
+// เพิ่มใหม่: ระบบจบเกม (เมื่อภารกิจครบ 100%) — 2025-10-13 21:14:26 +07:00
+let __endFired = false;
+function endGame(detail){
+  if (__endFired) return; __endFired = true;
+  try {
+    // freeze movement softly and pause bgm
+    state.isMeetingActive = true;
+    Object.keys(state.keysPressed || {}).forEach(k => state.keysPressed[k] = false);
+    refs.bgmMusic?.pause();
+  } catch {}
+  // notify listeners (harmless if none)
+  try { window.dispatchEvent(new CustomEvent('game:end', { detail })); } catch {}
+  // best-effort show overlay; won't crash if file missing
+  try {
+    import('./endgame.js')
+      .then(m => (m?.showEnd || m?.default || (()=>{}))(detail))
+      .catch(()=>{});
+  } catch {}
+}
+
 export const MISSION_SPOTS_DATA = [
   { id:'mission-guest',   type:'guest',   x:1500, y:7000, width:90, height:90 },
   { id:'mission-heist',   type:'heist',   x:7000, y:1500, width:90, height:90 },
@@ -16,6 +37,14 @@ function setMissionUI(){
   const pct = Math.round(state.missionProgress/CONST.MAX_MISSION_PROGRESS*100);
   if (refs.missionBarFill) refs.missionBarFill.style.width = `${pct}%`;
   if (refs.missionText) refs.missionText.textContent = `${pct}%`;
+
+  // End condition: Visitors complete 100%
+  // เพิ่มใหม่: ตรวจครบ 100% แล้วสั่งจบเกม — 2025-10-13 21:14:26 +07:00
+  try {
+    if (!__endFired && getRole()==='Visitor' && state.missionProgress >= CONST.MAX_MISSION_PROGRESS){
+      endGame({ outcome: 'visitors_win', reason: 'missions_complete', percent: pct });
+    }
+  } catch {}
 }
 
 export function startMeeting(at = CONST.MEETING_POINT){
@@ -83,24 +112,25 @@ export function checkInteractions(){
   if (refs.interactionHint) refs.interactionHint.style.display = canInteract ? 'block' : 'none';
 }
 
-/* ===== Objects ===== */
-export const INTERACTABLE_OBJECTS = [
-    { id: 'printer', x: 3400, y: 3470, width: 100, height: 110, type: 'printer', active: true },
-    { id: 'tree_middle_room', x: 4750, y: 4300, width: -50, height: -100, type: 'tree', active: true },
+// 1️⃣ ข้อมูล Object ที่โต้ตอบได้ (เพิ่มอันใหม่ได้เรื่อยๆ)
+    const INTERACTABLE_OBJECTS = [
+    { id: 'printer', x: 3400, y: 3470, width: 100, height: 110, type: 'printer', active: true},
+    { id: 'tree_middle_room', x: 4750, y: 4300, width: -50,height: -100, type: 'tree', active: true },
     { id: 'Telephone', x: 4100, y: 4390, width: -100, height: 200, type: 'Telephone', active: true },
     { id: 'Scrupture1', x: 3570, y: 1500, width: 50, height: -200, type: 'Scrupture', active: true },
-    { id: 'tree_upper_room1', x: 3200, y: 500, width: -180, height: 30, type: 'tree', active: true },
-    { id: 'hidden_switch', x: 4280, y: 550, width: -50, height: -50, type: 'switch(?)', active: true },
+    { id: 'tree_upper_room1', x: 3200, y: 500, width: -180,height: 30, type: 'tree', active: true },
+    { id: 'hidden_switch', x: 4280, y: 550, width: -50,height: -50, type: 'switch(?)', active: true, mg: 'align' },
     { id: 'Scrupture2', x: 4780, y: 1200, width: -800, height: -400, type: 'Scrupture', active: true },
-    { id: 'tree_upper_room2', x: 4440, y: 1160, width: -220, height: -220, type: 'tree', active: true },
-    { id: 'Broom', x: 1500, y: 3280, width: -200, height: -200, type: 'broom', active: true },
-    { id: 'computer1', x: 3520, y: 7020, width: -350, height: -350, type: 'computer', active: true },
-    { id: 'computer2', x: 4320, y: 7180, width: -700, height: -350, type: 'computer', active: true },
-    { id: 'computer3', x: 4750, y: 6900, width: -100, height: -400, type: 'computer', active: true },
-    { id: 'monitor', x: 4980, y: 7500, width: -2000, height: -400, type: 'monitor', active: true },
-    { id: 'matchine', x: 6580, y: 3160, width: -380, height: -200, type: 'matchine', active: true },
-    { id: 'battery', x: 7120, y: 4260, width: -600, height: -600, type: 'battery', active: true },
-    { id: 'power', x: 7420, y: 7850, width: -200, height: -150, type: 'power', active: true },
+    { id: 'tree_upper_room2', x: 4440, y: 1160, width: -220,height: -220, type: 'tree', active: true },
+    { id: 'Broom', x: 1500, y: 3280, width: -200,height: -200, type: 'broom', active: true, mg: 'mop'},
+    { id: 'computer1', x: 3520, y: 7020, width: -350,height: -350, type: 'computer', active: true },
+    { id: 'computer2', x: 4320, y: 7180, width: -700,height: -350, type: 'computer', active: true , mg: 'upload'},
+    { id: 'computer3', x: 4750, y: 6900, width: -100,height: -400, type: 'computer', active: true },
+    { id: 'monitor', x: 4980, y: 7500, width: -2000,height: -400, type: 'monitor', active: true , mg: 'dodge'},
+    { id: 'matchine', x: 6580, y: 3160, width: -380,height: -200, type: 'matchine', active: true, mg: 'rhythm' },
+    { id: 'battery', x: 7120, y: 4260, width: -600,height: -600, type: 'battery', active: true , mg: 'switch'},
+    { id: 'power', x: 7420, y: 7850, width: -200,height: -150, type: 'power', active: true , mg: 'wires'},
+    { id: '้hackbox', x: 1512, y: 6132, width: -200, height: -150, type: 'hackbox', active: true , mg: 'math'}
 ];
 
 function normRect({x,y,width:w,height:h}){
