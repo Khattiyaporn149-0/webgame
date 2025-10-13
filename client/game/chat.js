@@ -1,6 +1,5 @@
 // chat.js — chatbox, bubble, input control (fixed/improved)
-import { state } from './core.js';
-import { socket } from './multiplayer.js';
+// NOTE: หลีกเลี่ยง circular import กับ core.js โดยรับ state ผ่าน initChat()
 
 // ดึงรหัสห้องจาก URL หรือ localStorage
 const params = new URLSearchParams(window.location.search);
@@ -9,19 +8,15 @@ const roomCode =
   (JSON.parse(localStorage.getItem("currentRoom") || "{}").code) ||
   "lobby01";
 
-state.currentRoom = roomCode;
-
-// เริ่มเชื่อมต่อ multiplayer
-initMultiplayer({
-  serverUrl: "https://webgame-25n5.onrender.com",
-  room: roomCode,
-});
+// state ที่จะถูกฉีดเข้ามาจาก core.js เพื่อเลี่ยง TDZ
+let _state = null;
 
 let _isTyping = false;
 export const isTyping = () => _isTyping;
 
 let lastSentAt = 0;
 let lastMsg = '';
+const renderedMessageIds = new Set(); // tracks `${uid}:${msgKey}` already rendered as bubble
 
 function qs(id){ return document.getElementById(id); }
 
@@ -35,7 +30,73 @@ function tryOpenChatOnEnter(e, input){
   input.focus();
 }
 
-export function initChat(){
+export function initChat(stateRef){
+  // ผูก state จาก core.js เมื่อถูกเรียกใช้งาน
+  _state = stateRef || _state;
+  if (_state) {
+    _state.currentRoom = roomCode;
+  }
+  // ติดตามแชทแบบเรียลไทม์จาก Firebase แยกเป็นผู้เล่นในห้อง: lobbies/<room>/players/<uid>/chat
+  let initialLoaded = false;
+  let lastMaxTs = 0;
+  try {
+    (async () => {
+      const fb = await import('../firebase.js');
+      const { rtdb, ref, onValue } = fb;
+      const playersRef = ref(rtdb, `lobbies/${_state?.currentRoom || roomCode}/players`);
+      onValue(playersRef, (snap) => {
+        const players = snap.exists() ? snap.val() : {};
+        // รวมข้อความจากทุก players/<uid>/chat
+        const arr = [];
+        for (const [uidK, p] of Object.entries(players)){
+          const chat = (p && p.chat) ? p.chat : {};
+          for (const [key, m] of Object.entries(chat)){
+            if (!m || !m.text) continue;
+              arr.push({
+                key,
+                uid: m.uid || uidK,
+                name: m.name || (p && p.name) || 'Unknown',
+                text: m.text,
+                ts: m.ts || 0,
+                x: m.x, y: m.y,
+                color: (p && p.color) ? p.color : (m.color || null),
+              });
+          }
+        }
+        arr.sort((a,b)=> (a.ts||0) - (b.ts||0));
+        const recent = arr.slice(-100);
+
+        // แสดงในกล่องข้อความ
+        const messages = document.getElementById('chat-messages');
+        if (messages){
+          messages.innerHTML = '';
+          // render list without duplicates (use uid:key)
+          const seenList = new Set();
+          recent.forEach(m => {
+            const id = `${m.uid}:${m.key || m.ts}`;
+            if (seenList.has(id)) return;
+            seenList.add(id);
+            addChatMessage(m.name || 'Unknown', m.text || '', m.color || null);
+          });
+        }
+        // Bubble เฉพาะข้อความใหม่หลังโหลดครั้งแรก
+        const newMax = recent.reduce((mx, m) => Math.max(mx, m.ts || 0), lastMaxTs);
+        if (initialLoaded){
+          recent.filter(m => (m.ts || 0) > lastMaxTs)
+                .forEach(m => {
+                  const id = `${m.uid}:${m.key || m.ts}`;
+                  if (renderedMessageIds.has(id)) return;
+                  try {
+                    renderChatBubbleFor({ uid: m.uid, text: m.text, x: m.x, y: m.y, color: m.color });
+                    renderedMessageIds.add(id);
+                  } catch (e) {}
+                });
+        }
+        lastMaxTs = newMax;
+        initialLoaded = true;
+      });
+    })();
+  } catch {}
   const input = qs('chat-input');
   const messages = qs('chat-messages');
   const hint = qs('chat-hint');
@@ -51,13 +112,13 @@ export function initChat(){
     _isTyping = true;
     if (hint) hint.textContent = '⌨️ พิมพ์แล้วกด Enter เพื่อส่ง • Esc เพื่อออก';
     // เคลียร์ปุ่มเดินค้าง
-    Object.keys(state.keysPressed).forEach(k => state.keysPressed[k] = false);
+    if (_state) Object.keys(_state.keysPressed).forEach(k => _state.keysPressed[k] = false);
   });
 
   input.addEventListener('blur', () => {
     _isTyping = false;
     if (hint) hint.textContent = '💬 กด Enter เพื่อเปิดแชท';
-    Object.keys(state.keysPressed).forEach(k => state.keysPressed[k] = false);
+    if (_state) Object.keys(_state.keysPressed).forEach(k => _state.keysPressed[k] = false);
   });
 
   // ส่งด้วย Enter / ออกด้วย Esc
@@ -83,15 +144,31 @@ export function initChat(){
     lastSentAt = now;
 
     lastMsg = text;
-    socket?.emit('chat:message', { 
-      uid: state.uid, 
-      name: state.displayName, 
+    const payload = {
+      uid: _state?.uid, 
+      name: _state?.displayName, 
       text,
-      room: state.currentRoom || 'lobby01'   // ✅ ใส่บรรทัดนี้เพิ่ม
-    });
+      room: _state?.currentRoom || 'lobby01',
+      ts: Date.now(),
+    };
 
-    addChatMessage(state.displayName, text);
-    renderChatBubbleFor({ uid: state.uid, x: state.playerX, y: state.playerY, text });
+    // บันทึกลง Firebase (source of truth) แยกเป็นต่อผู้เล่นในห้อง
+    try {
+      (async () => {
+        const fb = await import('../firebase.js');
+        const { rtdb, ref, push } = fb;
+        const newRef = await push(ref(rtdb, `lobbies/${payload.room}/players/${payload.uid}/chat`), payload);
+        // mark as rendered by id to avoid onValue rendering the same bubble again
+        try { const msgKey = newRef?.key || null; if (msgKey) renderedMessageIds.add(`${payload.uid}:${msgKey}`); } catch {}
+      })();
+    } catch {}
+
+    // Show immediately for responsiveness
+    addChatMessage(_state?.displayName || 'You', text, null);
+    // Mark a short-lived placeholder id so we don't double render if onValue fires fast
+    try {
+      renderChatBubbleFor({ uid: _state?.uid, x: _state?.playerX, y: _state?.playerY, text, color: null });
+    } catch (e) {}
 
     input.value = '';
     input.blur();
@@ -107,19 +184,15 @@ export function initChat(){
     }
   });
 
-  // ขาเข้า
-  socket?.on('chat:message', (data) => {
-    addChatMessage(data.name, data.text);
-    renderChatBubbleFor(data);
-    
-  });
+  // ไม่ต้องฟังผ่าน socket สำหรับแชทอีกต่อไป (ใช้ Firebase onValue แทน)
 }
 
-function addChatMessage(name, text){
+function addChatMessage(name, text, color){
   const messages = document.getElementById('chat-messages');
   if (!messages) return;
   const el = document.createElement('div');
   el.innerHTML = `<strong>${name}:</strong> ${text}`;
+  if (color) el.style.color = color;
   messages.appendChild(el);
   messages.scrollTop = messages.scrollHeight;
 }
@@ -129,7 +202,11 @@ import { getRemotePlayerWorldXY } from './multiplayer.js';
 const activeBubbles = new Map(); // uid -> array ของ bubble DOM
 
 function renderChatBubbleFor(data) {
-  const isLocal = data.uid === state.uid;
+  // Avoid rendering the same message twice (if we have a message id/key)
+  const idKey = `${data.uid}:${data.key || data.ts || 'no-key'}`;
+  if (renderedMessageIds.has(idKey)) return;
+  renderedMessageIds.add(idKey);
+  const isLocal = _state ? (data.uid === _state.uid) : false;
   let worldX = data.x;
   let worldY = data.y;
 
@@ -163,17 +240,17 @@ function renderChatBubbleFor(data) {
   // ✅ ฟังก์ชันอัปเดตตำแหน่ง
   function updatePos() {
     // world pos ล่าสุด
-    if (isLocal) {
-      worldX = state.playerX;
-      worldY = state.playerY;
+    if (isLocal && _state) {
+      worldX = _state.playerX;
+      worldY = _state.playerY;
     } else {
       const pos = getRemotePlayerWorldXY(data.uid);
       if (pos) { worldX = pos.x; worldY = pos.y; }
     }
 
-    const cx = Number(state.containerX) || 0;
-    const cy = Number(state.containerY) || 0;
-    const halfW = (state.playerW ?? 128) / 2;
+    const cx = Number(_state?.containerX) || 0;
+    const cy = Number(_state?.containerY) || 0;
+    const halfW = (_state?.playerW ?? 128) / 2;
     const baseX = worldX + cx + halfW;
     const baseY = worldY + cy - 20;
 

@@ -637,7 +637,6 @@
             transition: opacity 0.2s ease, transform 0.2s ease;
             pointer-events: none;
             z-index: 900;
-            user-select: none;
             }
             @keyframes bubbleFloat {
             0% { transform: translate(-50%, -110%) scale(1); opacity: 1; }
@@ -704,7 +703,7 @@
             <div id="player-vote-grid">
             <!-- สร้างกล่องผู้เล่นแบบกริด -->
             <div class="player-card" data-player="Aum">
-                <img src="assets/images/idle_1.png" alt="Aum">
+                <img src="assets/avatars/aum.png" alt="Aum">
                 <span class="name">Aum</span>
                 <button class="vote-btn">Vote</button>
             </div>
@@ -742,12 +741,15 @@
         </div>
     </div>
 
+
+    <div class="nametag"></div>
+
     <!-- แผงดีบัก -->
     <div id="debug-panel" style="position:fixed; left:10px; bottom:10px; background:#0009; color:#0f0; font-family:monospace; font-size:12px; line-height:1.4; padding:8px 10px; border:1px solid #0f0; border-radius:6px; z-index:1200; display:none;"></div>
     
         <!-- ROLE ICON HUD -->
     <div id="role-icon-hud">
-        <img id="role-icon-img" src="assets/role/Engineer.png" alt="Role Icon">
+        <img id="role-icon-img" src="assets/role/none.png" alt="Role Icon">
         <span id="role-icon-text">Loading...</span>
     </div>
 
@@ -758,16 +760,16 @@
         <div id="chat-hint">💬 กด Enter เพื่อเปิดแชท</div>
     </div>
 
-    <audio id="sfx-interact" src="assets/sounds/click.mp3"></audio>
-    <audio id="sfx-heist" src="assets/sounds/click.mp3"></audio>
-    <audio id="bgm-music" src="assets/sounds/galaxy-283941.mp3" loop></audio>
+    <audio id="sfx-interact" src="assets/sounds/interaction_success.mp3"></audio>
+    <audio id="sfx-heist" src="assets/sounds/heist_alarm.mp3"></audio>
+    <audio id="bgm-music" src="assets/sounds/bgm_loop.mp3" loop></audio>
 
 <!-- โหลด socket.io (ให้ตัวแปร window.io ใช้ใน multiplayer.js) -->
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" crossorigin="anonymous"></script>
 
 <!-- โหลด entry ของเกมแบบ ES module: ให้ core.js import ไฟล์อื่นทั้งหมดเอง -->
 <script type="module" src="game/core.js"></script>
-<script src="minigames/mg-bridge.js"></script>
+<script src="/mg-bridge.js"></script>
 
 </body>
 </html>

@@ -175,54 +175,6 @@ const minimapMissionDots = {
     'mission-meeting': document.getElementById('minimap-meeting-dot'),
 };
 
-// ---------- Minimal compat: local player nametag ----------
-let __localNametag = null;
-function _charToColorLocal(ch){
-  const map = { mini_brown:'#8B4513', mini_coral:'#FF7F50', mini_gray:'#808080', mini_lavender:'#B57EDC', mini_mint:'#3EB489', mini_pink:'#FFC0CB', mini_sky_blue:'#87CEEB', mini_yellow:'#FFD54F' };
-  return map[ch] || '#FFFFFF';
-}
-
-function ensureLocalNametag(){
-  if (__localNametag) return __localNametag;
-  // prefer existing #nameplate in game.html
-  const ep = document.getElementById('nameplate');
-  if (ep){ __localNametag = ep; }
-  else {
-    const t = document.createElement('div');
-    t.id = 'nameplate';
-    t.className = 'nameplate';
-    Object.assign(t.style, {
-      position: 'fixed', left: '0px', top: '0px',
-      background: 'rgba(0,0,0,0.55)', color: '#fff', padding: '4px 8px', borderRadius: '6px',
-      pointerEvents: 'none', transform: 'translate(-50%, -100%)', zIndex: 99999, fontWeight:700, textShadow:'0 0 6px #000'
-    });
-    document.body.appendChild(t);
-    __localNametag = t;
-  }
-  // set initial text & color from localStorage if available
-  try {
-    const name = localStorage.getItem('ggd.name') || localStorage.getItem('playerName') || '';
-    if (name) __localNametag.textContent = name;
-    const c = localStorage.getItem('ggd.color');
-    if (c) __localNametag.style.color = c; else {
-      const ch = localStorage.getItem('ggd.char');
-      if (ch) __localNametag.style.color = _charToColorLocal(ch);
-    }
-  } catch (e) {}
-  return __localNametag;
-}
-
-function updatePlayerNametagPosition(){
-  const tag = ensureLocalNametag();
-  if (!tag) return;
-  // compute screen coords: playerWorldX + containerX gives top-left of sprite
-  const spriteW = playerWidth || 200;
-  const tx = Math.round(playerWorldX + containerX + (spriteW / 2));
-  const ty = Math.round(playerWorldY + containerY - 14);
-  tag.style.left = tx + 'px';
-  tag.style.top  = ty + 'px';
-}
-
 
 // สถานะเกมหลัก
 const keysPressed = {};
@@ -316,9 +268,6 @@ function updateDisplay() {
     
     // NEW: อัปเดต Minimap
     updateMiniMapDisplay();
-
-  // NEW COMPAT: ensure local player nametag is visible and positioned
-  try { updatePlayerNametagPosition(); } catch (e) { /* non-fatal */ }
 
     // DEBUG: วาด Overlay ถ้ามีการเปิดโหมดดีบัก
     renderDebugOverlay();

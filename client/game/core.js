@@ -27,7 +27,7 @@ export const CONST = {
 };
 
 export const state = {
-  playerX: 3500, playerY: 3500, playerW: 200, playerH: 200,
+  playerX: 3500, playerY: 3500, playerW: 200, playerH: 220,
   containerX: 0, containerY: 0,
   viewportW: window.innerWidth, viewportH: window.innerHeight,
   isMoving: false,
@@ -37,11 +37,15 @@ export const state = {
   missionProgress: 0,
   uid: null,
   displayName: null,
+  charFolder: 'mini_brown',
+  playerColor: '#00ffcc',
 };
 
 export const refs = {
   get gameContainer(){ return document.getElementById('game-container'); },
+  get playerWrap(){ return document.getElementById('player-wrap'); },
   get player(){ return document.getElementById('player'); },
+  get nameplate(){ return document.getElementById('nameplate'); },
   get visionOverlay(){ return document.getElementById('vision-overlay'); },
   get interactionHint(){ return document.getElementById('interaction-hint'); },
   get logContainer(){ return document.getElementById('log-container'); },
@@ -56,12 +60,38 @@ export const refs = {
   get sfxHeist(){ return document.getElementById('sfx-heist'); },
 };
 
-const idleFrames = ['assets/images/idle_1.png'];
-const walkFrames = [
-  'assets/images/walk_1.png','assets/images/walk_2.png','assets/images/walk_3.png',
-  'assets/images/walk_4.png','assets/images/walk_5.png','assets/images/walk_6.png',
-  'assets/images/walk_7.png','assets/images/walk_8.png'
-];
+let idleFrames = ['assets/Characters/mini_brown/idle_1.png'];
+let walkFrames = Array.from({length:8},(_,i)=>`assets/Characters/mini_brown/walk_${i+1}.png`);
+function setCharacterFolder(folder){
+  try {
+    if (typeof folder !== 'string' || !folder) return;
+    state.charFolder = folder;
+    idleFrames = [`assets/Characters/${folder}/idle_1.png`];
+    walkFrames = Array.from({length:8},(_,i)=>`assets/Characters/${folder}/walk_${i+1}.png`);
+    if (refs.player) refs.player.src = idleFrames[0];
+    // ปรับขนาดกล่อง player-wrap ให้ตรงกับรูป (เพื่อให้ nameplate อยู่กึ่งกลางจริง)
+    try {
+      if (refs.playerWrap) {
+        refs.playerWrap.style.width = '200px';
+        refs.playerWrap.style.height = '220px';
+      }
+    } catch {}
+  } catch {}
+}
+
+function charToColor(ch){
+  const map = {
+    mini_brown:    '#8B4513',
+    mini_coral:    '#FF7F50',
+    mini_gray:     '#808080',
+    mini_lavender: '#B57EDC',
+    mini_mint:     '#3EB489',
+    mini_pink:     '#FFC0CB',
+    mini_sky_blue: '#87CEEB',
+    mini_yellow:   '#FFD54F',
+  };
+  return map[ch] || '#FFFFFF';
+}
 let currentAnim = 'idle', frameIdx = 0, lastFrameAt = 0;
 function tickAnimation(ts){
   if (!refs.player) return;
@@ -79,10 +109,18 @@ function tickAnimation(ts){
 
 let lastFogAt = 0; const FOG_MAX_FPS = 30;
 export function renderDisplay(){
-  const gc = refs.gameContainer, pl = refs.player, vo = refs.visionOverlay;
+  const gc = refs.gameContainer, pl = refs.player, pw = refs.playerWrap, vo = refs.visionOverlay;
   if (!gc || !pl || !vo) return;
 
-  pl.style.transform = `translate(${state.playerX}px, ${state.playerY}px)`;
+  if (pw){
+    // ขยับทั้งกล่อง player-wrap เพื่อให้ nameplate ตามตัวละคร
+    pw.style.transform = `translate(${state.playerX}px, ${state.playerY}px)`;
+    // ล้าง transform เดิมบน <img id="player"> หากเคยตั้งไว้
+    try { pl.style.transform = ''; } catch {}
+  } else {
+    // fallback: ขยับเฉพาะรูปผู้เล่น
+    pl.style.transform = `translate(${state.playerX}px, ${state.playerY}px)`;
+  }
   gc.style.transform = `translate(${state.containerX}px, ${state.containerY}px)`;
 
   const now = performance.now();
@@ -187,16 +225,98 @@ function installInput(){
 }
 
 export async function initGame(){
-  state.uid = sessionStorage.getItem('uid') || (sessionStorage.setItem('uid', crypto.randomUUID()), sessionStorage.getItem('uid'));
+  // ใช้ UID เดียวกับ Lobby: ggd.uid (fallback เป็น session uid หากไม่มี)
+  try {
+    let uid = localStorage.getItem('ggd.uid') || sessionStorage.getItem('ggd.uid') || sessionStorage.getItem('uid');
+    if (!uid) { uid = (crypto?.randomUUID?.() || ('uid_' + Math.random().toString(36).slice(2,10))); }
+    state.uid = uid;
+    try { localStorage.setItem('ggd.uid', uid); } catch {}
+    try { sessionStorage.setItem('ggd.uid', uid); } catch {}
+  } catch {
+    state.uid = sessionStorage.getItem('uid') || (sessionStorage.setItem('uid', crypto.randomUUID()), sessionStorage.getItem('uid'));
+  }
   state.displayName = localStorage.getItem('ggd.name') || localStorage.getItem('playerName') || `Player_${state.uid.slice(0,4)}`;
-  if (refs.player) refs.player.src = 'assets/images/idle_1.png';
+  // ตั้งคาแร็กเตอร์เริ่มต้น (จะอัปเดตจาก Firebase ตามห้องอีกที)
+  try {
+    const localChar = localStorage.getItem('ggd.char') || 'mini_brown';
+    setCharacterFolder(localChar);
+    const localColor = charToColor(localChar);
+    state.playerColor = localColor;
+    if (refs.nameplate) refs.nameplate.style.color = localColor;
+  } catch { setCharacterFolder('mini_brown'); }
+  // ตั้งชื่อของเราเองบน nameplate (ถ้ามีใน DOM)
+  try { if (refs.nameplate) refs.nameplate.textContent = state.displayName; } catch {}
 
   await loadCollisionData(); // -> state.collisionObjects
 
   installInput();
-  initChat();
-  initMultiplayer({ serverUrl: 'https://webgame-25n5.onrender.com', room: 'lobby01' });
+  // คำนวณรหัสห้องจาก URL หรือ localStorage ให้ socket และ firebase ใช้ห้องเดียวกัน
+  try {
+    const params = new URLSearchParams(location.search);
+    const codeFromUrl = params.get('code');
+    const codeFromStore = (JSON.parse(localStorage.getItem('currentRoom') || '{}') || {}).code;
+    state.currentRoom = codeFromUrl || codeFromStore || 'lobby01';
+  } catch { state.currentRoom = 'lobby01'; }
+
+  // ฉีด state เข้า chat และเปิด socket เข้าห้องเดียวกัน
+  initChat(state);
+  // เลือก server socket อัตโนมัติ: ถ้าเปิดจาก localhost ให้เชื่อมไปที่ localhost:3000
+  let serverUrl = 'https://webgame-25n5.onrender.com';
+  try {
+    const host = location.hostname;
+    // Prefer local development server when running on localhost/127.0.0.1
+    if (host === 'localhost' || host === '127.0.0.1') {
+      serverUrl = `${location.protocol}//${host}:3000`;
+    } else if (location.port) {
+      // If the page is served from a specific port, prefer same origin
+      serverUrl = `${location.protocol}//${location.hostname}:${location.port}`;
+    }
+  } catch (e) {
+    // ignore and fall back to production server
+  }
+  initMultiplayer({ serverUrl, room: state.currentRoom });
   startRemotePlayersRenderLoop();
+
+  // Presence แบบเบาๆ ใน Firebase ภายใต้ lobbies/<code>/players/<uid> (ให้ตรงกับ rules ปัจจุบัน)
+  // ทำแบบไดนามิกและห่อ try/catch เผื่อโหลด firebase ไม่สำเร็จ
+  try {
+    const fb = await import('../firebase.js');
+    const { rtdb, ref, update, onDisconnect, serverTimestamp, get, onValue } = fb;
+    const playerRef = ref(rtdb, `lobbies/${state.currentRoom}/players/${state.uid}`);
+    // update แทน set เพื่อไม่ลบ field char ที่ล็อบบี้ตั้งไว้
+    await update(playerRef, {
+      uid: state.uid,
+      name: state.displayName,
+      joinedAt: Date.now(),
+      online: true,
+      // ensure char/color from lobby/localStorage are preserved into presence for others
+      char: state.charFolder || (localStorage.getItem('ggd.char') || 'mini_brown'),
+      color: state.playerColor || (localStorage.getItem('ggd.color') || ''),
+    });
+    onDisconnect(playerRef).remove();
+    const roomRef = ref(rtdb, `rooms/${state.currentRoom}`);
+    await update(roomRef, { status: 'in_game', lastActivity: serverTimestamp() }).catch(()=>{});
+    setInterval(() => {
+      update(roomRef, { lastActivity: serverTimestamp() }).catch(()=>{});
+    }, 15000);
+    // ติดตาม char ของผู้เล่นจาก Firebase (สด) แล้วตั้งสไปรท์ให้ตรงกับล็อบบี้
+    try {
+      const myRef = ref(rtdb, `lobbies/${state.currentRoom}/players/${state.uid}`);
+      onValue(myRef, (snap) => {
+        const v = snap.exists() ? (snap.val() || {}) : {};
+        const ch = (v.char || '').toString();
+        const col = (v.color || '').toString();
+        if (ch) setCharacterFolder(ch);
+        const resolved = col || (ch ? charToColor(ch) : '');
+        if (resolved) {
+          state.playerColor = resolved;
+          if (refs.nameplate) refs.nameplate.style.color = resolved;
+        }
+      });
+    } catch {}
+  } catch (e) {
+    console.warn('Firebase presence skipped:', e?.message || e);
+  }
 
   // Role reveal (ไม่บล็อก loop แต่กันเดินผ่าน isRoleRevealed())
   initRoles();
