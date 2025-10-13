@@ -26,10 +26,40 @@ function endGame(detail){
 
 export const MISSION_SPOTS_DATA = [
   { id:'mission-guest',   type:'guest',   x:1500, y:7000, width:90, height:90 },
-  { id:'mission-heist',   type:'heist',   x:7000, y:1500, width:90, height:90 },
+  // เพิ่มใหม่: ย้าย Heist มาไว้ในห้องด้านบน/กลางของแผนที่ (กะตำแหน่งให้เดินทดสอบง่าย) — 2025-10-13 22:15:00 +07:00
+  { id:'mission-heist',   type:'heist',   x:4000, y:3000, width:90, height:90 },
   { id:'mission-meeting', type:'meeting', x:4000, y:4000, width:150, height:150 },
   { id:'mission-cctv',    type:'Open_CCTV', x:6000, y:6000, width:90, height:90 },
 ];
+
+// เพิ่มใหม่: รองรับ override ตำแหน่ง mission spot ผ่าน query (?heist=4000,4000 เป็นต้น)
+// 2025-10-13 22:10:00 +07:00 — เพื่อให้ทดสอบได้เร็วโดยไม่ต้องแก้โค้ดซ้ำ
+try {
+  const qs = new URLSearchParams(location.search);
+  const clampXY = (x, y) => ({
+    x: Math.max(0, Math.min(CONST.CONTAINER_WIDTH  - 1, x|0)),
+    y: Math.max(0, Math.min(CONST.CONTAINER_HEIGHT - 1, y|0)),
+  });
+  const setPos = (id, x, y) => {
+    const spot = MISSION_SPOTS_DATA.find(s => s.id === id);
+    if (spot) { spot.x = x; spot.y = y; }
+  };
+  const parse = (v) => {
+    const [sx, sy] = String(v||'').split(',');
+    const x = Number(sx), y = Number(sy);
+    return (Number.isFinite(x) && Number.isFinite(y)) ? clampXY(x, y) : null;
+  };
+  const map = [
+    ['guest',   'mission-guest'],
+    ['heist',   'mission-heist'],
+    ['meeting', 'mission-meeting'],
+    ['cctv',    'mission-cctv'],
+  ];
+  for (const [qkey, id] of map) {
+    const v = qs.get(qkey);
+    if (!v) continue; const p = parse(v); if (!p) continue; setPos(id, p.x, p.y);
+  }
+} catch {}
 
 function dist(x1,y1,x2,y2){ return Math.hypot(x1-x2, y1-y2); }
 
@@ -96,6 +126,8 @@ export function checkInteractions(){
           refs.sfxInteract?.play().catch(()=>{});
         } else if (spot.type === 'heist' && role === 'Thief'){
           log('🚨 พบการขโมย!', 'heist'); refs.sfxHeist?.play().catch(()=>{});
+          // เพิ่มใหม่: ทริกเกอร์โจรชนะเมื่อทำ Heist สำเร็จ — 2025-10-13 21:55:00 +07:00
+          try { endGame({ outcome: 'thief_win', reason: 'heist_success' }); } catch {}
         } else if (spot.type === 'meeting'){
           startMeeting(CONST.MEETING_POINT); refs.sfxInteract?.play().catch(()=>{});
         } else if (spot.type === 'Open_CCTV'){

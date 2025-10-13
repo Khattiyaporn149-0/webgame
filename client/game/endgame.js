@@ -18,11 +18,17 @@ function ensureOverlay(detail = {}) {
 
   // Compute texts
   const isThief = (detail?.outcome === 'thief_win');
-  const titleText = isThief ? (detail?.title || 'HACKER') : (detail?.title || 'MISSION COMPLETE');
+  const titleText = isThief ? (detail?.title || 'MISSION COMPLETE!') : (detail?.title || 'MISSION COMPLETE!');
   const teamText  = isThief ? 'หัวขโมย' : 'ผู้เยี่ยมชม';
-  const reasonText = detail?.reason === 'missions_complete'
-    ? 'ชนะ!'
-    : (detail?.desc || detail?.reason || 'เกมจบแล้ว');
+  // Map reason code -> Thai text; desc (ถ้ามี) จะ override
+  const reasonMap = {
+    missions_complete: 'ภารกิจสำเร็จครบ 100%',
+    heist_success: 'ปล้นสำเร็จ!',
+    heist_detected: 'เกิดเหตุโจรกรรม',
+  };
+  const reasonText = (detail?.desc && String(detail.desc))
+    || reasonMap[String(detail?.reason || '')]
+    || (detail?.reason || 'เกมจบแล้ว');
 
   // Character image (current player image if exists)
   let charSrc = '';
