@@ -4,35 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Heist - เดโม (ประชุมแบบโต้ตอบได้)</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;1,200;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
-
     <style>
-       .bai-jamjuree-medium {
-        font-family: "Bai Jamjuree", sans-serif;
-        font-weight: 500;
-        font-style: normal;
-        }
-    /* ตั้งค่าพื้นฐาน */
+        /* ตั้งค่าพื้นฐาน */
         body {
             margin: 0;
             background-color: #000;
-            font-family:"Bai Jamjuree";
+            font-family: Arial, sans-serif;
             width: 100vw;
             height: 100vh;
-            overflow: hidden;;
-        }
-        
-        html ,body, * {
-        cursor: url("assets/Normal\ Select.cur"), all-scroll;
-        }
-        button:hover, a:hover {
-        cursor: url("./assets/Alternate\ Select.cur") 8 8, pointer;
+            overflow: hidden;
         }
 
         /* -------------------------------------------
-            1. GAME CONTAINER 
+            1. GAME CONTAINER (à¹à¸œà¸™à¸—à¸µà¹ˆà¸«à¸¥à¸±à¸)
             1. พื้นที่เกม (แผนที่หลัก)
             ------------------------------------------- */
         #game-container {
@@ -67,7 +51,7 @@
         #player {
             position: absolute;
             width: 200px;
-            height: 220px;
+            height: 200px;
             image-rendering: pixelated;
             z-index: 300; 
             transition: transform 0.05s linear;
@@ -341,7 +325,7 @@
             align-items: center;
             text-align: center;
             color: white;
-            font-family:"Bai Jamjuree";
+            font-family: 'Arial Black', sans-serif;
             transition: opacity 1s ease-out;
             animation: none; 
             /* ** NEW: ซ่อนตามค่าเริ่มต้นเพื่อรอการเรียกใช้ ** */
@@ -455,155 +439,54 @@
             height: 15px; 
             border-radius: 50%;
         } /* เหลือง */
- 
-        .nametag {
-            position: absolute;
-            color: #fff;
-            background: rgba(0,0,0,0.5);
-            padding: 3px 8px;
-            border-radius: 8px;
-            font-size: 14px;
-            text-align: center;
-            transform: translate(-50%, -100%);
-            pointer-events: none;
-            white-space: nowrap;
-            }
+        
+        /* ในไฟล์ style.css หรือบล็อก <style> ที่คุณใช้ */
 
-            /* ROLE ICON HUD (เวอร์ชันใหม่ ข้างล่าง minimap) */
-            #role-icon-hud {
-            position: fixed;
-            bottom: 25px;        /* ขยับมาล่างแทน top */
-            left: 40px;         /* ชิดขวาแต่ไม่เกินขอบ */
-            display: flex;
-            flex-direction: column;  /* วางแนวตั้ง: icon บน, text ล่าง */
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+    .remote-player-container {
+        /* เป็นตัวห่อหุ้มตัวละครและ nametag */
+        position: absolute;
+        width: 200px; /* ควรเท่ากับ playerWidth */
+        height: 200px; /* ควรเท่ากับ playerHeight */
+        pointer-events: none; /* ป้องกันการคลิกโดนคอนเทนเนอร์ */
+    }
 
-            background: rgba(0, 0, 0, 0.65);
-            color: #fff;
-            padding: 10px 16px;
-            border-radius: 16px;
-            font-family: "Bai Jamjuree";
-            font-size: 16px;
-            font-weight: 500;
-            z-index: 600;
-            backdrop-filter: blur(6px);
-            border: 1px solid rgba(255,255,255,0.15);
-            box-shadow: 0 0 20px rgba(0,255,128,0.3);
-            transition: transform 0.25s ease, box-shadow 0.4s ease;
-            }
+    .remote-player-img {
+        width: 100%;
+        height: 100%;
+        /* คุณสามารถใช้ CSS filter เพื่อ tint สีตัวละครได้ */
+        /* สมมติว่าใน JS คุณได้ตั้งค่า --player-color แล้ว */
+        filter: drop-shadow(0 0 0.2rem var(--player-color, transparent));
+    }
 
-            /* Icon ใหญ่ขึ้น */
-            #role-icon-img {
-            width: 72px;
-            height: 72px;
-            border-radius: 12px;
-            image-rendering: pixelated;
-            box-shadow: 0 0 15px rgba(255,255,255,0.3);
-            transition: transform 0.25s ease;
-            }
-
-            /* Hover เอฟเฟกต์เล็กน้อย */
-            #role-icon-hud:hover #role-icon-img {
-            transform: scale(1.1);
-            }
-
-            /* Glow สีทีม */
-            #role-icon-hud.visitor {
-            box-shadow: 0 0 20px 5px rgba(0,255,128,0.6);
-            }
-            #role-icon-hud.thief {
-            box-shadow: 0 0 20px 5px rgba(255,60,60,0.6);
-            }
-
-            /* === CHAT BOX === */
-            #chat-container {
-            position: fixed;
-            bottom: 20px;
-            right: 1px;
-            transform: translateX(-20%);
-            width: 300px;
-            background: rgba(10, 15, 25, 0.85);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 10px;
-            padding: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.6);
-            font-family: "Bai Jamjuree", sans-serif;
-            z-index: 9999;
-            }
-
-            #chat-messages {
-            max-height: 150px;
-            overflow-y: auto;
-            font-size: 14px;
-            color: #fff;
-            padding: 4px;
-            margin-bottom: 6px;
-            }   
-
-            #chat-input {
-            width: 90%;
-            padding: 6px 8px;
-            border: none;
-            outline: none;
-            border-radius: 6px;
-            background: rgba(255,255,255,0.1);
-            color: white;
-            font-size: 14px;
-            }
-
-            #chat-input::placeholder {
-            color: rgba(255,255,255,0.5);
-            }
-
-            .chat-bubble {
-            position: absolute;
-            color: #fff;
-            background: rgba(0,0,0,0.7);
-            padding: 6px 10px;
-            border-radius: 12px;
-            font-size: 14px;
-            transform: translate(-50%, -100%);
-            opacity: 0;
-            transition: opacity 0.2s ease, transform 0.2s ease;
-            pointer-events: none;
-            z-index: 900;
-            }
-            @keyframes bubbleFloat {
-            0% { transform: translate(-50%, -110%) scale(1); opacity: 1; }
-            80% { transform: translate(-50%, -140%) scale(1.05); opacity: 1; }
-            100% { transform: translate(-50%, -160%) scale(0.95); opacity: 0; }
-            }
-
-            .chat-bubble.show {
-            opacity: 1;
-            transform: translate(-50%, -120%);
-            }
-
-            #chat-hint {
-            font-size: 13px;
-            color: rgba(255,255,255,0.6);
-            text-align: center;
-            margin-top: 4px;
-            font-style: italic;
-            }
-
+    .remote-player-nametag {
+        position: absolute;
+        top: -30px; /* เลื่อนขึ้นเหนือหัวผู้เล่น */
+        left: 50%;
+        transform: translateX(-50%);
+        white-space: nowrap;
+        background-color: rgba(0, 0, 0, 0.75);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 16px; 
+        font-family: sans-serif;
+        font-weight: bold;
+        z-index: 100;
+        /* ใช้สีที่อิงจากผู้เล่นเป็นสีขอบ */
+        border: 1px solid var(--player-color, #ffffff); 
+    }
 
     </style>
 </head>
 <body>
     <div id="game-container">
-        <div id="player-wrap" style="position:absolute;width:128px;height:128px;will-change:transform;">
+        <div id="player-wrap" style="position:absolute;width:200px;height:220px;will-change:transform;">
             <img id="player" src="assets/images/idle_1.png" alt="ตัวละครผู้เล่น">
-            <div id="nameplate" style="position:absolute;left:50%;bottom:100%;transform:translate(-50%,-8px);color:#fff;font-weight:700;text-shadow:0 2px 6px #000;z-index:350;white-space:nowrap;"></div>
+            <div id="nameplate" style="position:absolute;left:50%;bottom:100%;transform:translate(-50%,-2px);color:#fff;font-weight:700;text-shadow:0 2px 6px #000;z-index:350;white-space:nowrap;"></div>
         </div>
         <div id="mission-guest" class="mission-spot"></div>
         <div id="mission-heist" class="mission-spot"></div>
         <div id="mission-meeting" class="mission-spot"></div>
-        <div id="mission-cctv" class="mission-spot"
-        style="background: transparent; border: none; opacity: 0;"></div>
-
 
         <!-- โอเวอร์เลย์แคนวาสสำหรับดีบัก -->
         
@@ -628,6 +511,7 @@
         <div id="meeting-content">
             <h2>การประชุมฉุกเฉินเริ่มต้นขึ้น</h2>
             <p>ทุกคนกำลังพูดคุยและโต้แย้งหลักฐาน...</p>
+            
             
             <div id="voting-area">
                 <p>ผู้ต้องสงสัยคือใคร?</p>
@@ -694,6 +578,3 @@
 
 </body>
 </html>
-
-
- 
