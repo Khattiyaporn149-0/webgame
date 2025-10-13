@@ -2,6 +2,8 @@
 import { CONST, state, refs } from './core.js';
 import { getRole } from './roles.js';
 import { openMinigameForObject } from './minigames.js';
+import { getCurrentPlayers } from './multiplayer.js';
+
 
 // --- Endgame trigger (safe, single-file; dynamic import overlay) ---
 // เพิ่มใหม่: ระบบจบเกม (เมื่อภารกิจครบ 100%) — 2025-10-13 21:14:26 +07:00
@@ -76,15 +78,63 @@ function setMissionUI(){
     }
   } catch {}
 }
-
 export function startMeeting(at = CONST.MEETING_POINT){
   if (state.isMeetingActive) return;
   state.isMeetingActive = true;
-  state.playerX = at.x; state.playerY = at.y;
+
+  // หยุดการเคลื่อนไหวและย้ายผู้เล่นไปจุดกลางประชุม
+  state.playerX = at.x; 
+  state.playerY = at.y;
   Object.keys(state.keysPressed).forEach(k => state.keysPressed[k] = false);
-  refs.meetingModal && (refs.meetingModal.style.display = 'flex');
+
+  // แสดง Modal
+  if (!refs.meetingModal) return;
+  refs.meetingModal.style.display = 'flex';
   refs.bgmMusic?.pause();
+
+  const grid = document.getElementById('player-vote-grid');
+  const result = refs.voteResultText;
+  if (!grid) return;
+
+  grid.innerHTML = ''; // ล้างรายการเก่า
+
+  // ✅ ดึงข้อมูลผู้เล่นทั้งหมดในห้อง
+  const players = getCurrentPlayers();
+  if (!players || !players.length) {
+    const emptyMsg = document.createElement('p');
+    emptyMsg.textContent = '(ไม่มีผู้เล่นในห้อง)';
+    emptyMsg.style.color = '#ccc';
+    grid.appendChild(emptyMsg);
+    return;
+  }
+
+  // ✅ สร้างการ์ดผู้เล่นแต่ละคน
+  players.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'player-card';
+    card.dataset.player = p.uid;
+
+    const img = document.createElement('img');
+    img.src = `assets/Characters/${p.char}/idle_1.png`;
+    img.alt = p.name;
+
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = p.name;
+
+    const btn = document.createElement('button');
+    btn.className = 'vote-btn';
+    btn.textContent = 'Vote';
+    btn.addEventListener('click', () => {
+      if (result) result.textContent = `คุณโหวตให้ ${p.name}`;
+      setTimeout(() => endMeeting(), 2000);
+    });
+
+    card.append(img, name, btn);
+    grid.appendChild(card);
+  });
 }
+
 export function endMeeting(){
   state.isMeetingActive = false;
   refs.meetingModal && (refs.meetingModal.style.display = 'none');

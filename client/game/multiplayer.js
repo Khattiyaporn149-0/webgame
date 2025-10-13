@@ -15,6 +15,20 @@ const _placeholderCreated = new Set(); // avoid double-creating placeholders
 let rafRemote = null;
 let currentRoom = 'lobby01';
 
+// คืนรายชื่อผู้เล่นในห้องปัจจุบัน
+// ดึง snapshot ปัจจุบันของผู้เล่นในห้อง
+export function getCurrentPlayers() {
+  return Array.isArray(lastPlayersSnapshot)
+    ? lastPlayersSnapshot.map(p => ({
+        uid: p.uid,
+        name: p.name || `Player_${String(p.uid).slice(0,4)}`,
+        char: p.char || playerChars.get(p.uid) || 'mini_brown',
+        color: p.color || playerColors.get(p.uid) || '#ffffff'
+      }))
+    : [];
+}
+
+
 // ===== helpers =====
 function safeIo() {
   return ioCdn ?? (typeof window !== 'undefined' ? window.io : null);
@@ -152,14 +166,16 @@ export function initMultiplayer({ serverUrl, room }){
     }
   });
 
-  socket.on('meeting:start', (data) => {
-    if (data?.room && data.room !== currentRoom) return;
-    try {
-      startMeeting({ x: data?.x ?? 4000, y: data?.y ?? 4000 });
-    } catch (e) {
-      console.error('meeting:start handler failed', e);
-    }
-  });
+socket.on('meeting:start', (data) => {
+  if (data?.room && data.room !== currentRoom) return;
+  try {
+    // เรียกฟังก์ชัน startMeeting ที่อยู่ใน interactions.js
+    // ซึ่งตอนนี้มันจะสร้าง card รายชื่อผู้เล่นให้โดยอัตโนมัติแล้ว
+    startMeeting(data?.at || { x: data?.x ?? 4000, y: data?.y ?? 4000 });
+  } catch (e) {
+    console.error('meeting:start handler failed', e);
+  }
+});
 
   socket.on('disconnect', (r) => console.log('Socket disconnected:', r));
   socket.on('error', (e) => console.error('Socket error:', e));
