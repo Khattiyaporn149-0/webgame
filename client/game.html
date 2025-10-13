@@ -455,7 +455,20 @@
             height: 15px; 
             border-radius: 50%;
         } /* เหลือง */
-        
+ 
+        .nametag {
+            position: absolute;
+            color: #fff;
+            background: rgba(0,0,0,0.5);
+            padding: 3px 8px;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+            transform: translate(-50%, -100%);
+            pointer-events: none;
+            white-space: nowrap;
+            }
+
     </style>
 </head>
 <body>
@@ -531,6 +544,8 @@
             <div id="minimap-meeting-dot" class="minimap-mission-dot"></div>
         </div>
     </div>
+
+    <div class="nametag"></div>
 
     <!-- แผงดีบัก -->
     <div id="debug-panel" style="position:fixed; left:10px; bottom:10px; background:#0009; color:#0f0; font-family:monospace; font-size:12px; line-height:1.4; padding:8px 10px; border:1px solid #0f0; border-radius:6px; z-index:1200; display:none;"></div>

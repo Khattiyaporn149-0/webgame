@@ -1,16 +1,17 @@
+let playerNameTag = null;
 // game.js - โค้ดที่ปรับปรุงใหม่ทั้งหมด พร้อมระบบบทบาทและความสามารถพิเศษ
 
 // *******************************************
 // ตัวแปรการตั้งค่า
 // *******************************************
 
-const PLAYER_SPEED = 20; // <<< ความเร็ว 6
+const PLAYER_SPEED = 6; // <<< ความเร็ว 6
 const VISION_RADIUS = 300; 
 const FOG_COLOR = 'rgba(0, 0, 0, 0.95)'; 
 const ANIMATION_FRAME_RATE = 80; 
 
 // การตั้งค่าภารกิจและการโต้ตอบ
-const INTERACTION_RADIUS = 200; 
+const INTERACTION_RADIUS = 150; 
 const INTERACTION_KEY = 'KeyE'; // ปุ่มโต้ตอบ (ใช้เรียกประชุมด้วย)
 
 // การตั้งค่า Log
@@ -877,7 +878,6 @@ function checkInteractions() {
     { id: 'power', x: 7420, y: 7850, width: -200,height: -150, type: 'power', active: true },
 ];
 
-
 // 2️⃣ ฟังก์ชันวาดวัตถุ (ตัวอย่างให้วาดจุด debug)
 function renderInteractableObjects() {
   if (!debugCtx || !DEBUG_SHOW_COLLISION_BOXES) return;
@@ -1024,6 +1024,8 @@ function worldGameLoop(timestamp) {
         containerY = Math.max(maxContainerY, containerY); 
         
         updateDisplay();
+  if (!playerNameTag) playerNameTag = createNametag(displayName);
+
     }
     
     checkInteractions();
@@ -1066,6 +1068,8 @@ function initializeGame() {
     loadCollisionData(); 
 
     updateDisplay();
+  if (!playerNameTag) playerNameTag = createNametag(displayName);
+
 
     
     // ล้าง Class Animation เก่าออกก่อน
@@ -1160,6 +1164,8 @@ function initializeGame() {
     containerY = Math.max(maxContainerY, containerY);
 
     updateDisplay();
+  if (!playerNameTag) playerNameTag = createNametag(displayName);
+
     player.src = idleFrames[0];
     
     bgmMusic.volume = 0.4; 
@@ -1250,6 +1256,12 @@ const uid =
     sessionStorage.setItem("uid", v);
     return v;
   })();
+
+const CHAR_KEY_SCOPED = `ggd.char.${ROOM_CODE}.${uid}`;
+function getMyChar() { return sessionStorage.getItem('ggd.char') || localStorage.getItem(CHAR_KEY_SCOPED) || 'mini_brown'; }
+
+// === Determine player display name ===
+const displayName = localStorage.getItem("playerName") || `Player_${uid.slice(0,4)}`;
 console.log("🆔 Current UID:", uid);
 
 // === Socket connection ===
@@ -1264,6 +1276,27 @@ socket.on("connect", () => {
     y: playerWorldY,
   });
 });
+
+
+// === Nametag Creation Helper ===
+function createNametag(name) {
+  const tag = document.createElement('div');
+  tag.className = 'nametag';
+  tag.textContent = name;
+  Object.assign(tag.style, {
+    position: 'absolute',
+    color: '#fff',
+    background: 'rgba(0,0,0,0.5)',
+    padding: '3px 8px',
+    borderRadius: '8px',
+    fontSize: '14px',
+    pointerEvents: 'none',
+    transform: 'translate(-50%, -100%)',
+    zIndex: 999
+  });
+  gameContainer.appendChild(tag);
+  return tag;
+}
 
 // === Snapshot handling ===
 let remotePlayers = {};
@@ -1280,6 +1313,7 @@ socket.on("snapshot", (payload) => {
   for (const id of lastActiveUIDs) {
     if (!newSet.has(id) && remotePlayers[id]) {
       remotePlayers[id].remove();
+      if (remotePlayers[id]._nametag) remotePlayers[id]._nametag.remove();
       delete remotePlayers[id];
     }
   }
@@ -1326,6 +1360,17 @@ function renderRemotePlayers() {
 
     const tx = Math.round(nx);
     const ty = Math.round(ny);
+    
+    // Nametag for remote players
+    if (!el._nametag) {
+      el._nametag = createNametag(p.name || `Player_${p.uid.slice(0,4)}`);
+    }
+    // Update nametag position relative to player
+    const tagX = p.x + containerX + 64;
+    const tagY = p.y + containerY - 40;
+    el._nametag.style.left = `${tagX}px`;
+    el._nametag.style.top = `${tagY}px`;
+
     if (tx !== +el.dataset.tx || ty !== +el.dataset.ty) {
       el.style.transform = `translate(${tx}px, ${ty}px)`;
       el.dataset.tx = tx;
