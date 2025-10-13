@@ -20,17 +20,27 @@
 
   // จุด mission ใน overworld
   let objects = [
-    { key: "dodge", label: "Dodge Square", x: 120, y: 130, color: "#FFD54F", r: 26 },
-    { key: "react", label: "Reaction", x: 400, y: 120, color: "#52E0FF", r: 26 },
-    { key: "aim", label: "Aim Trainer", x: 650, y: 100, color: "#FF8A80", r: 26 },
-    { key: "speedtap", label: "Speed Tap", x: 120, y: 300, color: "#FF80AB", r: 26 },
-    { key: "wires", label: "Fix Wiring", x: 280, y: 280, color: "#FFD740", r: 28 },
-    { key: "upload", label: "Upload Data", x: 500, y: 260, color: "#64B5F6", r: 28 },
-    { key: "mix", label: "Mix Chemical", x: 700, y: 300, color: "#81C784", r: 28 },
-    { key: "switch", label: "Power Switch", x: 200, y: 400, color: "#90CAF9", r: 28 },
-    { key: "card", label: "Swipe Card", x: 430, y: 420, color: "#FFB74D", r: 28 },
-    { key: "timer", label: "Perfect Timer", x: 660, y: 420, color: "#CE93D8", r: 28 },
-    { key: "align", label: "Align Engine", x: 780, y: 240, color: "#4DB6AC", r: 28 },
+    { key: "dodge",   label: "Dodge Square",  x: 120, y: 130, color: "#FFD54F", r: 26 },
+    { key: "react",   label: "Reaction",       x: 400, y: 120, color: "#52E0FF", r: 26 },
+    { key: "aim",     label: "Aim Trainer",    x: 650, y: 100, color: "#FF8A80", r: 26 },
+    { key: "speedtap",label: "Speed Tap",      x: 120, y: 300, color: "#FF80AB", r: 26 },
+    { key: "wires",   label: "Fix Wiring",     x: 280, y: 280, color: "#FFD740", r: 28 },
+    { key: "upload",  label: "Upload Data",    x: 500, y: 260, color: "#64B5F6", r: 28 },
+    { key: "mix",     label: "Mix Chemical",   x: 700, y: 300, color: "#81C784", r: 28 },
+    { key: "switch",  label: "Power Switch",   x: 200, y: 400, color: "#90CAF9", r: 28 },
+    { key: "card",    label: "Swipe Card",     x: 430, y: 420, color: "#FFB74D", r: 28 },
+    { key: "timer",   label: "Perfect Timer",  x: 660, y: 420, color: "#CE93D8", r: 28 },
+    { key: "align",   label: "Align Engine",   x: 780, y: 240, color: "#4DB6AC", r: 28 },
+    // Extra minigames (added)
+    { key: "simon",   label: "Simon Says",     x: 240, y: 210, color: "#9C27B0", r: 26 },
+    { key: "pipes",   label: "Pipe Connect",   x: 560, y: 210, color: "#00BCD4", r: 26 },
+    { key: "math",    label: "Quick Math",     x: 720, y: 160, color: "#8BC34A", r: 26 },
+    { key: "rhythm",  label: "Rhythm Tap",     x: 320, y: 340, color: "#E91E63", r: 26 },
+    { key: "pattern", label: "Pattern Lock",   x: 620, y: 360, color: "#3F51B5", r: 26 },
+    { key: "lights",  label: "Lights Out",     x: 250, y: 180, color: "#FFC107", r: 26 },
+    { key: "mole",    label: "Whack-a-Mole",   x: 340, y: 420, color: "#FF7043", r: 26 },
+    { key: "slider",  label: "Slider Puzzle",  x: 680, y: 200, color: "#8D6E63", r: 26 },
+    { key: "mop",     label: "Mop Floor",      x: 520, y: 360, color: "#4FC3F7", r: 26 },
   ];
 
   // If external config provides objects, normalize and override
@@ -141,6 +151,7 @@
         else if (k === "lights") openLightsOverlay();
         else if (k === "mole" || k === 'whack') openMoleOverlay();
         else if (k === "slider") openSliderOverlay();
+        else if (k === "mop" || k === 'broom') openMopOverlay();
         break;
       }
     }
@@ -234,6 +245,7 @@
     closeLightsOverlay(true);
     closeMoleOverlay(true);
     closeSliderOverlay(true);
+    closeMopOverlay(true);
     closeSimonOverlay(true);
     closePipesOverlay(true);
     closeMathOverlay(true);
@@ -520,6 +532,9 @@
         reactBestEl.textContent = String(t);
       }
       drawReact();
+      try { MGBridge && MGBridge.progress && MGBridge.progress(100); } catch{}
+      try { MGBridge && MGBridge.complete && MGBridge.complete({ key: 'react' }); } catch{}
+      setTimeout(()=> closeReactOverlay(false), 80);
     }
   }
 
@@ -755,6 +770,9 @@ if (tCount > tapBestScore) {
 tapBestScore = tCount;
 localStorage.setItem(TAP_KEY, String(tCount));
 tapBest.textContent = String(tCount);
+  try { MGBridge && MGBridge.progress && MGBridge.progress(100); } catch{}
+  try { MGBridge && MGBridge.complete && MGBridge.complete({ key: 'tap' }); } catch{}
+  setTimeout(()=> closeTapOverlay(false), 80);
 }
 }
 }
@@ -767,21 +785,77 @@ tapStart?.addEventListener("click", startTap);
   const closeBtnWires = document.getElementById("btnCloseMiniWires");
   const wiresCanvas = document.getElementById("wiresCanvas");
   const wctx2 = wiresCanvas.getContext("2d");
-  const wireColors = ["#ff5252", "#ffd740", "#4caf50", "#2196f3"];
+  let wiresBG = undefined; // Image | null (undefined = not tried yet)
+  let wiresBGRect = { dx:0, dy:0, dw:wiresCanvas.width, dh:wiresCanvas.height, scale:1 };
+  // Percentage-based layout (relative to image), easy to fine-tune without stretch issues
+  let LXP = 0.185, RXP = 0.815; // x positions as fraction of image width
+  let TYP = 0.245, STEPYP = 0.125; // first y and spacing as fraction of image height
+  const WIRES_RING_R = 32; // bigger button ring
+  const WIRES_DOT_R = 20; // bigger inner dot
+  let WIRES_DEBUG = false; // toggle overlay for debugging alignment
+  const wireColors = ["#ff5252", "#4caf50", "#2196f3", "#ff9800", "#ffd740"]; // red, green, blue, orange, yellow
   const leftWires = [], rightWires = [];
   let selectedWire = null;
 
+  const RIGHT_FIXED_ORDER = ["#2196f3", "#ff9800", "#ff5252", "#4caf50", "#ffd740"]; // reference order (unused when shuffling)
+  function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=arr[i]; arr[i]=arr[j]; arr[j]=t; } return arr; }
+
+  function loadWiresBG(){
+    if (wiresBG !== undefined) return; // already tried
+    wiresBG = null;
+    try {
+      const img = new Image();
+      img.onload = () => { wiresBG = img; try { drawWires(); } catch{} };
+      img.onerror = () => { wiresBG = null; };
+      img.src = '../assets/wires-bg.png'; // put your image here
+    } catch { wiresBG = null; }
+  }
+
+  function layoutWiresBG(){
+    const W = wiresCanvas.width, H = wiresCanvas.height;
+    const iw = (wiresBG && wiresBG.naturalWidth) || 1152;
+    const ih = (wiresBG && wiresBG.naturalHeight) || 768;
+    const s = Math.min(W/iw, H/ih); // fit image inside canvas (no stretch)
+    const dw = Math.round(iw*s), dh = Math.round(ih*s);
+    const dx = Math.round((W - dw) / 2), dy = Math.round((H - dh) / 2);
+    wiresBGRect = { dx, dy, dw, dh, scale: s };
+  }
+
+  function toCX(px){ return wiresBGRect.dx + px; }
+  function toCY(py){ return wiresBGRect.dy + py; }
+  function fromPctX(p){ return wiresBGRect.dx + (p * wiresBGRect.dw); }
+  function fromPctY(p){ return wiresBGRect.dy + (p * wiresBGRect.dh); }
+
   function setupWires() {
     leftWires.length = 0; rightWires.length = 0;
-    const order = [...wireColors].sort(() => Math.random() - 0.5);
+    layoutWiresBG();
+    const order = shuffle([...wireColors]); // randomize right-side order each time
     wireColors.forEach((c, i) => {
-      leftWires.push({ x: 150, y: 100 + i * 80, color: c, connected: null });
-      rightWires.push({ x: 650, y: 100 + order.indexOf(c) * 80, color: c, connected: null });
+      const yL = fromPctY(TYP + i*STEPYP);
+      const yR = fromPctY(TYP + order.indexOf(c)*STEPYP);
+      leftWires.push({ x: fromPctX(LXP), y: yL, color: c, connected: null });
+      rightWires.push({ x: fromPctX(RXP), y: yR, color: c, connected: null });
     });
   }
 
   function drawWires() {
-    wctx2.clearRect(0, 0, wiresCanvas.width, wiresCanvas.height);
+    const W = wiresCanvas.width, H = wiresCanvas.height;
+    layoutWiresBG();
+    // background image if available
+    if (wiresBG) {
+      wctx2.clearRect(0,0,W,H);
+      wctx2.drawImage(wiresBG, wiresBGRect.dx, wiresBGRect.dy, wiresBGRect.dw, wiresBGRect.dh);
+    } else {
+      // fallback gradient panel
+      wctx2.clearRect(0, 0, W, H);
+      const g = wctx2.createLinearGradient(0,0,0,H);
+      g.addColorStop(0,'#06174a'); g.addColorStop(1,'#0a1650');
+      wctx2.fillStyle = g; wctx2.fillRect(0,0,W,H);
+      // subtle diagonal lines
+      wctx2.save(); wctx2.globalAlpha = 0.08; wctx2.strokeStyle = '#cfd8dc';
+      for (let x=-H; x<W+H; x+=28){ wctx2.beginPath(); wctx2.moveTo(x,0); wctx2.lineTo(x+H,H); wctx2.stroke(); }
+      wctx2.restore();
+    }
     wctx2.lineWidth = 6; wctx2.lineCap = "round";
     // draw connected
     leftWires.forEach(l => {
@@ -801,48 +875,116 @@ tapStart?.addEventListener("click", startTap);
       wctx2.lineTo(mouseX, mouseY);
       wctx2.stroke();
     }
-    // endpoints
+    // endpoints: always draw ring + inner colored dot (overpaint BG so colors can shuffle)
     [...leftWires, ...rightWires].forEach(w => {
+      // ring shell (draw even if BG exists to override BG colors)
+      wctx2.save();
+      wctx2.shadowColor = 'rgba(0,0,0,0.35)';
+      wctx2.shadowBlur = 6;
+      wctx2.fillStyle = '#d0d5db';
+      wctx2.beginPath(); wctx2.arc(w.x, w.y, WIRES_RING_R, 0, Math.PI*2); wctx2.fill();
+      wctx2.restore();
+      // inner dot (visible in both cases)
+      const innerR = wiresBG ? (WIRES_DOT_R - 2) : WIRES_DOT_R;
+      wctx2.save();
+      if (wiresBG){ wctx2.shadowColor='rgba(0,0,0,0.35)'; wctx2.shadowBlur=3; }
       wctx2.fillStyle = w.color;
-      wctx2.beginPath();
-      wctx2.arc(w.x, w.y, 14, 0, Math.PI * 2);
-      wctx2.fill();
+      wctx2.beginPath(); wctx2.arc(w.x, w.y, innerR, 0, Math.PI*2); wctx2.fill();
+      wctx2.restore();
     });
+
+    // debug overlay showing target ring centers relative to BG
+    if (WIRES_DEBUG){
+      wctx2.save();
+      wctx2.strokeStyle = 'rgba(0,255,255,0.8)';
+      wctx2.setLineDash([5,3]);
+      for (let i=0;i<5;i++){
+        const y = fromPctY(TYP + i*STEPYP);
+        wctx2.beginPath(); wctx2.arc(fromPctX(LXP), y, WIRES_RING_R+6, 0, Math.PI*2); wctx2.stroke();
+        wctx2.beginPath(); wctx2.arc(fromPctX(RXP), y, WIRES_RING_R+6, 0, Math.PI*2); wctx2.stroke();
+      }
+      // show values
+      wctx2.font = '12px system-ui'; wctx2.fillStyle = '#0ff'; wctx2.textAlign='left';
+      const txt = `LXP=${LXP.toFixed(3)}  RXP=${RXP.toFixed(3)}  TYP=${TYP.toFixed(3)}  STEPYP=${STEPYP.toFixed(3)}`;
+      wctx2.fillText(txt, 8, H-8);
+      wctx2.restore();
+    }
   }
 
   let mouseX = 0, mouseY = 0;
   wiresCanvas.addEventListener("mousemove", e => {
-    const rect = wiresCanvas.getBoundingClientRect();
-    mouseX = e.clientX - rect.left; mouseY = e.clientY - rect.top;
+    const rect = wiresCanvas.getBoundingClientRect(); const sx = wiresCanvas.width / rect.width, sy = wiresCanvas.height / rect.height; mouseX = (e.clientX - rect.left) * sx; mouseY = (e.clientY - rect.top) * sy;
     if (selectedWire) drawWires();
   });
   wiresCanvas.addEventListener("mousedown", e => {
-    const rect = wiresCanvas.getBoundingClientRect();
-    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const rect = wiresCanvas.getBoundingClientRect(); const sx = wiresCanvas.width / rect.width, sy = wiresCanvas.height / rect.height; const x = (e.clientX - rect.left) * sx, y = (e.clientY - rect.top) * sy;
     if (!selectedWire) {
-      const lw = leftWires.find(w => Math.hypot(x - w.x, y - w.y) < 14 && !w.connected);
+      const lw = leftWires.find(w => Math.hypot(x - w.x, y - w.y) < (WIRES_DOT_R+4) && !w.connected);
       if (lw) selectedWire = lw;
     } else {
-      const rw = rightWires.find(w => Math.hypot(x - w.x, y - w.y) < 14 && !w.connected);
+      const rw = rightWires.find(w => Math.hypot(x - w.x, y - w.y) < (WIRES_DOT_R+4) && !w.connected);
       if (rw && rw.color === selectedWire.color) {
         selectedWire.connected = rw;
         rw.connected = selectedWire;
         selectedWire = null;
         drawWires();
-        if (leftWires.every(w => w.connected)) setTimeout(() => closeWiresOverlay(false), 800);
+        if (leftWires.every(w => w.connected)) { try { MGBridge && MGBridge.progress && MGBridge.progress(100); } catch{} try { MGBridge && MGBridge.complete && MGBridge.complete({ key: "wires" }); } catch{} setTimeout(()=> closeWiresOverlay(false), 80); }
       }
     }
   });
 
+  function saveWiresLayout(){
+    try { localStorage.setItem('minigames:wires_layout_v1', JSON.stringify({ LXP, RXP, TYP, STEPYP })); } catch {}
+  }
+  function loadWiresLayout(){
+    let saved=null; try { saved = JSON.parse(localStorage.getItem('minigames:wires_layout_v1')||'null'); } catch {}
+    if (!saved){ try { saved = JSON.parse(localStorage.getItem('wires_layout')||'null'); } catch {} }
+    if (saved && typeof saved==='object'){
+      const f = (v, def)=> (typeof v==='number' ? v : (parseFloat(v)||def));
+      LXP=f(saved.LXP, LXP); RXP=f(saved.RXP, RXP); TYP=f(saved.TYP, TYP); STEPYP=f(saved.STEPYP, STEPYP);
+    }
+  }
+
+  function ensureWiresDevPanel(){
+    const id='wiresDevPanel'; if (document.getElementById(id)) return;
+    try {
+      const panel = document.createElement('div'); panel.id=id; panel.style.cssText='position:absolute; top:10px; left:12px; display:flex; gap:6px; z-index:5;';
+      const mkBtn=(txt)=>{ const b=document.createElement('button'); b.textContent=txt; b.style.cssText='padding:4px 8px; border-radius:6px; border:0; background:#2b64ff; color:#fff; font-size:12px; cursor:pointer;'; return b; };
+      const btnSave=mkBtn('Save'); const btnReset=mkBtn('Reset'); btnReset.style.background='#546e7a';
+      btnSave.onclick=()=>{ saveWiresLayout(); const o=overlayWires.querySelector('#wiresNotice')||document.createElement('div'); o.id='wiresNotice'; o.textContent='Saved'; o.style.cssText='margin-left:6px;color:#0f0;font-size:12px;'; panel.appendChild(o); setTimeout(()=>{ o.remove(); }, 900); };
+      btnReset.onclick=()=>{ try { localStorage.removeItem('minigames:wires_layout_v1'); localStorage.removeItem('wires_layout'); } catch{} setupWires(); drawWires(); };
+      panel.appendChild(btnSave); panel.appendChild(btnReset);
+      overlayWires.querySelector('.mini-box')?.appendChild(panel);
+    } catch {}
+  }
+
+  function onWiresKey(ev){
+    if (!overlayOpen) return;
+    if (ev.key === 'F2'){ WIRES_DEBUG = !WIRES_DEBUG; drawWires(); }
+    // tuning with modifiers
+    const step = ev.shiftKey ? 0.002 : (ev.ctrlKey ? 0.002 : 0);
+    if (step){ ev.preventDefault(); }
+    if (ev.shiftKey && (ev.key==='ArrowLeft' || ev.key==='ArrowRight')){ LXP += (ev.key==='ArrowRight'? step : -step); LXP = Math.max(0.05, Math.min(0.45, LXP)); setupWires(); drawWires(); }
+    if (ev.ctrlKey && (ev.key==='ArrowLeft' || ev.key==='ArrowRight')){ RXP += (ev.key==='ArrowRight'? step : -step); RXP = Math.max(0.55, Math.min(0.95, RXP)); setupWires(); drawWires(); }
+    if (ev.shiftKey && (ev.key==='ArrowUp' || ev.key==='ArrowDown')){ TYP += (ev.key==='ArrowDown'? step : -step); TYP = Math.max(0.05, Math.min(0.5, TYP)); setupWires(); drawWires(); }
+    if (ev.ctrlKey && (ev.key==='ArrowUp' || ev.key==='ArrowDown')){ STEPYP += (ev.key==='ArrowDown'? step : -step); STEPYP = Math.max(0.05, Math.min(0.25, STEPYP)); setupWires(); drawWires(); }
+    if (ev.key.toLowerCase() === 's' && (ev.altKey || ev.metaKey)) saveWiresLayout();
+  }
+
   function openWiresOverlay() {
+    loadWiresLayout();
     setupWires();
+    loadWiresBG();
     overlayWires.setAttribute("aria-hidden", "false");
     overlayOpen = true;
     drawWires();
+    ensureWiresDevPanel();
+    window.addEventListener('keydown', onWiresKey);
   }
   function closeWiresOverlay(silent) {
     overlayWires.setAttribute("aria-hidden", "true");
     overlayOpen = silent ? overlayOpen : false;
+    window.removeEventListener('keydown', onWiresKey);
   }
   closeBtnWires?.addEventListener("click", () => closeWiresOverlay(false));
 
@@ -876,7 +1018,7 @@ tapStart?.addEventListener("click", startTap);
         uploadProgress = 100;
         clearInterval(uploadInt);
         uploadInt = null;
-        setTimeout(() => closeUploadOverlay(false), 800);
+        try { MGBridge && MGBridge.progress && MGBridge.progress(100); } catch{} try { MGBridge && MGBridge.complete && MGBridge.complete({ key: 'upload' }); } catch{} setTimeout(()=> closeUploadOverlay(false), 80);
       }
       uploadBar.style.width = uploadProgress + "%";
       uploadText.textContent = Math.floor(uploadProgress) + "%";
@@ -923,7 +1065,7 @@ tapStart?.addEventListener("click", startTap);
       mixColor.g - mixTarget.g,
       mixColor.b - mixTarget.b
     );
-    if (diff < 60) setTimeout(() => closeMixOverlay(false), 800);
+    if (diff < 60) { try { MGBridge && MGBridge.progress && MGBridge.progress(100); } catch{} try { MGBridge && MGBridge.complete && MGBridge.complete({ key: 'mix' }); } catch{} setTimeout(()=> closeMixOverlay(false), 80); }
   });
   closeBtnMix?.addEventListener("click", () => closeMixOverlay(false));
 
@@ -937,22 +1079,112 @@ tapStart?.addEventListener("click", startTap);
     overlaySwitch.setAttribute("aria-hidden", "false");
     overlayOpen = true;
     switchPanel.innerHTML = "";
-    for (let i = 0; i < 5; i++) {
+    const batteryFill = document.getElementById('batteryFill');
+    const batteryLabel = document.getElementById('batteryLabel');
+    const total = 5;
+    let onCount = 0;
+  // Difficulty settings (increased decay frequency/likelihood)
+  const TOTAL_TIME = 20; // seconds to complete
+  const DECAY_INTERVAL = 1400; // ms between decay checks (more frequent)
+  const DECAY_CHANCE = 0.55; // 55% chance per interval to flip one ON -> OFF
+  const IMMEDIATE_REVERT_CHANCE = 0.45; // chance an ON immediately reverts shortly after being pressed
+    let timeLeft = TOTAL_TIME;
+    let decayTimer = null;
+    let tickTimer = null;
+    // Ensure bridge active
+    try { MGBridge && MGBridge.setActive && MGBridge.setActive('switch'); } catch {}
+    function updateBattery() {
+      const pct = Math.round((onCount / total) * 100);
+      if (batteryFill) batteryFill.style.width = pct + "%";
+      if (batteryLabel) batteryLabel.textContent = `${onCount} / ${total}`;
+      try { console.log('[switch] progress =>', pct); MGBridge && (MGBridge.debugPost ? MGBridge.debugPost('mg:progress',{ percent: pct }) : (MGBridge.progress && MGBridge.progress(pct))); } catch (e) { console.warn('MGBridge.progress failed', e); }
+    }
+    // create nice toggles
+    for (let i = 0; i < total; i++) {
       const btn = document.createElement("button");
+      btn.className = 'off';
+      btn.setAttribute('aria-pressed','false');
       btn.textContent = "OFF";
-      btn.style.background = "#555";
       btn.onclick = () => {
-        btn.textContent = "ON";
-        btn.style.background = "#4caf50";
-        if ([...switchPanel.children].every(b => b.textContent === "ON"))
-          setTimeout(() => closeSwitchOverlay(false), 600);
+        if (btn.classList.contains('on')) return; // already on
+        btn.classList.remove('off'); btn.classList.add('on');
+        btn.setAttribute('aria-pressed','true');
+        btn.textContent = 'ON';
+        onCount++;
+        updateBattery();
+        // small feedback
+        btn.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.04)' }, { transform: 'scale(1)' }], { duration: 220 });
+        // immediate short-window instability: small chance this newly-on switch flips back
+        setTimeout(()=>{
+          if (btn.classList.contains('on') && Math.random() < IMMEDIATE_REVERT_CHANCE){
+            btn.classList.remove('on'); btn.classList.add('off'); btn.setAttribute('aria-pressed','false'); btn.textContent='OFF';
+            onCount = Math.max(0, onCount - 1);
+            updateBattery();
+            // micro-shake to indicate failure
+            btn.animate([{ transform:'translateX(-6px)'},{ transform:'translateX(6px)'},{ transform:'translateX(0)' }], { duration: 260 });
+          }
+        }, 300 + Math.random()*500);
+        if (onCount === total) {
+          // success: give an animation and then complete
+          try { MGBridge && MGBridge.progress && MGBridge.progress(100); } catch {}
+          // flash the mini-box for celebration
+          const box = overlaySwitch.querySelector('.mini-box');
+          if (box) box.classList.add('switch-success');
+          setTimeout(()=>{
+            try { console.log('[switch] complete => switch'); MGBridge && (MGBridge.debugPost ? MGBridge.debugPost('mg:complete',{ key: 'switch' }) : (MGBridge.complete && MGBridge.complete({ key: 'switch' }))); } catch(e) { console.warn('MGBridge.complete failed', e); }
+            // close overlay after a short delay so user sees success
+            clearInterval(decayTimer); clearInterval(tickTimer);
+            closeSwitchOverlay(false);
+            if (box) box.classList.remove('switch-success');
+          }, 600);
+        }
       };
       switchPanel.appendChild(btn);
     }
+    updateBattery();
+    // Timer display
+    const timeEl = document.getElementById('switchTime');
+    if (timeEl) timeEl.textContent = String(Math.ceil(timeLeft));
+    // decay behavior: occasionally flip one ON back to OFF to increase difficulty
+    decayTimer = setInterval(()=>{
+      if (onCount <= 0) return;
+      if (Math.random() < DECAY_CHANCE) {
+        // pick a random ON button to flip off
+        const ons = [...switchPanel.children].filter(b => b.classList.contains('on'));
+        if (!ons.length) return;
+        const pick = ons[Math.floor(Math.random()*ons.length)];
+        pick.classList.remove('on'); pick.classList.add('off'); pick.setAttribute('aria-pressed','false'); pick.textContent = 'OFF';
+        onCount = Math.max(0, onCount - 1);
+        updateBattery();
+      }
+    }, DECAY_INTERVAL);
+    // countdown tick
+    tickTimer = setInterval(()=>{
+      timeLeft = Math.max(0, timeLeft - 1);
+      if (timeEl) timeEl.textContent = String(Math.ceil(timeLeft));
+      // If time runs out before completion, reset switches partially to penalize
+      if (timeLeft <= 0) {
+        // small penalty: turn half of ON switches back off
+        const ons = [...switchPanel.children].filter(b => b.classList.contains('on'));
+        const toFlip = Math.ceil(ons.length / 2);
+        for (let k=0;k<toFlip;k++){
+          const idx = Math.floor(Math.random()*ons.length);
+          const b = ons.splice(idx,1)[0]; if (!b) continue;
+          b.classList.remove('on'); b.classList.add('off'); b.setAttribute('aria-pressed','false'); b.textContent = 'OFF';
+          onCount = Math.max(0, onCount - 1);
+        }
+        updateBattery();
+        // reset timer to give them another attempt (but keep difficulty)
+        timeLeft = TOTAL_TIME;
+        if (timeEl) timeEl.textContent = String(Math.ceil(timeLeft));
+      }
+    }, 1000);
   }
   function closeSwitchOverlay(silent) {
     overlaySwitch.setAttribute("aria-hidden", "true");
     overlayOpen = silent ? overlayOpen : false;
+    // cleanup timers if any
+    try{ clearInterval(decayTimer); clearInterval(tickTimer); } catch(_){}
   }
   closeBtnSwitch?.addEventListener("click", () => closeSwitchOverlay(false));
 
@@ -975,7 +1207,7 @@ tapStart?.addEventListener("click", startTap);
     const dist = e.clientX - dragStartX;
     if (dist > 250 && dist < 400) {
       cardStatus.textContent = "สำเร็จ!";
-      setTimeout(() => closeCardOverlay(false), 800);
+      try { MGBridge && MGBridge.progress && MGBridge.progress(100); } catch{} try { MGBridge && MGBridge.complete && MGBridge.complete({ key: 'card' }); } catch{} setTimeout(()=> closeCardOverlay(false), 80);
     } else cardStatus.textContent = "เร็ว/ช้าเกินไป";
   });
   function openCardOverlay() {
@@ -1033,7 +1265,7 @@ tapStart?.addEventListener("click", startTap);
     const diff = Math.abs(timerVal);
     if (diff < 0.1) timerDisplay.textContent = "Perfect!";
     else timerDisplay.textContent = diff < 0.3 ? "Close!" : "Miss!";
-    setTimeout(() => closeTimerOverlay(false), 800);
+    try { MGBridge && MGBridge.progress && MGBridge.progress(100); } catch{} try { MGBridge && MGBridge.complete && MGBridge.complete({ key: 'timer' }); } catch{} setTimeout(()=> closeTimerOverlay(false), 80);
   }
   closeBtnTimer?.addEventListener("click", () => closeTimerOverlay(false));
 
@@ -1059,7 +1291,7 @@ tapStart?.addEventListener("click", startTap);
     if (e.key === "ArrowUp") alignY -= 5;
     if (e.key === "ArrowDown") alignY += 5;
     drawAlign();
-    if (Math.abs(alignY - targetY) < 5) setTimeout(() => closeAlignOverlay(false), 600);
+    if (Math.abs(alignY - targetY) < 5) { try { MGBridge && MGBridge.progress && MGBridge.progress(100); } catch{} try { MGBridge && MGBridge.complete && MGBridge.complete({ key: 'align' }); } catch{} setTimeout(()=> closeAlignOverlay(false), 80); }
   });
   function openAlignOverlay() {
     overlayAlign.setAttribute("aria-hidden", "false");
@@ -1135,7 +1367,7 @@ tapStart?.addEventListener("click", startTap);
   let mTimer=0, mScore=0, mRaf=null, mLast=0, curAns=0;
   function newQ(){ const a= Math.floor(Math.random()*9)+1, b=Math.floor(Math.random()*9)+1; const op=Math.random()<0.5? '+':'-'; const v=(op==='+')? a+b : a-b; curAns=v; mathQ.textContent=`${a} ${op} ${b} = ?`; if(Math.random()<0.5){ mathA.textContent=String(v); mathB.textContent=String(v + (Math.random()<0.5? 1:-1)*(Math.floor(Math.random()*3)+1)); } else { mathB.textContent=String(v); mathA.textContent=String(v + (Math.random()<0.5? 1:-1)*(Math.floor(Math.random()*3)+1)); } }
   function startMath(){ mTimer=15; mScore=0; mathScore.textContent='0'; newQ(); if(!mRaf) mRaf=requestAnimationFrame(mLoop); }
-  function mLoop(ts){ mRaf=requestAnimationFrame(mLoop); const dt=Math.min((ts-(mLast||ts))/1000,0.033); mLast=ts; mTimer=Math.max(0,mTimer-dt); mathTime.textContent=mTimer.toFixed(1); if(mTimer<=0){ cancelAnimationFrame(mRaf); mRaf=null; setTimeout(()=> closeMathOverlay(false), 600); } }
+  function mLoop(ts){ mRaf=requestAnimationFrame(mLoop); const dt=Math.min((ts-(mLast||ts))/1000,0.033); mLast=ts; mTimer=Math.max(0,mTimer-dt); mathTime.textContent=mTimer.toFixed(1); if(mTimer<=0){ cancelAnimationFrame(mRaf); mRaf=null; try { MGBridge && MGBridge.progress && MGBridge.progress(100); } catch{} try { MGBridge && MGBridge.complete && MGBridge.complete({ key: 'math' }); } catch{} setTimeout(()=> closeMathOverlay(false), 80); } }
   function openMathOverlay(){ closeAnyOverlay(); overlayMath.setAttribute('aria-hidden','false'); overlayOpen=true; startMath(); }
   function closeMathOverlay(silent){ overlayMath.setAttribute('aria-hidden','true'); if(!silent) overlayOpen=false; if(mRaf){ cancelAnimationFrame(mRaf); mRaf=null; } }
   function pickMath(v){ if(mTimer<=0) return; if(Number(v)===curAns){ mScore++; mathScore.textContent=String(mScore); newQ(); } else { mTimer=Math.max(0, mTimer-2); } }
@@ -1305,7 +1537,7 @@ tapStart?.addEventListener("click", startTap);
     drawLights();
     // win check (all off)
     const anyOn = lights.some(row=> row.some(v=> v));
-    if(!anyOn) setTimeout(()=> closeLightsOverlay(false), 500);
+    if(!anyOn){ try { MGBridge && MGBridge.progress && MGBridge.progress(100); } catch{} try { MGBridge && MGBridge.complete && MGBridge.complete({ key: 'lights' }); } catch{} setTimeout(()=> closeLightsOverlay(false), 80); }
   }
   function shuffleLights(){
     // randomize by clicking random cells to ensure solvable
@@ -1346,7 +1578,7 @@ tapStart?.addEventListener("click", startTap);
   }
   function pickUp(){ const downs=moles.filter(m=> !m.up); if(!downs.length) return; const m=downs[Math.floor(Math.random()*downs.length)]; m.up=true; setTimeout(()=> m.up=false, 700+Math.random()*400); }
   function onMoleClick(ev){ const r=moleCanvas.getBoundingClientRect(); const x=ev.clientX-r.left, y=ev.clientY-r.top; for(const m of moles){ if(m.up && Math.hypot(x-m.x, y-m.y) < 28){ m.up=false; moScore++; moleScoreEl.textContent=String(moScore); break; } } drawMole(); }
-  function mLoop(ts){ moRaf=requestAnimationFrame(mLoop); const dt=Math.min((ts-(moLast||ts))/1000,0.05); moLast=ts; if(!moOn) return; moTime=Math.max(0, moTime-dt); moleTime.textContent=moTime.toFixed(1); moCd-=dt; if(moCd<=0){ pickUp(); moCd=0.5+Math.random()*0.4; } drawMole(); if(moTime<=0){ moOn=false; setTimeout(()=> closeMoleOverlay(false), 600); } }
+  function mLoop(ts){ moRaf=requestAnimationFrame(mLoop); const dt=Math.min((ts-(moLast||ts))/1000,0.05); moLast=ts; if(!moOn) return; moTime=Math.max(0, moTime-dt); moleTime.textContent=moTime.toFixed(1); moCd-=dt; if(moCd<=0){ pickUp(); moCd=0.5+Math.random()*0.4; } drawMole(); if(moTime<=0){ moOn=false; try { MGBridge && MGBridge.progress && MGBridge.progress(100); } catch{} try { MGBridge && MGBridge.complete && MGBridge.complete({ key: 'mole' }); } catch{} setTimeout(()=> closeMoleOverlay(false), 80); } }
   function startMole(){ moOn=true; moTime=20; moScore=0; moleScoreEl.textContent='0'; moleTime.textContent='20.0'; drawMole(); }
   function openMoleOverlay(){ closeAnyOverlay(); overlayMole.setAttribute('aria-hidden','false'); overlayOpen=true; layoutMoles(); drawMole(); if(!moRaf) moRaf=requestAnimationFrame(mLoop); moleCanvas?.addEventListener('mousedown', onMoleClick); }
   function closeMoleOverlay(silent){ overlayMole.setAttribute('aria-hidden','true'); if(!silent) overlayOpen=false; moleCanvas?.removeEventListener('mousedown', onMoleClick); if(moRaf){ cancelAnimationFrame(moRaf); moRaf=null; } }
@@ -1375,7 +1607,7 @@ tapStart?.addEventListener("click", startTap);
   function indexOfBlank(){ return tiles.indexOf(0); }
   function swap(i,j){ const t=tiles[i]; tiles[i]=tiles[j]; tiles[j]=t; }
   function neighbors(i){ const x=i%S_N,y=Math.floor(i/S_N); const arr=[]; if(x>0) arr.push(i-1); if(x<S_N-1) arr.push(i+1); if(y>0) arr.push(i-S_N); if(y<S_N-1) arr.push(i+S_N); return arr; }
-  function clickSlider(ev){ const r=sliderCanvas.getBoundingClientRect(); const cw=r.width/S_N, ch=r.height/S_N; const cx=Math.floor((ev.clientX-r.left)/cw); const cy=Math.floor((ev.clientY-r.top)/ch); const i=cy*S_N+cx; const b=indexOfBlank(); if(neighbors(i).includes(b)){ swap(i,b); drawSlider(); if(isSolved()) setTimeout(()=> closeSliderOverlay(false), 500); } }
+  function clickSlider(ev){ const r=sliderCanvas.getBoundingClientRect(); const cw=r.width/S_N, ch=r.height/S_N; const cx=Math.floor((ev.clientX-r.left)/cw); const cy=Math.floor((ev.clientY-r.top)/ch); const i=cy*S_N+cx; const b=indexOfBlank(); if(neighbors(i).includes(b)){ swap(i,b); drawSlider(); if(isSolved()){ try { MGBridge && MGBridge.progress && MGBridge.progress(100); } catch{} try { MGBridge && MGBridge.complete && MGBridge.complete({ key: 'slider' }); } catch{} setTimeout(()=> closeSliderOverlay(false), 80); } } }
   function isSolved(){ for(let i=1;i<tiles.length;i++){ if(tiles[i-1]!==i) return false; } return true; }
   function shuffleSlider(){
     // Perform random valid moves from solved state to ensure solvable
@@ -1389,7 +1621,150 @@ tapStart?.addEventListener("click", startTap);
   closeBtnSlider?.addEventListener('click', ()=> closeSliderOverlay(false));
   sliderShuffle?.addEventListener('click', ()=> shuffleSlider());
 
+
+  // ===========================================================
+  // 17) Mop The Floor
+  // ===========================================================
+  const overlayMop = document.getElementById('miniOverlayMop');
+  const closeBtnMop = document.getElementById('btnCloseMiniMop');
+  const mopCanvas = document.getElementById('mopCanvas');
+  const mopCtx = mopCanvas?.getContext('2d');
+  const mopStart = document.getElementById('mopStart');
+  const mopReset = document.getElementById('mopReset');
+  const mopPctEl = document.getElementById('mopPct');
+  let mopDragging=false, mopStarted=false, mopSeed=Math.floor(Math.random()*1e9), mopThreshold=0.999, mopDryRate=0.75, mopCoverage=0.30;
+  const MOP_CELL = 8; // bigger cell -> easier
+  let mopGridW = Math.floor((mopCanvas?.width||800)/MOP_CELL);
+  let mopGridH = Math.floor((mopCanvas?.height||450)/MOP_CELL);
+  let mopWet = new Float32Array(mopGridW*mopGridH); // 0..1 water film
+  let mopInitial=0, mopRemain=0; // sum wetness
+  let mopRad = 28; // px, easier
+  let mopLastX = (mopCanvas?.width||800)/2, mopLastY = (mopCanvas?.height||450)/2;
+  let mopHeld = false;
+  let mopPos = { x: 120, y: (mopCanvas?.height||450) - 80 };
+  let mopAngle = -0.6;
+
+  function mopSRand(seed){ let s=seed|0; if(s<=0) s=1; s>>>=0; return function(){ s^=s<<13; s^=s>>>17; s^=s<<5; s>>>=0; return (s & 0x7fffffff)/0x80000000; }; }
+  function setMopProgress(p){ try { MGBridge && MGBridge.progress && MGBridge.progress(p|0); } catch{} if(mopPctEl) mopPctEl.textContent=String(p|0); }
+  function mopComplete(){ try { MGBridge && MGBridge.progress && MGBridge.progress(100); } catch{} try { MGBridge && MGBridge.complete && MGBridge.complete({ key:'mop' }); } catch{} setTimeout(()=> closeMopOverlay(false), 80); }
+  function genMopWater(){
+    const rnd=mopSRand(mopSeed); mopWet.fill(0);
+    const targetCells = Math.max(1, Math.floor(mopGridW*mopGridH*mopCoverage));
+    let wetCells = 0; let safety=0;
+    while (wetCells < targetCells && safety++ < 200){
+      const cx=Math.floor(rnd()*mopGridW), cy=Math.floor(rnd()*mopGridH);
+      const rr=Math.floor(6 + rnd()*12);
+      const amp=0.7 + rnd()*0.3;
+      for(let y=-rr;y<=rr;y++) for(let x=-rr;x<=rr;x++){
+        const gx=cx+x, gy=cy+y; if(gx<0||gy<0||gx>=mopGridW||gy>=mopGridH) continue; const d2=x*x+y*y; if(d2>rr*rr) continue;
+        const fall = 1 - Math.pow(d2, 0.7)/Math.pow(rr*rr, 0.7);
+        const idx=gy*mopGridW+gx; mopWet[idx]=Math.min(1, Math.max(mopWet[idx], amp*fall));
+      }
+      wetCells = 0; for(let i=0;i<mopWet.length;i++){ if(mopWet[i]>0.02) wetCells++; }
+    }
+    mopInitial=0; for(let i=0;i<mopWet.length;i++) mopInitial+=mopWet[i]; mopRemain=mopInitial; setMopProgress(0);
+  }
+  function drawMop(){
+    if(!mopCtx) return; const W=mopCanvas.width,H=mopCanvas.height; mopCtx.clearRect(0,0,W,H);
+    const tile=40; mopCtx.fillStyle='#141c33';
+    for(let y=0;y<H;y+=tile){ for(let x=0;x<W;x+=tile){ mopCtx.globalAlpha=((x/tile+y/tile)%2)?0.82:0.88; mopCtx.fillRect(x,y,tile,tile); } }
+    mopCtx.globalAlpha=1;
+    // wetter, more visible
+    for(let gy=0;gy<mopGridH;gy++){
+      for(let gx=0;gx<mopGridW;gx++){
+        const w=mopWet[gy*mopGridW+gx]; if(w<=0.01) continue; const x=gx*MOP_CELL, y=gy*MOP_CELL;
+        mopCtx.fillStyle='rgba(80,170,255,'+(0.42*w).toFixed(3)+')';
+        mopCtx.fillRect(x,y,MOP_CELL,MOP_CELL);
+      }
+    }
+    mopCtx.globalAlpha=1;
+    // edge highlight to make puddles pop
+    mopCtx.save();
+    mopCtx.globalCompositeOperation='lighter';
+    for(let gy=1;gy<mopGridH-1;gy++){
+      for(let gx=1;gx<mopGridW-1;gx++){
+        const w=mopWet[gy*mopGridW+gx]; if(w<0.2) continue; const n=mopWet[(gy-1)*mopGridW+gx], s=mopWet[(gy+1)*mopGridW+gx], e=mopWet[gy*mopGridW+gx+1], ww=mopWet[gy*mopGridW+gx-1];
+        if(n<0.08||s<0.08||e<0.08||ww<0.08){ const x=gx*MOP_CELL, y=gy*MOP_CELL; mopCtx.fillStyle='rgba(200,230,255,0.25)'; mopCtx.fillRect(x,y,MOP_CELL,MOP_CELL); }
+      }
+    }
+    mopCtx.restore();
+
+    const avg=mopInitial?(mopRemain/mopInitial):0;
+    if(avg>0.02){ mopCtx.save(); mopCtx.globalAlpha=0.05+0.15*avg; mopCtx.strokeStyle='rgba(255,255,255,0.9)'; mopCtx.lineWidth=2; for(let x=-H;x<W+H;x+=28){ mopCtx.beginPath(); mopCtx.moveTo(x,0); mopCtx.lineTo(x+H,H); mopCtx.stroke(); } mopCtx.restore(); }
+    // glow while dragging around mop head
+    if(mopDragging && mopHeld){ const t=performance.now()/1000; const r=mopRad*(1+0.05*Math.sin(t*8)); mopCtx.save(); mopCtx.globalCompositeOperation='lighter'; const g=mopCtx.createRadialGradient(mopLastX,mopLastY,0,mopLastX,mopLastY,r); g.addColorStop(0,'rgba(120,200,255,0.25)'); g.addColorStop(1,'rgba(120,200,255,0.0)'); mopCtx.fillStyle=g; mopCtx.beginPath(); mopCtx.arc(mopLastX,mopLastY,r,0,Math.PI*2); mopCtx.fill(); mopCtx.restore(); }
+    drawMopTool();
+  }
+
+  function drawMopTool(){
+    const x = mopHeld ? mopLastX : mopPos.x; const y = mopHeld ? mopLastY : mopPos.y; const ang = mopHeld ? mopAngle : -0.6;
+    mopCtx.save(); mopCtx.translate(x,y); mopCtx.rotate(ang);
+
+    // shadow under head
+    mopCtx.save();
+    mopCtx.fillStyle='rgba(0,0,0,0.32)';
+    mopCtx.beginPath(); mopCtx.ellipse(0,42,mopRad*1.1,mopRad*0.55,0,0,Math.PI*2); mopCtx.fill();
+    mopCtx.restore();
+
+    // wooden handle
+    const handleLen=160; const grad=mopCtx.createLinearGradient(0,-handleLen,0,20); grad.addColorStop(0,'#6d4c41'); grad.addColorStop(1,'#4e342e');
+    mopCtx.strokeStyle=grad; mopCtx.lineWidth=10; mopCtx.lineCap='round';
+    mopCtx.beginPath(); mopCtx.moveTo(-2,-handleLen); mopCtx.lineTo(-2,24); mopCtx.stroke();
+
+    // ferrule
+    mopCtx.fillStyle='#795548'; mopCtx.strokeStyle='rgba(0,0,0,0.35)'; mopCtx.lineWidth=2; mopCtx.fillRect(-16,16,32,16); mopCtx.strokeRect(-16,16,32,16);
+
+    // head pad
+    const rHead=Math.max(12,mopRad*0.55); const g2=mopCtx.createRadialGradient(0,28,rHead*0.15,0,28,rHead); g2.addColorStop(0,'#e1ffff'); g2.addColorStop(1,'#b0bec5');
+    mopCtx.fillStyle=g2; mopCtx.beginPath(); mopCtx.arc(0,28,rHead,0,Math.PI*2); mopCtx.fill(); mopCtx.strokeStyle='rgba(255,255,255,0.6)'; mopCtx.lineWidth=1.5; mopCtx.stroke();
+
+    // cloth fibers
+    const cols=['#e0e0e0','#cfd8dc','#b0bec5','#8d6e63'];
+    mopCtx.lineCap='round';
+    for(let i=0;i<12;i++){
+      const off=(i-5.5)*2.8; const len=32+(i%4)*6; const spread=off*0.9;
+      mopCtx.strokeStyle=cols[i%cols.length]; mopCtx.lineWidth=4+(i%3===0?1:0);
+      mopCtx.beginPath(); mopCtx.moveTo(off,32);
+      mopCtx.bezierCurveTo(off+spread*0.2,42, off+spread*0.65,52, off+spread,32+len);
+      mopCtx.stroke();
+    }
+
+    mopCtx.restore();
+    if(!mopHeld){ mopCtx.save(); mopCtx.strokeStyle='rgba(80,170,255,0.7)'; mopCtx.setLineDash([6,6]); mopCtx.beginPath(); mopCtx.arc(mopPos.x,mopPos.y,24,0,Math.PI*2); mopCtx.stroke(); mopCtx.restore(); }
+  }
+  function mopCleanup(px,py){ const r=Math.max(10,mopRad|0); const minGX=Math.max(0,Math.floor((px-r)/MOP_CELL)); const maxGX=Math.min(mopGridW-1,Math.floor((px+r)/MOP_CELL)); const minGY=Math.max(0,Math.floor((py-r)/MOP_CELL)); const maxGY=Math.min(mopGridH-1,Math.floor((py+r)/MOP_CELL)); const rr=r*r; let delta=0; for(let gy=minGY;gy<=maxGY;gy++){ for(let gx=minGX;gx<=maxGX;gx++){ const cx=gx*MOP_CELL+MOP_CELL/2, cy=gy*MOP_CELL+MOP_CELL/2; const dx=cx-px, dy=cy-py; if(dx*dx+dy*dy>rr) continue; const idx=gy*mopGridW+gx; if(mopWet[idx]>0){ const before=mopWet[idx]; mopWet[idx]=Math.max(0, mopWet[idx]-mopDryRate); delta += (before - mopWet[idx]); } } } if(delta>0){ mopRemain=Math.max(0,mopRemain-delta); mopUpdateProgress(); } }
+  function mopUpdateProgress(){ const dried=mopInitial?(mopInitial-mopRemain)/mopInitial:1; const pct=Math.floor(dried*100); setMopProgress(pct); if(dried>=mopThreshold) mopComplete(); }
+  function mopPointer(ev){ const r=mopCanvas.getBoundingClientRect(); const x=(ev.clientX-r.left)*(mopCanvas.width/r.width); const y=(ev.clientY-r.top)*(mopCanvas.height/r.height); const ox=mopLastX, oy=mopLastY; mopLastX=x; mopLastY=y; mopAngle = Math.atan2(y-oy, x-ox) - Math.PI/2; if(mopHeld){ mopCleanup(x,y); } drawMop(); }
+  function openMopOverlay(){ closeAnyOverlay(); overlayMop.setAttribute('aria-hidden','false'); overlayOpen=true; mopStarted=false; mopDragging=false; mopHeld=false; mopPos={ x:120, y:(mopCanvas?.height||450)-80 }; mopSeed=Math.floor(Math.random()*1e9); genMopWater(); drawMop(); mopCanvas?.addEventListener('mousedown', onMopDown); window.addEventListener('mouseup', onMopUp); mopCanvas?.addEventListener('mousemove', onMopMove); window.addEventListener('keydown', onMopKey); }
+  function closeMopOverlay(silent){ overlayMop.setAttribute('aria-hidden','true'); if(!silent) overlayOpen=false; mopCanvas?.removeEventListener('mousedown', onMopDown); window.removeEventListener('mouseup', onMopUp); mopCanvas?.removeEventListener('mousemove', onMopMove); window.removeEventListener('keydown', onMopKey); }
+  function onMopDown(ev){ if(!mopStarted) mopStarted=true; const r=mopCanvas.getBoundingClientRect(); const x=(ev.clientX-r.left)*(mopCanvas.width/r.width); const y=(ev.clientY-r.top)*(mopCanvas.height/r.height); if(!mopHeld){ const dx=x-mopPos.x, dy=y-mopPos.y; if(Math.hypot(dx,dy)<=30){ mopHeld=true; drawMop(); return; } } mopDragging=true; mopPointer(ev); }
+  function onMopUp(){ mopDragging=false; }
+  function onMopMove(ev){ if(!mopDragging) return; mopPointer(ev); }
+  function onMopKey(e){ if(!overlayOpen) return; if(e.key==='d'||e.key==='D'){ if(mopHeld){ mopHeld=false; mopPos.x=mopLastX; mopPos.y=mopLastY; drawMop(); } } }
+  closeBtnMop?.addEventListener('click', ()=> closeMopOverlay(false));
+  mopStart?.addEventListener('click', ()=> { if(!mopStarted) mopStarted=true; });
+  mopReset?.addEventListener('click', ()=> { mopHeld=false; mopPos={ x:120, y:(mopCanvas?.height||450)-80 }; genMopWater(); drawMop(); });
+
+
+  // Auto-open specific overlay if 'game' query is provided or via mg:init/mg:open
+  (function autoOpenSpecific(){
+    try {
+      const map = {
+        dodge: openDodgeOverlay, react: openReactOverlay, aim: openAimOverlay, tap: openTapOverlay,
+        wires: openWiresOverlay, upload: openUploadOverlay, mix: openMixOverlay, switch: openSwitchOverlay,
+        card: openCardOverlay, timer: openTimerOverlay, align: openAlignOverlay, simon: openSimonOverlay,
+        pipes: openPipesOverlay, math: openMathOverlay, rhythm: openRhythmOverlay, pattern: openPatternOverlay,
+        lights: openLightsOverlay, mole: openMoleOverlay, slider: openSliderOverlay, mop: openMopOverlay, broom: openMopOverlay
+      };
+      const openKey = (k)=>{ const fn = map[String(k||'').toLowerCase()]; if (typeof fn==='function') fn(); };
+      const qs = new URLSearchParams(location.search).get('game');
+      if (qs) setTimeout(()=> openKey(qs), 0);
+      document.addEventListener('mg:open', (e)=> openKey(e?.detail?.key || e?.detail || ''));
+      window.addEventListener('message', (ev)=>{ const d=ev?.data||{}; if(d && d.type==='mg:init' && (d.game||d.id)) setTimeout(()=> openKey(d.game||d.id), 0); });
+    } catch {}
+  })();
 })();
+
 
 
 
