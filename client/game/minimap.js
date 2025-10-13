@@ -71,6 +71,10 @@ export function updateMiniMapDisplay(){
   // place player dot
   dotPlayer.style.left = `${playerCenterX}px`;
   dotPlayer.style.top  = `${playerCenterY}px`;
+  // apply color by selected character
+  try {
+    if (state.playerColor) dotPlayer.style.backgroundColor = state.playerColor;
+  } catch {}
 
   // keep dots visually same size (inverse-scale)
   const inv = 1/scale;

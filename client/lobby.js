@@ -96,13 +96,31 @@ try {
 }
 
 /* ---------- Join / Presence ---------- */
+// พยายามใช้คาแร็กเตอร์ล่าสุดที่ผู้เล่นเคยเลือกไว้ ถ้าไม่มีใช้ค่าเริ่มต้น
+const savedChar = (localStorage.getItem('ggd.char') || 'mini_brown');
+
+function charToColor(ch){
+  const map = {
+    mini_brown:    '#8B4513',
+    mini_coral:    '#FF7F50',
+    mini_gray:     '#808080',
+    mini_lavender: '#B57EDC',
+    mini_mint:     '#3EB489',
+    mini_pink:     '#FFC0CB',
+    mini_sky_blue: '#87CEEB',
+    mini_yellow:   '#FFD54F',
+  };
+  return map[ch] || '#FFFFFF';
+}
+
 await set(playerRef, {
   uid,
   name: displayName,
   isHost: !!savedRoom.isHost,
   ready: false,
   online: true,
-  char: "mini_brown",
+  char: savedChar,
+  color: charToColor(savedChar),
   joinTime: Date.now(), // ใช้ timestamp จริงเพื่อจัดลำดับโฮส
 });
 onDisconnect(playerRef).remove();
@@ -120,6 +138,12 @@ let takenBy = {};
 
 const img = $("charImage");
 const label = $("charLabel");
+
+// ตั้งค่า index เริ่มต้นตามที่เคยเลือกไว้ (ถ้ามี)
+try {
+  const idx0 = characters.indexOf(savedChar);
+  if (idx0 >= 0) currentCharIndex = idx0;
+} catch {}
 
 function renderChar() {
   const f = characters[currentCharIndex];
@@ -157,8 +181,11 @@ async function changeChar(delta) {
   currentCharIndex = next;
   renderChar();
   const chosen = characters[currentCharIndex];
-  try { await update(playerRef, { char: chosen }); } catch {}
-  try { localStorage.setItem('ggd.char', chosen); } catch {}
+  try { await update(playerRef, { char: chosen, color: charToColor(chosen) }); } catch {}
+  try {
+    localStorage.setItem('ggd.char', chosen);
+    localStorage.setItem('ggd.color', charToColor(chosen));
+  } catch {}
   bumpActivity();
 }
 

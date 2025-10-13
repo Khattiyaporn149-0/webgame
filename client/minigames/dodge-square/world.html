@@ -6,6 +6,24 @@
   <title>The Heist - Minigame Overworld</title>
   <link rel="stylesheet" href="world.css">
   <script src="../config.js"></script>  <script src="../mg-bridge.js"></script>
+  <script>
+    // overlay-only mode: hide overworld canvas when ?skin=overlay (หรือ &overlay=1)
+    // เพิ่มใหม่: ซ่อนฉาก Overworld เมื่อเปิดมินิเกมโดยตรง — 2025-10-13 21:14:26 +07:00
+    (function(){
+      try {
+        var qp = new URLSearchParams(location.search);
+        var overlayOnly = (qp.get('skin') === 'overlay') || qp.has('overlay');
+        if (!overlayOnly) return;
+        // Wait for DOM
+        document.addEventListener('DOMContentLoaded', function(){
+          var world = document.getElementById('world');
+          if (world) world.style.display = 'none';
+          // Optional: make body background neutral; overlay already has backdrop
+          try { document.body.style.background = 'transparent'; } catch {}
+        }, { once:true });
+      } catch {}
+    })();
+  </script>
 </head>
 <body>
   <!-- 🌌 Overworld Canvas -->
@@ -79,7 +97,7 @@
 
   <div class="overlay" id="miniOverlayUpload" aria-hidden="true">
     <div class="mini-box">
-      <button class="close" id="btnCloseMiniUpload">×</button>
+      <!--<button class="close" id="btnCloseMiniUpload">×</button>-->
       <h2>Upload Data</h2>
       <div class="upload">
         <div id="uploadBar" class="bar"></div>
@@ -293,7 +311,6 @@
   </script>
 </body>
 </html>
-
 
 
 
