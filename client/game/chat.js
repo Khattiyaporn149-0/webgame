@@ -2,6 +2,21 @@
 import { state } from './core.js';
 import { socket } from './multiplayer.js';
 
+// ดึงรหัสห้องจาก URL หรือ localStorage
+const params = new URLSearchParams(window.location.search);
+const roomCode =
+  params.get("code") ||
+  (JSON.parse(localStorage.getItem("currentRoom") || "{}").code) ||
+  "lobby01";
+
+state.currentRoom = roomCode;
+
+// เริ่มเชื่อมต่อ multiplayer
+initMultiplayer({
+  serverUrl: "https://webgame-25n5.onrender.com",
+  room: roomCode,
+});
+
 let _isTyping = false;
 export const isTyping = () => _isTyping;
 
@@ -68,7 +83,13 @@ export function initChat(){
     lastSentAt = now;
 
     lastMsg = text;
-    socket?.emit('chat:message', { uid: state.uid, name: state.displayName, text });
+    socket?.emit('chat:message', { 
+      uid: state.uid, 
+      name: state.displayName, 
+      text,
+      room: state.currentRoom || 'lobby01'   // ✅ ใส่บรรทัดนี้เพิ่ม
+    });
+
     addChatMessage(state.displayName, text);
     renderChatBubbleFor({ uid: state.uid, x: state.playerX, y: state.playerY, text });
 
@@ -90,6 +111,7 @@ export function initChat(){
   socket?.on('chat:message', (data) => {
     addChatMessage(data.name, data.text);
     renderChatBubbleFor(data);
+    
   });
 }
 

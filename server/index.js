@@ -64,6 +64,31 @@ io.on("connection", (socket) => {
     }
   });
 
+  // ===============================
+// CHAT (ใหม่)
+// ===============================
+socket.on("chat:message", (data) => {
+  if (!data?.text || !data?.uid) return;
+
+  // หาห้องที่ผู้เล่นอยู่
+  let room = data.room;
+  if (!room) {
+    for (const [r, gr] of Object.entries(gameRooms)) {
+      if (gr.players.has(data.uid)) {
+        room = r;
+        break;
+      }
+    }
+  }
+
+  if (room) {
+    io.to(room).emit("chat:message", data);
+    console.log(`💬 [${room}] ${data.name}: ${data.text}`);
+  } else {
+    console.warn("⚠️ chat:message ไม่มี room:", data);
+  }
+});
+
 
 
   // ===============================
