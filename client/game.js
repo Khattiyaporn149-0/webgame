@@ -5,6 +5,16 @@ let playerNameTag = null;
 // ตัวแปรการตั้งค่า
 // *******************************************
 
+const MEETING_POINT = { x: 3500, y: 3800 };
+
+let telephoneUseCount = 0;
+const MAX_TELEPHONE_CALLS = 2;
+let telephoneCooldown = false;
+const TELEPHONE_COOLDOWN_MS = 30000; // 30 วินาที
+let telephoneCooldownRemaining = 0;
+let telephoneCooldownTimer = null;
+
+
 const PLAYER_SPEED = 6; // <<< ความเร็ว 6
 const VISION_RADIUS = 300; 
 const FOG_COLOR = 'rgba(0, 0, 0, 0.95)'; 
@@ -408,46 +418,68 @@ function updateMissionStatus() {
 // 8. การจัดการระบบประชุม (Meeting System)
 // *******************************************
 function startMeeting() {
-    if (isMeetingActive) return;
+  if (isMeetingActive) return;
+  isMeetingActive = true;
 
-    isMeetingActive = true;
-    meetingModal.style.display = 'flex'; 
-    
-    bgmMusic.pause();
-    
-    voteResultText.textContent = ""; 
-    votingButtons.forEach(btn => btn.disabled = false);
+  // ✅ วาร์ปผู้เล่นมาที่จุดประชุมจริง (ไม่ใช่กลางแมพ)
+  playerWorldX = MEETING_POINT.x;
+  playerWorldY = MEETING_POINT.y;
+  containerX = -(playerWorldX - VIEWPORT_WIDTH / 2 + playerWidth / 2);
+  containerY = -(playerWorldY - VIEWPORT_HEIGHT / 2 + playerHeight / 2);
+  updateDisplay();
 
-    // NEW: ซ่อน Minimap
-    mapOverlay.style.display = 'none';
+  // ❌ หยุดการเคลื่อนไหว
+  keysPressed['KeyW'] = keysPressed['KeyA'] = keysPressed['KeyS'] = keysPressed['KeyD'] = false;
 
-    console.log("!!! การประชุมฉุกเฉินเริ่มต้น !!!");
-    addLogEvent("🚨 ผู้เล่นเรียกประชุมฉุกเฉิน!", 'heist');
+  // เปิด UI การประชุม
+  meetingModal.style.display = 'flex';
+  bgmMusic.pause();
+  voteResultText.textContent = '';
+  votingButtons.forEach(btn => btn.disabled = false);
+  mapOverlay.style.display = 'none';
+
+  addLogEvent("🚨 ผู้เล่นเรียกประชุมฉุกเฉิน!", 'heist');
+  console.log("!!! การประชุมฉุกเฉินเริ่มต้น !!!");
 }
 
 function endMeeting() {
-    isMeetingActive = false;
-    meetingModal.style.display = 'none'; 
-    
-    bgmMusic.play().catch(e => console.log("BGM playback blocked:", e));
+  isMeetingActive = false;
+  meetingModal.style.display = 'none'; 
+  bgmMusic.play().catch(e => console.log("BGM playback blocked:", e));
 
-    // NEW: แสดง Minimap กลับมา
-    mapOverlay.style.display = 'block';
-
-    console.log("!!! สิ้นสุดการประชุม !!!");
-    addLogEvent("การประชุมสิ้นสุดลงแล้ว", 'general');
+  mapOverlay.style.display = 'block';
+  addLogEvent("การประชุมสิ้นสุดลงแล้ว", 'general');
+  console.log("!!! สิ้นสุดการประชุม !!!");
 }
 
-function handleVote(target) {
-    if (!isMeetingActive) return;
+function handleVote(targetName) {
+  if (!isMeetingActive) return;
+  voteResultText.textContent = `คุณโหวตให้ ${targetName} แล้ว!`;
+  document.querySelectorAll('.vote-btn').forEach(btn => btn.disabled = true);
 
-    voteResultText.textContent = `โหวตไปยัง: ${target}! รอผลโหวตสุดท้าย...`;
-    votingButtons.forEach(btn => btn.disabled = true);
-    
-    setTimeout(() => {
-        endMeeting();
-    }, 3000); 
+  setTimeout(() => {
+    endMeeting();
+  }, 4000);
+
+    const grid = document.getElementById('player-vote-grid');
+  grid.innerHTML = '';
+
+  roomPlayers.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'player-card';
+    card.dataset.playerId = p.id;
+    card.innerHTML = `
+      <img src="assets/avatars/${p.avatar || 'default.png'}" alt="${p.name}">
+      <span class="name">${p.name}</span>
+      <button class="vote-btn" onclick="handleVote('${p.id}')">Vote</button>
+    `;
+    grid.appendChild(card);
+  });
+
+  meetingModal.style.display = 'flex';
+
 }
+
 
 
 // *******************************************
@@ -914,19 +946,31 @@ function checkObjectInteractions() {
     }
   }
 
-  // แสดง Hint ถ้าอยู่ใกล้
-  if (nearObj) {
-    interactionHint.style.display = 'block';
-    interactionHint.textContent = `Press E to interact with ${nearObj.type}`;
-    if (keysPressed[INTERACTION_KEY]) {
-      keysPressed[INTERACTION_KEY] = false;
-      handleObjectInteraction(nearObj);
-    }
+  // ปิด hint ถ้าไม่มี object ใกล้
+  if (!nearObj) {
+    interactionHint.style.display = 'none';
+    return;
+  }
+
+  // มี object ใกล้แน่นอน → แสดง hint
+  interactionHint.style.display = 'block';
+
+  // ✅ กัน null แบบชัวร์
+if (nearObj && nearObj.type === 'Telephone') {
+  if (!telephoneCooldown) {
+    interactionHint.textContent = '📞 กด [E] เพื่อโทรเรียกประชุมฉุกเฉิน';
   } else {
-    if (interactionHint.style.display !== 'none')
-      interactionHint.style.display = 'none';
+    interactionHint.textContent = `📵 โทรศัพท์กำลังรีเซ็ต (${telephoneCooldownRemaining}s)`;
   }
 }
+
+  // ✅ ตรวจปุ่ม E
+  if (keysPressed[INTERACTION_KEY]) {
+    keysPressed[INTERACTION_KEY] = false;
+    if (nearObj) handleObjectInteraction(nearObj);
+  }
+}
+
 
 // 4️⃣ ฟังก์ชันทำงานเมื่อโต้ตอบจริง
 function handleObjectInteraction(obj) {
@@ -936,20 +980,68 @@ function handleObjectInteraction(obj) {
       playSound(sfxInteract);
       obj.active = false; // ทำได้ครั้งเดียว
       break;
+
     case 'console':
       addLogEvent('💻 คุณใช้งานคอนโซล ระบบทำงานแล้ว!');
       playSound(sfxInteract);
       break;
+
     case 'item':
       addLogEvent('🎁 คุณเก็บของได้สำเร็จ!');
       playSound(sfxInteract);
       obj.active = false;
       break;
+
+    case 'Telephone':
+      // ป้องกันเรียกระหว่างประชุม
+      if (isMeetingActive) {
+        addLogEvent('☎️ โทรศัพท์ไม่ทำงาน ขณะประชุมอยู่แล้ว', 'general');
+        return;
+      }
+
+      // ถ้ายังอยู่ใน cooldown
+      if (telephoneCooldown) {
+        addLogEvent(`⏳ โทรศัพท์กำลังรีเซ็ต (${telephoneCooldownRemaining}s)`, 'general');
+        playSound(sfxInteract);
+        return;
+      }
+
+      // ถ้าใช้ครบ 2 ครั้งแล้ว
+      if (telephoneUseCount >= MAX_TELEPHONE_CALLS) {
+        addLogEvent('📵 โทรศัพท์นี้ไม่สามารถโทรได้อีกแล้ว (สายขาด!)', 'general');
+        playSound(sfxInteract);
+        return;
+      }
+
+      // ✅ ใช้งานได้
+      telephoneUseCount++;
+      addLogEvent(`📞 คุณโทรเรียกประชุมฉุกเฉิน! (${telephoneUseCount}/${MAX_TELEPHONE_CALLS})`);
+      playSound(sfxInteract);
+      startMeeting();
+
+      // 🚫 เริ่ม cooldown
+      telephoneCooldown = true;
+      telephoneCooldownRemaining = TELEPHONE_COOLDOWN_MS / 1000;
+
+      telephoneCooldownTimer = setInterval(() => {
+        telephoneCooldownRemaining--;
+        if (telephoneCooldownRemaining <= 0) {
+          clearInterval(telephoneCooldownTimer);
+          telephoneCooldown = false;
+          telephoneCooldownRemaining = 0;
+          if (telephoneUseCount < MAX_TELEPHONE_CALLS) {
+            addLogEvent('📞 โทรศัพท์พร้อมใช้งานอีกครั้ง!', 'general');
+          }
+        }
+      }, 1000);
+      break;
+
     default:
       addLogEvent(`❓ คุณโต้ตอบกับวัตถุ ${obj.id}`);
       break;
   }
 }
+
 
 
 
@@ -1263,6 +1355,18 @@ socket.on("snapshot", (payload) => {
 
   lastPlayersSnapshot = payload.players;
   lastActiveUIDs = newSet;
+});
+
+socket.on("meeting:start", (data) => {
+  // ✅ ทุกคนย้ายไปกลางห้อง
+  playerWorldX = data.x;
+  playerWorldY = data.y;
+  containerX = -(playerWorldX - VIEWPORT_WIDTH / 2 + playerWidth / 2);
+  containerY = -(playerWorldY - VIEWPORT_HEIGHT / 2 + playerHeight / 2);
+  updateDisplay();
+
+  // เปิด modal ด้วย
+  startMeeting();
 });
 
 // --- Render Loop (ลื่นมากกว่า) ---
