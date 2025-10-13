@@ -104,6 +104,33 @@ const debugCanvas = document.getElementById('debug-overlay');
 const debugPanel = document.getElementById('debug-panel');
 let debugCtx = debugCanvas ? debugCanvas.getContext('2d') : null;
 let lastDebugRenderMs = 0; 
+
+// ชื่อป้ายเหนือหัวผู้เล่น (มาจากหน้า index / localStorage)
+const nameplate = document.getElementById('nameplate');
+if (nameplate) {
+  try {
+    const storedName = localStorage.getItem('ggd.name') || localStorage.getItem('playerName') || 'Guest';
+    nameplate.textContent = storedName;
+    // Ensure the nameplate is visible and styled (defensive fix)
+    try {
+      nameplate.style.display = nameplate.style.display || 'block';
+      nameplate.style.color = nameplate.style.color || '#fff';
+      nameplate.style.fontSize = nameplate.style.fontSize || '16px';
+      nameplate.style.fontWeight = nameplate.style.fontWeight || '700';
+      nameplate.style.textShadow = nameplate.style.textShadow || '0 2px 6px #000';
+      nameplate.style.zIndex = '9999';
+      nameplate.style.background = nameplate.style.background || 'rgba(0,0,0,0.35)';
+      nameplate.style.padding = nameplate.style.padding || '2px 6px';
+      nameplate.style.borderRadius = nameplate.style.borderRadius || '4px';
+    } catch (e) {
+      console.warn('[game] failed to apply nameplate styles', e);
+    }
+  } catch (err) {
+    console.warn('[game] failed to read player name from localStorage', err);
+  }
+} else {
+  console.warn('[game] nameplate element not found — player name will not be shown');
+}
 const DEBUG_MAX_FPS = 30; // throttle debug overlay
 
 // Debug flags
