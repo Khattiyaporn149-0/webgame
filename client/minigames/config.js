@@ -34,5 +34,7 @@ window.MINIGAMES_CONFIG = {
     { key:'slider', kind:'interact', label:'Slider Puzzle', x: 680, y: 200, color:'#8D6E63', shape:{type:'circle', r:26}, game:'slider' },
     { key:'rhythm',kind:'interact', label:'Rhythm Tap',  x: 320, y: 340, color:'#E91E63', shape:{type:'circle', r:26}, game:'rhythm' },
     { key:'pattern',kind:'interact',label:'Pattern Lock',x: 620, y: 360, color:'#3F51B5', shape:{type:'circle', r:26}, game:'pattern' },
+    // New: Mop the Floor
+    { key:'mop', kind:'interact', label:'Mop Floor', x: 520, y: 360, color:'#4FC3F7', shape:{ type:'circle', r:26 }, game:'mop' },
   ],
 };

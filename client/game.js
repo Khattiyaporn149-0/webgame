@@ -1,4 +1,4 @@
-// game.js - โค้ดที่ปรับปรุงใหม่ทั้งหมด พร้อมระบบบทบาทและความสามารถพิเศษ
+﻿// game.js - โค้ดที่ปรับปรุงใหม่ทั้งหมด พร้อมระบบบทบาทและความสามารถพิเศษ
 
 // *******************************************
 // ตัวแปรการตั้งค่า
@@ -143,6 +143,7 @@ const logContainer = document.getElementById('log-container');
 // การอ้างอิง Mission UI
 const missionProgressBar = document.getElementById('mission-bar-fill');
 const missionProgressText = document.getElementById('mission-progress-text');
+try { updateMissionStatus(); } catch {}
 
 // การอ้างอิง Meeting UI
 const meetingModal = document.getElementById('meeting-modal');
@@ -859,24 +860,173 @@ function checkInteractions() {
 
 // 1️⃣ ข้อมูล Object ที่โต้ตอบได้ (เพิ่มอันใหม่ได้เรื่อยๆ)
     const INTERACTABLE_OBJECTS = [
-    { id: 'printer', x: 3400, y: 3470, width: 100, height: 110, type: 'printer', active: true },
+    { id: 'printer', x: 3400, y: 3470, width: 100, height: 110, type: 'printer', active: true},
     { id: 'tree_middle_room', x: 4750, y: 4300, width: -50,height: -100, type: 'tree', active: true },
     { id: 'Telephone', x: 4100, y: 4390, width: -100, height: 200, type: 'Telephone', active: true },
     { id: 'Scrupture1', x: 3570, y: 1500, width: 50, height: -200, type: 'Scrupture', active: true },
     { id: 'tree_upper_room1', x: 3200, y: 500, width: -180,height: 30, type: 'tree', active: true },
-    { id: 'hidden_switch', x: 4280, y: 550, width: -50,height: -50, type: 'switch(?)', active: true },
+    { id: 'hidden_switch', x: 4280, y: 550, width: -50,height: -50, type: 'switch(?)', active: true, mg: 'align' },
     { id: 'Scrupture2', x: 4780, y: 1200, width: -800, height: -400, type: 'Scrupture', active: true },
     { id: 'tree_upper_room2', x: 4440, y: 1160, width: -220,height: -220, type: 'tree', active: true },
-    { id: 'Broom', x: 1500, y: 3280, width: -200,height: -200, type: 'broom', active: true },
+    { id: 'Broom', x: 1500, y: 3280, width: -200,height: -200, type: 'broom', active: true, mg: 'mop'},
     { id: 'computer1', x: 3520, y: 7020, width: -350,height: -350, type: 'computer', active: true },
-    { id: 'computer2', x: 4320, y: 7180, width: -700,height: -350, type: 'computer', active: true },
+    { id: 'computer2', x: 4320, y: 7180, width: -700,height: -350, type: 'computer', active: true , mg: 'upload'},
     { id: 'computer3', x: 4750, y: 6900, width: -100,height: -400, type: 'computer', active: true },
-    { id: 'monitor', x: 4980, y: 7500, width: -2000,height: -400, type: 'monitor', active: true },
-    { id: 'matchine', x: 6580, y: 3160, width: -380,height: -200, type: 'matchine', active: true },
-    { id: 'battery', x: 7120, y: 4260, width: -600,height: -600, type: 'battery', active: true },
-    { id: 'power', x: 7420, y: 7850, width: -200,height: -150, type: 'power', active: true },
+    { id: 'monitor', x: 4980, y: 7500, width: -2000,height: -400, type: 'monitor', active: true , mg: 'dodge'},
+    { id: 'matchine', x: 6580, y: 3160, width: -380,height: -200, type: 'matchine', active: true, mg: 'rhythm' },
+    { id: 'battery', x: 7120, y: 4260, width: -600,height: -600, type: 'battery', active: true , mg: 'switch'},
+    { id: 'power', x: 7420, y: 7850, width: -200,height: -150, type: 'power', active: true , mg: 'wires'},
+    { id: '้hackbox', x: 1512, y: 6132, width: -200, height: -150, type: 'hackbox', active: true , mg: 'math'}
 ];
 
+// === One-object minigame glue (drop-in) ===
+// 1) ดึงรายการมินิเกมจากโฟลเดอร์
+const __REG_PATH = 'minigames/registry.json';
+let __regCache = null;
+async function __loadReg(){
+  if (__regCache) return __regCache;
+  try { const r = await fetch(__REG_PATH, { cache:'no-store' }); __regCache = await r.json(); }
+  catch { __regCache = {}; }
+  return __regCache;
+}
+function __urlFor(key){
+  const k = String(key||'overworld').toLowerCase();
+  const reg = __regCache || {};
+  return reg[k] || reg.overworld || ('minigames/dodge-square/world.html?game=' + encodeURIComponent(k));
+}
+
+// 2) overlay + iframe ครั้งเดียว
+let __mgModal, __mgFrame, __pending=null, __closing=false;
+let __awaitingCompleteTimeout = null;
+function __ensureOverlay(){
+  if (__mgModal) return;
+  __mgModal = document.createElement('div');
+  __mgModal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:9999';
+  __mgModal.innerHTML = `
+  <div style="position:fixed; inset:0; display:flex; flex-direction:column;">
+    <button id="__mgCloseTop" title="Close" style="position:absolute; top:10px; right:12px; z-index:2; background:#ff4d4d; color:#fff; border:0; width:32px; height:32px; border-radius:50%; font-weight:800; cursor:pointer">✖</button>
+    <div style="height:6px; background:rgba(11,19,36,.9)"><div id="__mgFill" style="height:100%; width:0%; background:#2b64ff"></div></div>
+    <iframe id="__mgFrame" title="Minigame" src="about:blank" style="flex:1; width:100%; border:0; background:#000" allow="autoplay; fullscreen"></iframe>
+  </div>`;
+  document.body.appendChild(__mgModal); document.getElementById("__mgCloseTop")?.addEventListener("click", __closeMini);
+  __mgFrame = __mgModal.querySelector('#__mgFrame');
+  // Hide internal close buttons inside iframe and block ESC inside minigame
+  __mgFrame?.addEventListener('load', ()=>{
+    try {
+      const doc = __mgFrame.contentDocument || __mgFrame.contentWindow?.document;
+      if (doc){
+        const style = doc.createElement('style');
+        style.textContent = `.mini-box button.close{ display:none !important; } canvas#world{ display:none !important; }`;
+        doc.head.appendChild(style);
+        try { doc.addEventListener('keydown', (ev)=>{ if (ev.key==='Escape'){ ev.preventDefault(); ev.stopPropagation(); } }, true); } catch {}
+      }
+    } catch {}
+  });
+  // no external close button
+  // no backdrop close
+  window.addEventListener('message', __onMsg);
+}
+function __setProgress(p){ const f=document.getElementById('__mgFill'); if (f) f.style.width = Math.max(0,Math.min(100,p|0))+'%'; }
+
+async function __openMiniFor(obj){
+  if (!obj?.mg) return;
+  if (typeof obj.active !== 'undefined' && obj.active === false) { addLogEvent?.('\u26a0\ufe0f ภารกิจนี้ถูกทำแล้วในรอบนี้'); return; }
+  __ensureOverlay();
+  await __loadReg();
+  const key = (obj.mg?.key || obj.mg).toLowerCase();
+  const difficulty = obj.mg?.difficulty || 'normal';
+  __pending = { obj, key, difficulty };
+  try { __mgFrame.src = __urlFor(key); } catch {}
+  __mgModal.style.display = 'flex';
+  __setProgress(0);
+}
+function __closeMini(){
+  if (__closing) return; __closing = true;
+  try { __mgFrame?.contentWindow?.postMessage?.({ type:"mg:abort" }, "*"); } catch {}
+  __mgModal.style.display = "none";
+  try { __mgFrame.src = "about:blank"; } catch {}
+  __setProgress(0);
+  __pending = null;
+  setTimeout(()=>{ __closing=false; }, 150);
+}
+
+// 3) ฟัง mg-bridge จาก world.html ในโฟลเดอร์มินิเกม
+function __onMsg(e){
+  if (!__mgFrame) return;
+  const d = e.data || {};
+  if (!d || typeof d !== 'object') return;
+  // Accept messages from the expected iframe OR (fallback) messages that include the same game key
+  const srcMatches = e.source === __mgFrame.contentWindow;
+  const keyFromMsg = (d.key || d.id || '')?.toString().toLowerCase();
+  const pendingKey = (__pending && (__pending.key || (__pending.obj && (__pending.obj.mg && (__pending.obj.mg.key || __pending.obj.mg))))) || '';
+  const pendingKeyLower = pendingKey ? String(pendingKey).toLowerCase() : '';
+  // DEBUG: log incoming mg messages
+  try { if (d.type && String(d.type).startsWith('mg:')) console.log('[game.js] recv mg msg', d, 'srcMatches=', srcMatches, 'keyFromMsg=', keyFromMsg, 'pendingKey=', pendingKeyLower); } catch(_){}
+  if (!srcMatches && !(keyFromMsg && pendingKeyLower && keyFromMsg === pendingKeyLower)) return;
+
+  if (d.type === 'mg:ready'){
+    if (__pending){ try { __setProgress(0); } catch {} }
+  }
+  else if (d.type === 'mg:progress'){
+  const p = Number(d.percent||0);
+  __setProgress(p);
+  if (p >= 100 && !__closing) {
+    // Wait briefly for an explicit mg:complete from the minigame before force-closing.
+    // Some minigames show an animation and call complete slightly later; aborting too early causes mg:cancel.
+    try { if (__awaitingCompleteTimeout) clearTimeout(__awaitingCompleteTimeout); } catch(_){}
+    __awaitingCompleteTimeout = setTimeout(()=>{ if (!__closing) __closeMini(); }, 1000);
+  }
+}
+  else if (d.type === 'mg:complete'){
+    try { if (__awaitingCompleteTimeout) { clearTimeout(__awaitingCompleteTimeout); __awaitingCompleteTimeout = null; } } catch(_){}
+    try {
+      __setProgress(100);
+      addLogEvent?.('✅ Minigame complete!');
+      // Normal flow: update using pending object
+      if (typeof currentMissionProgress==='number' && typeof updateMissionStatus==='function'){
+        if (__pending && __pending.obj) {
+          currentMissionProgress = Math.min(currentMissionProgress + (Number(__pending?.obj?.mg?.progress)||1), MAX_MISSION_PROGRESS);
+          updateMissionStatus();
+        } else {
+          // Fallback: try to locate object by key in payload (robust against races)
+          try {
+            const keyFromMsg = (d.key || d.id || '')?.toString().toLowerCase();
+            if (keyFromMsg) {
+              const found = (typeof INTERACTABLE_OBJECTS !== 'undefined' && Array.isArray(INTERACTABLE_OBJECTS))
+                ? INTERACTABLE_OBJECTS.find(o => {
+                    const mg = o.mg; if (!mg) return false;
+                    if (typeof mg === 'string') return String(mg).toLowerCase() === keyFromMsg;
+                    if (typeof mg === 'object' && mg.key) return String(mg.key).toLowerCase() === keyFromMsg;
+                    return false;
+                  })
+                : null;
+              if (found) {
+                currentMissionProgress = Math.min(currentMissionProgress + (Number(found?.mg?.progress)||1), MAX_MISSION_PROGRESS);
+                updateMissionStatus();
+                found.active = false;
+              }
+            }
+          } catch(_){}
+        }
+      }
+    } catch {}
+    if (__pending?.obj) __pending.obj.active = false;
+    setTimeout(()=> __closeMini(), 300);
+  }
+  else if (d.type === 'mg:cancel'){
+    addLogEvent?.('⏹️ Minigame closed');
+    __closeMini();
+  }
+}
+
+// 4) hook เข้าฟังก์ชันโต้ตอบเดิม: ถ้า obj มี mg ให้เปิดมินิเกม
+(function __hook(){
+  const orig = typeof handleObjectInteraction === 'function' ? handleObjectInteraction : null;
+  window.handleObjectInteraction = function(obj){
+    if (obj?.mg) return __openMiniFor(obj);
+    if (orig) return orig.call(this, obj);
+  };
+})();
 
 // 2️⃣ ฟังก์ชันวาดวัตถุ (ตัวอย่างให้วาดจุด debug)
 function renderInteractableObjects() {
@@ -924,6 +1074,7 @@ function checkObjectInteractions() {
 
 // 4️⃣ ฟังก์ชันทำงานเมื่อโต้ตอบจริง
 function handleObjectInteraction(obj) {
+  try { if (obj && obj.mg) { __openMiniFor(obj); return; } } catch {}
   switch (obj.type) {
     case 'door':
       addLogEvent('🚪 คุณเปิดประตูแล้ว!');
@@ -1366,3 +1517,19 @@ socket.on("error", (error) => {
 });
 
 // ===== End Multiplayer Section =====
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

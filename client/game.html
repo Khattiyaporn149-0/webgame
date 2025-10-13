@@ -44,8 +44,7 @@
             background-repeat: no-repeat;
             overflow: hidden;
             z-index: 1; 
-            transition: transform 0.05s linear;
-            background-image: url('assets/images/map_base_8192.png'); /* ใช้ภาพฐานของแผนที่ให้ตรงกับ Tiled */
+            background-image: url('assets/images/map_bg.png'); /* ใช้ภาพฐานของแผนที่ให้ตรงกับ Tiled */
             background-size: 8192px 8192px; /* ขนาดของแผนที่ตามที่กำหนดไว้ */
             will-change: transform; 
             backface-visibility: hidden; 
@@ -523,7 +522,7 @@
 
     <div id="map-overlay">
         <div id="minimap-content">
-            <img id="minimap-base" src="assets/images/map_base_8192.png" alt="แผนที่หลัก">
+            <img id="minimap-base" src="assets/images/map_bg.png" alt="แผนที่หลัก">
             
             <div id="minimap-player-dot"></div>
             <div id="minimap-guest-dot" class="minimap-mission-dot"></div>

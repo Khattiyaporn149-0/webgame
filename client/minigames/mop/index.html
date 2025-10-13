@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mop The Floor</title>
+  <link rel="stylesheet" href="mop.css">
+  <script src="../mg-bridge.js"></script>
+  <script defer src="mop.js"></script>
+  <meta name="color-scheme" content="dark light">
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <h1>🧹 Mop The Floor</h1>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="btnExit" title="ออก">ออก</button>
+    </header>
+    <div class="progress">
+      <div class="bar" id="progBar"><span id="progText">0%</span></div>
+    </div>
+    <main class="stage">
+      <canvas id="mopCanvas" width="800" height="450"></canvas>
+    </main>
+    <footer class="panel">
+      <button class="btn primary" id="btnStart">เริ่มถูพื้น</button>
+      <button class="btn" id="btnReset">สุ่มคราบใหม่</button>
+      <div class="hint">ลากเมาส์หรือใช้นิ้วเพื่อถูทำความสะอาด พยายามให้สะอาดเกิน 95%</div>
+    </footer>
+  </div>
+</body>
+</html>
+
