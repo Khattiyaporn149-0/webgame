@@ -794,6 +794,8 @@ function checkInteractions() {
     let canInteract = false;
 
     for (const spot of missionSpots) {
+    // If the DOM element for this mission spot doesn't exist, skip it
+    if (!spot.element) continue;
         // การจัดการการแสดงจุดภารกิจตามบทบาท (เพื่อจำลองการทำงาน)
         if (spot.type === 'heist' && playerRole !== 'Thief') {
             spot.element.style.display = 'none'; // ซ่อนจุดขโมยถ้าไม่ใช่โจร
@@ -851,7 +853,11 @@ function checkInteractions() {
     }
     
     // ซ่อนคำแนะนำโต้ตอบเมื่ออยู่ในโหมดแผนที่เต็มจอ
-    interactionHint.style.display = canInteract && !isMapFullScreen ? 'block' : 'none';
+    try {
+      if (typeof interactionHint !== 'undefined' && interactionHint) {
+        interactionHint.style.display = canInteract && !isMapFullScreen ? 'block' : 'none';
+      }
+    } catch (e) { /* ignore if interactionHint is missing */ }
 }
 
 // *******************************************
