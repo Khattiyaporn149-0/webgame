@@ -122,7 +122,7 @@ export const sendPlayerPositionThrottled = (() => {
 // ===== render loop =====
 export function startRemotePlayersRenderLoop(){
   function tick(){
-    const gc = refs?.gameContainer || document.getElementById('gameContainer');
+    const gc = refs?.gameContainer || document.getElementById('game-container');
     if (!gc){ rafRemote = requestAnimationFrame(tick); return; }
 
     for (const p of lastPlayersSnapshot){
@@ -136,12 +136,13 @@ export function startRemotePlayersRenderLoop(){
         el.className = 'remote-player';
         Object.assign(el.style, {
           position:'absolute',
-          width:'128px', height:'128px',
+          width:'200px', height:'220px',
           imageRendering:'pixelated',
           willChange:'transform'
         });
         el.dataset.x = p.x; el.dataset.y = p.y;
         el.dataset.tx = p.x; el.dataset.ty = p.y;
+        el.dataset.uid = p.uid;
         el._lastUpdate = performance.now();
         el._nametag = createNametag(p.name || `Player_${String(p.uid).slice(0,4)}`);
         gc.appendChild(el);
