@@ -19,7 +19,7 @@ export const CONST = {
   CONTAINER_HEIGHT: 8192,
   MINIMAP_SIZE_PIXELS: 150,
   FOCUSED_MAP_SCALE: 0.5,
-  MEETING_POINT: { x: 4000, y: 4000 }, // กลับมาใช้กลางแมพตามโค้ดเดิม
+  MEETING_POINT: { x: 3500, y: 3900 }, // กลับมาใช้กลางแมพตามโค้ดเดิม
   MAX_MISSION_PROGRESS: 10,
   MISSION_INCREASE_AMOUNT: 1,
   MAX_TELEPHONE_CALLS: 2,
@@ -90,11 +90,25 @@ export function renderDisplay(){
     lastFogAt = now;
     const px = Math.round(state.playerX + state.containerX + state.playerW/2);
     const py = Math.round(state.playerY + state.containerY + state.playerH/2);
-    vo.style.background = `radial-gradient(circle at ${px}px ${py}px,
-      transparent 0px, transparent ${CONST.VISION_RADIUS}px,
-      ${CONST.FOG_COLOR} ${CONST.VISION_RADIUS+50}px)`;
+    vo.style.background = `radial-gradient(
+    circle at ${px}px ${py}px,
+    rgba(255, 255, 255, 0.02) 0%,
+    rgba(255, 255, 255, 0.03) ${CONST.VISION_RADIUS * 0.3}px,
+    rgba(255, 255, 255, 0.02) ${CONST.VISION_RADIUS * 0.5}px,
+    rgba(0, 0, 0, 0.15) ${CONST.VISION_RADIUS * 0.7}px,
+    rgba(0, 0, 0, 0.45) ${CONST.VISION_RADIUS * 0.9}px,
+    rgba(0, 0, 0, 0.75) ${CONST.VISION_RADIUS * 1.1}px,
+    rgba(0, 0, 0, 0.9) ${CONST.VISION_RADIUS * 1.3}px,
+    ${CONST.FOG_COLOR} ${CONST.VISION_RADIUS * 1.6}px
+  ),
+  radial-gradient(
+    ellipse at 50% 50%,
+    rgba(0, 0, 0, 0) 50%,
+    rgba(0, 0, 0, 0.4) 80%,
+    rgba(0, 0, 0, 0.85) 100%
+  )
+`;
   }
-
   updateMiniMapDisplay();
   renderDebugOverlayIfNeeded(); // DEBUG overlay
 }

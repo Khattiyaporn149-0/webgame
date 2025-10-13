@@ -102,21 +102,79 @@ function addChatMessage(name, text){
   messages.scrollTop = messages.scrollHeight;
 }
 
-function renderChatBubbleFor(data){
+import { getRemotePlayerWorldXY } from './multiplayer.js';
+
+const activeBubbles = new Map(); // uid -> array ของ bubble DOM
+
+function renderChatBubbleFor(data) {
   const isLocal = data.uid === state.uid;
-  const baseX = (isLocal ? state.playerX : (data.x ?? state.playerX)) + state.containerX + 64;
-  const baseY = (isLocal ? state.playerY : (data.y ?? state.playerY)) + state.containerY - 70;
+  let worldX = data.x;
+  let worldY = data.y;
+
+  // ถ้าเป็น remote player → เอาค่า position ล่าสุดจาก multiplayer
+  if (!isLocal) {
+    const pos = getRemotePlayerWorldXY(data.uid);
+    if (pos) {
+      worldX = pos.x;
+      worldY = pos.y;
+    }
+  }
 
   const bubble = document.createElement('div');
   bubble.className = 'chat-bubble show';
   bubble.textContent = data.text;
-  bubble.style.left = `${baseX}px`;
-  bubble.style.top  = `${baseY}px`;
+
+  // ✅ เก็บ stack ของแต่ละผู้เล่น
+  if (!activeBubbles.has(data.uid)) activeBubbles.set(data.uid, []);
+  const stack = activeBubbles.get(data.uid);
+  stack.push(bubble);
+
+  // จำกัดจำนวนฟองสูงสุด (กันรก)
+  if (stack.length > 4) {
+    const old = stack.shift();
+    if (old?._raf) cancelAnimationFrame(old._raf);
+    old.remove();
+  }
+
   document.body.appendChild(bubble);
 
-  setTimeout(()=> {
+  // ✅ ฟังก์ชันอัปเดตตำแหน่ง
+  function updatePos() {
+    // world pos ล่าสุด
+    if (isLocal) {
+      worldX = state.playerX;
+      worldY = state.playerY;
+    } else {
+      const pos = getRemotePlayerWorldXY(data.uid);
+      if (pos) { worldX = pos.x; worldY = pos.y; }
+    }
+
+    const cx = Number(state.containerX) || 0;
+    const cy = Number(state.containerY) || 0;
+    const halfW = (state.playerW ?? 128) / 2;
+    const baseX = worldX + cx + halfW;
+    const baseY = worldY + cy - 20;
+
+    const index = stack.indexOf(bubble);
+    const offsetY = index * 22;
+
+    bubble.style.left = `${baseX}px`;
+    bubble.style.top = `${baseY - offsetY}px`;
+
+    bubble._raf = requestAnimationFrame(updatePos);
+  }
+
+  updatePos(); // ✅ เริ่ม loop ทันที
+
+  // ✅ fade out + ลบออกจาก stack
+  setTimeout(() => {
     bubble.style.opacity = '0';
-    bubble.style.transform = 'translate(-50%, -160%)';
+    bubble.style.transform = 'translate(-50%, -140%)';
+    setTimeout(() => {
+      cancelAnimationFrame(bubble._raf);
+      bubble.remove();
+      const i = stack.indexOf(bubble);
+      if (i >= 0) stack.splice(i, 1);
+    }, 400);
   }, 4000);
-  setTimeout(()=> bubble.remove(), 5000);
 }

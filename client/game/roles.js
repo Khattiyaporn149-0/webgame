@@ -39,7 +39,7 @@ function setHudIcon(role, abilityName){
 }
 
 export async function initRoles(){
-  //สุ่มบทบาท + ความสามารถ
+  // สุ่มบทบาท + ความสามารถ
   _role = Math.random() < 0.5 ? 'Visitor' : 'Thief';
   const pool = _role === 'Visitor' ? VISITOR_ABILITIES : THIEF_ABILITIES;
   const keys = Object.keys(pool);
@@ -87,12 +87,17 @@ export async function initRoles(){
   setHudIcon(_role, _abilityName);
 
   // ปิด modal อัตโนมัติ
-  setTimeout(() => {
-    if (modal){
-      modal.style.opacity = '0';
-      setTimeout(()=> { modal.style.display = 'none'; }, 1000);
-    }
-    _revealed = false;
+setTimeout(async () => {
+  if (modal){
+    modal.style.opacity = '0';
+    setTimeout(()=> { modal.style.display = 'none'; }, 1000);
+  }
+  _revealed = false;
+
+  // 🟢 โหลด chat.js ตอนนี้จริง ๆ
+  const { initChat } = await import('./chat.js');
+  initChat();
+
     // log บอกผู้เล่น (ถ้ามีกล่อง log)
     const box = byId('log-container');
     if (box){
@@ -105,5 +110,6 @@ export async function initRoles(){
       setTimeout(()=>{ p1.style.opacity='0'; p2.style.opacity='0'; }, 10000);
       setTimeout(()=>{ p1.remove(); p2.remove(); }, 11000);
     }
+    
   }, ROLE_REVEAL_DURATION);
 }
