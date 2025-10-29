@@ -3,6 +3,8 @@
 // เพิ่มใหม่: โมดูลหน้าจบเกม — 2025-10-13 21:14:26 +07:00
 // ปรับดีไซน์: พื้นหลังดำ ตัวอักษรใหญ่ และบังคับกลับ Lobby อัตโนมัติ — 2025-10-13 21:45:00 +07:00
 
+// Note: ES module + window global for compatibility with dynamic import and legacy callers
+
 function ensureOverlay(detail = {}) {
   if (document.getElementById('endgame-overlay')) return;
 
@@ -20,6 +22,7 @@ function ensureOverlay(detail = {}) {
   const isThief = (detail?.outcome === 'thief_win');
   const titleText = isThief ? (detail?.title || 'MISSION COMPLETE!') : (detail?.title || 'MISSION COMPLETE!');
   const teamText  = isThief ? 'หัวขโมย' : 'ผู้เยี่ยมชม';
+
   // Map reason code -> Thai text; desc (ถ้ามี) จะ override
   const reasonMap = {
     missions_complete: 'ภารกิจสำเร็จครบ 100%',
@@ -55,7 +58,17 @@ function ensureOverlay(detail = {}) {
   document.body.appendChild(el);
 
   // redirect handling
-  const redirectTo = String(detail?.redirectTo || 'lobby.html');
+  let redirectTo = String(detail?.redirectTo || 'lobby.html');
+  
+  // ✅ เพิ่ม room code ถ้ามี
+  try {
+    const params = new URLSearchParams(location.search);
+    const code = params.get('code');
+    if (code && !redirectTo.includes('?')) {
+      redirectTo += `?code=${encodeURIComponent(code)}`;
+    }
+  } catch {}
+  
   const delayMs = Number.isFinite(+detail?.delayMs) ? +detail.delayMs : 15000;
   const goExit  = () => { try { location.href = redirectTo; } catch { /* no-op */ } };
   const nowBtn  = document.getElementById('eg-now');
@@ -74,11 +87,15 @@ function ensureOverlay(detail = {}) {
   try { document.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key==='Escape') goExit(); }, { once:true }); } catch {}
 }
 
-export function showEnd(detail) {
+export function showEnd(detail){
   try { ensureOverlay(detail); } catch (e) { console.error('End overlay failed', e); }
 }
 
+// Export default for convenience
 export default showEnd;
+
+// Also attach to window for callers that expect a global function
+try { window.showEnd = showEnd; } catch {}
 
 // Optional: react if someone dispatches the event before/after dynamic import
 try {
