@@ -322,6 +322,19 @@ function startCountdown() {
     const proto = location.protocol.startsWith('https') ? 'https' : 'http';
     socket = io(`${proto}://${host}:3000`, { transports: ['websocket','polling'] });
     
+    // เพิ่ม error handling
+    socket.on("connect_error", (err) => {
+      console.error("❌ Socket connection error:", err.message);
+      alert("Cannot connect to server. Please make sure the server is running.");
+    });
+    
+    socket.on("connect", () => {
+      console.log("✅ Socket connected!");
+      // ส่ง game:start ไป server หลังจากเชื่อมต่อแล้ว
+      socket.emit("game:start", { room: roomCode });
+      console.log("🎮 Sent game:start to server");
+    });
+    
     // รอรับ tasks:assigned
     socket.once("tasks:assigned", (data) => {
       console.log("✅ Received task assignment:", data);
@@ -334,10 +347,15 @@ function startCountdown() {
       // redirect ไปหน้าเกม
       location.href = `game.html?code=${encodeURIComponent(roomCode)}`;
     });
-
-    // ส่ง game:start ไป server
-    socket.emit("game:start", { room: roomCode });
-    console.log("🎮 Sent game:start to server");
+    
+    // Timeout fallback ถ้าไม่ได้รับ tasks:assigned ภายใน 10 วินาที
+    setTimeout(() => {
+      if (sessionStorage.getItem("myRole") === null) {
+        console.warn("⚠️ Timeout waiting for task assignment");
+        alert("Server timeout. Redirecting to game anyway...");
+        location.href = `game.html?code=${encodeURIComponent(roomCode)}`;
+      }
+    }, 10000);
   }
 
   const t = setInterval(() => {
