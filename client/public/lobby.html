@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Lobby</title>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://www.gstatic.com https://cdn.socket.io; connect-src 'self' https://*.firebasedatabase.app wss://*.firebasedatabase.app https://www.googleapis.com https://securetoken.googleapis.com https://www.gstatic.com https://cdn.socket.io ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:*; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com https://*.firebasedatabase.app https://cdn.socket.io; img-src 'self' data: blob: https://www.gstatic.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://www.gstatic.com; connect-src 'self' https://*.firebasedatabase.app wss://*.firebasedatabase.app https://www.googleapis.com https://securetoken.googleapis.com https://www.gstatic.com ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:*; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com https://*.firebasedatabase.app; img-src 'self' data: blob: https://www.gstatic.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:;">
   <style>
     body{
       margin:0;background:#0b1324;color:#E6E6FA;font-family:'Segoe UI',system-ui,sans-serif;
@@ -106,8 +106,8 @@
       <button id="sendBtn">Send</button>
     </div>
   </div>  
-  <!-- Socket.IO CDN -->
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <!-- Socket.IO Local -->
+  <script src="socket.io.min.js"></script>
   
   <script type="module" src="../src/services/firebase.js"></script>
   <script type="module" src="../src/ui/lobby.js"></script>
