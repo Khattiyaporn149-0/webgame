@@ -33,7 +33,7 @@ function ensureOverlay(detail = {}) {
   // Character image (current player image if exists)
   let charSrc = '';
   try { const p = document.getElementById('player'); if (p?.src) charSrc = p.src; } catch {}
-  if (!charSrc) charSrc = 'assets/images/idle_1.png';
+  if (!charSrc) charSrc = '../assets/images/idle_1.png';
 
   el.innerHTML = `
     <div id="eg-wrap" style="max-width:920px;padding:24px;">

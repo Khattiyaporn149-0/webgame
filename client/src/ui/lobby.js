@@ -2,7 +2,7 @@
 // ✅ ใช้ RTDB อย่างเดียว
 import {
   rtdb, ref, set, update, onValue, onDisconnect, push, get, remove, serverTimestamp
-} from "./firebase.js";
+} from "../services/firebase.js";
 
 /* ---------- Utils & Context ---------- */
 const $ = (id) => document.getElementById(id);
@@ -147,7 +147,7 @@ try {
 
 function renderChar() {
   const f = characters[currentCharIndex];
-  img.src = `./assets/Characters/${f}/idle_1.png`;
+  img.src = `../assets/Characters/${f}/idle_1.png`;
   label.textContent = f.replace("mini_", "").toUpperCase();
 }
 

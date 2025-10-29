@@ -1,5 +1,5 @@
 // 7-Day Streak modal (independent of app.js)
-import { rtdb, ref, onValue } from './firebase.js';
+import { rtdb, ref, onValue } from '../services/firebase.js';
 (function(){
   const STREAK_LEN = 7;
   const CLAIM_KEY = 'streak';

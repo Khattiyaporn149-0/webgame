@@ -1,19 +1,19 @@
 ﻿(function(){
   const REGISTRY = {
-    overworld: 'minigames/minigames/dodge-square/world.html',
-    dodge: 'minigames/minigames/dodge-square/world.html?game=dodge',
-    react: 'minigames/minigames/dodge-square/world.html?game=react',
-    aim: 'minigames/minigames/dodge-square/world.html?game=aim',
-    tap: 'minigames/minigames/dodge-square/world.html?game=tap',
-    wires: 'minigames/minigames/dodge-square/world.html?game=wires',
-    upload: 'minigames/minigames/dodge-square/world.html?game=upload',
-    mix: 'minigames/minigames/dodge-square/world.html?game=mix',
-    switch: 'minigames/minigames/dodge-square/world.html?game=switch',
-    card: 'minigames/minigames/dodge-square/world.html?game=card',
-    timer: 'minigames/minigames/dodge-square/world.html?game=timer',
-    align: 'minigames/minigames/dodge-square/world.html?game=align',
-    mop: 'minigames/minigames/mop/index.html',
-    broom: 'minigames/minigames/mop/index.html'
+    overworld: '../src/minigames/dodge-square/world.html',
+    dodge:     '../src/minigames/dodge-square/world.html?game=dodge',
+    react:     '../src/minigames/dodge-square/world.html?game=react',
+    aim:       '../src/minigames/dodge-square/world.html?game=aim',
+    tap:       '../src/minigames/dodge-square/world.html?game=tap',
+    wires:     '../src/minigames/dodge-square/world.html?game=wires',
+    upload:    '../src/minigames/dodge-square/world.html?game=upload',
+    mix:       '../src/minigames/dodge-square/world.html?game=mix',
+    switch:    '../src/minigames/dodge-square/world.html?game=switch',
+    card:      '../src/minigames/dodge-square/world.html?game=card',
+    timer:     '../src/minigames/dodge-square/world.html?game=timer',
+    align:     '../src/minigames/dodge-square/world.html?game=align',
+    mop:       '../src/minigames/mop/index.html',
+    broom:     '../src/minigames/mop/index.html'
   };
 
   const modal = document.getElementById('minigameModal');

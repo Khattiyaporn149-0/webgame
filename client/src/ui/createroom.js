@@ -1,5 +1,5 @@
 // client/createroom.js
-import { rtdb, ref, set, update, onDisconnect, get } from "./firebase.js";
+import { rtdb, ref, set, update, onDisconnect, get } from "../services/firebase.js";
 import { serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 // ---------- DOM ----------

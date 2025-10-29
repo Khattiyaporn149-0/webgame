@@ -6,7 +6,7 @@
   <title>Room List</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://www.gstatic.com; connect-src 'self' https://*.firebasedatabase.app wss://*.firebasedatabase.app https://www.googleapis.com https://securetoken.googleapis.com https://www.gstatic.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com https://*.firebasedatabase.app; img-src 'self' data: blob: https://www.gstatic.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:;">
   <!-- ใช้ styles.css เดียวกับหน้า index เพื่อให้หน้าตาเหมือนกัน -->
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="../styles/styles.css" />
 
   <style>
     /* BG เฉพาะหน้านี้ */
@@ -157,8 +157,10 @@
   </div>
 
   <!-- โค้ดหลักของหน้า -->
-  <script src="./common-settings.js" defer></script>
-  <script type="module" src="./roomlist.js"></script>
+  <script type="module" src="../src/services/common-settings.js"></script>
+
+  <script type="module" src="../src/services/firebase.js"></script>
+  <script type="module" src="../src/ui/roomlist.js"></script>
 
   <!-- สคริปต์ Settings (ใช้ร่วมกับ styles.css ของ index) -->
   <script>

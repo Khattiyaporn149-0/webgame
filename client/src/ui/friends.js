@@ -4,7 +4,7 @@
 // - userCodes/{code}: uid
 // - friends/{uid}/{friendUid}: true  (mutual on add)
 
-import { rtdb, ref, set, update, onValue, get } from "./firebase.js";
+import { rtdb, ref, set, update, onValue, get } from "../services/firebase.js";
 
 (function(){
   const MODAL_ID = 'friendsModal';
@@ -234,4 +234,3 @@ import { rtdb, ref, set, update, onValue, get } from "./firebase.js";
   if (document.readyState==='complete' || document.readyState==='interactive') init();
   else document.addEventListener('DOMContentLoaded', init, { once: true });
 })();
-
