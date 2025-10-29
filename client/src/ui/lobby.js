@@ -43,7 +43,9 @@ try {
   
   // ส่ง game:reset ไป server (ถ้ามี socket)
   if (typeof io !== 'undefined') {
-    const resetSocket = io("http://localhost:3000");
+    const host = location.hostname || '127.0.0.1';
+    const proto = location.protocol.startsWith('https') ? 'https' : 'http';
+    const resetSocket = io(`${proto}://${host}:3000`, { transports: ['websocket','polling'] });
     resetSocket.emit("game:reset", { room: roomCode });
     console.log("🔄 Sent game:reset to server");
     setTimeout(() => resetSocket.disconnect(), 1000);
@@ -316,7 +318,9 @@ function startCountdown() {
 
   // เชื่อมต่อ Socket.IO และส่ง game:start
   if (!socket) {
-    socket = io("http://localhost:3000");
+    const host = location.hostname || '127.0.0.1';
+    const proto = location.protocol.startsWith('https') ? 'https' : 'http';
+    socket = io(`${proto}://${host}:3000`, { transports: ['websocket','polling'] });
     
     // รอรับ tasks:assigned
     socket.once("tasks:assigned", (data) => {
