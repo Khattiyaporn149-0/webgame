@@ -31,17 +31,10 @@
 
   <!-- ========== 🧩 Overlays (แต่ละมินิเกม) ========== -->
 
-  <!-- Dodge Square -->
+  <!-- Dodge Square / Stealth Escape -->
   <div class="overlay" id="miniOverlayDodge" aria-hidden="true">
     <div class="mini-box">
-      <button class="close" id="btnCloseMiniDodge">×</button>
-      <h2>Dodge Square</h2>
-      <canvas id="game"></canvas>
-      <div class="panel">
-        <button id="startBtn">เริ่มเกม</button>
-        <p>คะแนน: <span id="score">0.0</span></p>
-        <p>ดีที่สุด: <span id="best">0.0</span></p>
-      </div>
+      <canvas id="game" width="800" height="450"></canvas>
     </div>
   </div>
 
@@ -89,20 +82,16 @@
   <!-- 🧩 Task แบบ Among Us -->
   <div class="overlay" id="miniOverlayWires" aria-hidden="true">
     <div class="mini-box">
-      <button class="close" id="btnCloseMiniWires">×</button>
-      <h2>Fix Wiring</h2>
+      
       <canvas id="wiresCanvas" width="800" height="450"></canvas>
     </div>
   </div>
 
   <div class="overlay" id="miniOverlayUpload" aria-hidden="true">
     <div class="mini-box">
-      <!--<button class="close" id="btnCloseMiniUpload">×</button>-->
-      <h2>Upload Data</h2>
-      <div class="upload">
-        <div id="uploadBar" class="bar"></div>
-        <p id="uploadText">0%</p>
-        <button id="uploadStart">เริ่ม Upload</button>
+      <canvas id="uploadCanvas" width="800" height="450"></canvas>
+      <div class="upload" style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 90%;">
+        <button id="uploadStart" style="padding: 15px 40px; font-size: 18px; background: linear-gradient(135deg, #00ff88, #00cc66); border: none; color: #000; font-weight: bold; cursor: pointer; border-radius: 8px; text-transform: uppercase; letter-spacing: 2px;">► Initiate Upload</button>
       </div>
     </div>
   </div>
@@ -117,21 +106,8 @@
 
   <div class="overlay" id="miniOverlaySwitch" aria-hidden="true">
     <div class="mini-box">
-      <button class="close" id="btnCloseMiniSwitch">×</button>
-      <h2>Power Switch</h2>
-      <div class="switch-area">
-        <div id="switchPanel" class="switch-panel"></div>
-        <div class="battery" aria-hidden="true">
-          <div class="battery-frame">
-            <div id="batteryFill" class="battery-fill" style="width:0%"></div>
-          </div>
-          <div id="batteryLabel" class="battery-label">0 / 5</div>
-        </div>
-        <div class="switch-timer">
-          <div id="switchTime">20</div>
-          <div class="switch-hint">ปิดเวลา: ต้องเปิดให้ครบก่อนหมดเวลา</div>
-        </div>
-      </div>
+      <canvas id="switchCanvas" width="800" height="450"></canvas>
+      <div id="switchPanel" style="position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px;"></div>
     </div>
   </div>
 
@@ -158,8 +134,6 @@
 
   <div class="overlay" id="miniOverlayAlign" aria-hidden="true">
     <div class="mini-box">
-      <button class="close" id="btnCloseMiniAlign">×</button>
-      <h2>Align Engine</h2>
       <canvas id="alignCanvas" width="800" height="450"></canvas>
     </div>
   </div>
@@ -195,30 +169,14 @@
   <!-- Quick Math -->
   <div class="overlay" id="miniOverlayMath" aria-hidden="true">
     <div class="mini-box">
-      <button class="close" id="btnCloseMiniMath">x</button>
-      <h2>Quick Math</h2>
-      <div id="mathQ" style="font-size:28px;margin:10px 0;">1 + 2 = ?</div>
-      <div style="display:flex;gap:12px;justify-content:center;">
-        <button id="mathA"></button>
-        <button id="mathB"></button>
-      </div>
-      <div class="panel">
-        <span>เวลา: <span id="mathTime">15.0</span>s</span>
-        <span style="margin-left:12px;">ถูก: <span id="mathScore">0</span></span>
-      </div>
+      <canvas id="mathCanvas" width="800" height="450"></canvas>
     </div>
   </div>
 
   <!-- Rhythm Tap -->
   <div class="overlay" id="miniOverlayRhythm" aria-hidden="true">
     <div class="mini-box">
-      <button class="close" id="btnCloseMiniRhythm">x</button>
-      <h2>Rhythm Tap</h2>
-      <canvas id="rhythmCanvas" width="800" height="240"></canvas>
-      <div class="panel">
-        <button id="rhythmStart">เริ่ม</button>
-        <span style="margin-left:12px;">คอมโบ: <span id="rhythmCombo">0</span></span>
-      </div>
+      <canvas id="rhythmCanvas" width="800" height="450"></canvas>
     </div>
   </div>
 
@@ -269,14 +227,7 @@
   <!-- Mop The Floor -->
   <div class="overlay" id="miniOverlayMop" aria-hidden="true">
     <div class="mini-box">
-      <button class="close" id="btnCloseMiniMop">x</button>
-      <h2>Mop The Floor</h2>
       <canvas id="mopCanvas" width="800" height="450"></canvas>
-      <div class="panel">
-        <button id="mopStart">เริ่ม</button>
-        <button id="mopReset">สุ่มคราบใหม่</button>
-        <span style="margin-left:12px;">สะอาด: <span id="mopPct">0</span>%</span>
-      </div>
     </div>
   </div>
 

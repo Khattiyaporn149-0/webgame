@@ -3,6 +3,7 @@ const REG_PATH = 'minigames/registry.json';
 let regCache = null;
 let modal, frame, fill, closing = false;
 let pending = null; // { obj, key, difficulty, onComplete }
+let completedOnce = false; // one-time completion guard per open
 
 async function loadReg(){
   if (regCache) return regCache;
@@ -43,6 +44,8 @@ export async function openMinigameForObject(obj, { onComplete } = {}){
   const key = (obj.mg.key || obj.mg).toLowerCase?.() || String(obj.mg).toLowerCase();
   const difficulty = obj.mg.difficulty || 'normal';
   pending = { obj, key, difficulty, onComplete };
+  completedOnce = false; // reset guard when opening
+  closing = false;
 
   try { frame.src = urlFor(key); } catch {}
   modal.style.display = 'flex';
@@ -68,6 +71,8 @@ function onMsg(e){
     if ((+d.percent||0) >= 100 && !closing) setTimeout(()=> closeMini(), 800);
   }
   else if (d.type === 'mg:complete'){
+    if (completedOnce) return; // prevent duplicate firing
+    completedOnce = true;
     try { setProgress(100); } catch {}
     try { pending?.onComplete?.(pending.obj); } catch {}
     setTimeout(()=> closeMini(), 300);

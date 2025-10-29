@@ -237,6 +237,17 @@ export function checkObjectInteractions(){
   if (!refs.interactionHint) return;
   if (!near){ refs.interactionHint.style.display='none'; return; }
   refs.interactionHint.style.display='block';
+  // If this object's minigame is the rhythm game and it's already completed,
+  // hide the hint and prevent starting it again.
+  try {
+    const mgKey = near.mg ? (typeof near.mg === 'string' ? near.mg : (near.mg.key || '')) : '';
+    const storageKey = mgKey ? `minigame_completed:${String(mgKey).toLowerCase()}:${near.id}` : null;
+    const isRhythmCompleted = storageKey ? (localStorage.getItem(storageKey) === 'true') : false;
+    if (mgKey && String(mgKey).toLowerCase() === 'rhythm' && isRhythmCompleted) {
+      refs.interactionHint.style.display = 'none';
+      return;
+    }
+  } catch (e) { /* ignore localStorage errors */ }
   if (near.type === 'Telephone'){
     refs.interactionHint.textContent = telCooldown ? `📵 โทรศัพท์กำลังรีเซ็ต (${telRemain}s)` : '📞 กด [E] เพื่อโทรเรียกประชุมฉุกเฉิน';
   } else {
@@ -248,9 +259,24 @@ export function checkObjectInteractions(){
 
   // มินิเกมก่อน ถ้ามี
   if (near.mg){
+    // double-check before opening: don't open rhythm minigame again if completed
+    try {
+      const mgKey = typeof near.mg === 'string' ? near.mg : (near.mg.key || '');
+      const storageKey = mgKey ? `minigame_completed:${String(mgKey).toLowerCase()}:${near.id}` : null;
+      const isRhythmCompleted = storageKey ? (localStorage.getItem(storageKey) === 'true') : false;
+      if (mgKey && String(mgKey).toLowerCase() === 'rhythm' && isRhythmCompleted) {
+        // already handled above, but guard here as well
+        return;
+      }
+    } catch (e) { /* ignore */ }
+    // If the new minigame system (game.js) is present, delegate to it to avoid double handling
+    if (typeof window.handleObjectInteraction === 'function') {
+      try { window.handleObjectInteraction(near); } catch(e) { console.warn('handleObjectInteraction failed', e); }
+      return;
+    }
+    // Fallback to legacy opener only if the new system isn't available
     openMinigameForObject(near, {
       onComplete: (obj) => {
-        // เพิ่มความคืบหน้าภารกิจเมื่อผ่านมินิเกม
         const inc = Number(obj?.mg?.progress) || 1;
         state.missionProgress = Math.min(CONST.MAX_MISSION_PROGRESS, state.missionProgress + inc);
         setMissionUI();
@@ -258,6 +284,20 @@ export function checkObjectInteractions(){
         obj.active = false;
       }
     });
+    return;
+  }if (near.type === 'Telephone') {
+if (near.type === 'Telephone') {
+  if (roleNameText === 'Thief') {
+    import('./endgame.js').then(() => {
+      window.showEnd({
+        outcome: 'thief_win',
+        reason: 'heist_detected',
+        title: 'YOU WERE CAUGHT!',
+        desc: 'หัวขโมยถูกจับได้ขณะพยายามใช้โทรศัพท์!',
+        redirectTo: 'lobby.html',
+        delayMs: 8000,
+      });
+    }).catch(err => console.error('endgame load failed', err));
     return;
   }
 
@@ -268,6 +308,19 @@ export function checkObjectInteractions(){
 
     telUsed++; log(`📞 โทรเรียกประชุม (${telUsed}/${CONST.MAX_TELEPHONE_CALLS})`);
     startMeeting(CONST.MEETING_POINT); refs.sfxInteract?.play().catch(()=>{});
+
+      // 🔥 แจ้งให้เซิร์ฟเวอร์ broadcast ให้ทุกคนเปิดประชุม
+  try {
+    if (window.socket && window.socket.connected) {
+      window.socket.emit('meeting:start', {
+        room: state.currentRoom,
+        x: CONST.MEETING_POINT.x,
+        y: CONST.MEETING_POINT.y,
+      });
+    }
+  } catch (err) {
+    console.warn('meeting:start emit failed', err);
+  }
 
     telCooldown = true; telRemain = CONST.TELEPHONE_COOLDOWN_MS/1000;
     clearInterval(telTimer);
@@ -288,7 +341,7 @@ export function checkObjectInteractions(){
   log(`✅ โต้ตอบกับ ${near.id}`); refs.sfxInteract?.play().catch(()=>{});
   near.active = false;
 }
-
+  }}
 /* ===== log helper ===== */
 function log(text, kind='general'){
   const box = refs.logContainer; if (!box) return;

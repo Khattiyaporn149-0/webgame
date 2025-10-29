@@ -111,6 +111,7 @@
         #mission-heist {
             background-color: red; 
             border: 5px solid red;
+            display: flex;
         }    
         /* -------------------------------------------
             4. INTERACTION UI (à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¹‚à¸•à¹‰à¸•à¸­à¸š)
@@ -704,7 +705,7 @@
             <!-- สร้างกล่องผู้เล่นแบบกริด -->
             <div class="player-card" data-player="Aum">
                 <img src="assets/images/idle_1.png" alt="Aum">
-                <span class="name">Aum</span>
+                <span class="name">player</span>
                 <button class="vote-btn">Vote</button>
             </div>
             <!-- ... เพิ่ม card อื่น ๆ ตามผู้เล่นที่เชื่อม -->
@@ -766,6 +767,9 @@
 <!-- โหลด entry ของเกมแบบ ES module: ให้ core.js import ไฟล์อื่นทั้งหมดเอง -->
 <script type="module" src="game/core.js"></script>
 <script src="minigames/mg-bridge.js"></script>
+<script src="game/endgame.js"></script>
+<script type="module" src="./interactions.js"></script>
+
 
 </body>
 </html>

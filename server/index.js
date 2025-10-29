@@ -85,6 +85,16 @@ io.on("connection", (socket) => {
     }
   });
 
+  io.on('connection', (socket) => {
+  socket.on('meeting:start', (data) => {
+    const room = data?.room;
+    if (!room) return;
+    console.log(`📞 Meeting triggered in room ${room}`);
+    io.to(room).emit('meeting:start', data);  // ✅ ส่งให้ทุกคนในห้องนั้นเห็น
+  });
+});
+
+
   // ===============================
   // CHAT (per-room)
   // ===============================

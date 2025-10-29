@@ -17,19 +17,19 @@
   let started = false;
   let dragging = false;
   let cell = 8; // larger cell -> fewer cells -> easier
-  let gridW = Math.floor((canvas.width||800)/cell), gridH = Math.floor((canvas.height||450)/cell);
+  let gridW = Math.floor((canvas.width||1000)/cell), gridH = Math.floor((canvas.height||600)/cell);
   let wet = new Float32Array(gridW * gridH); // 0..1 amount of water
   let initialWet = 0, remainWet = 0; // sum of wetness
   let coverage = 0.30; // portion of area initially wet (easier than full)
   let mopRadius = 28; // easier: larger mop head in px
   let seed = Math.floor(Math.random()*1e9);
-  let threshold = 0.999; // require 100% (effectively) to complete
+  let threshold = 0.95; // require 95% to complete
   let dryRate = 0.75; // how much wetness removed per pass (0..1)
   let paused = false;
   let raf = 0;
   // Mop tool (must pick up first)
   let mopHeld = false;
-  let mopPos = { x: 120, y: (canvas.height||450) - 80 };
+  let mopPos = { x: 120, y: (canvas.height||600) - 80 };
   let mopAngle = -0.6; // radians
 
   function SRand(seed){
@@ -42,15 +42,15 @@
 
   function setProgress(p){
     const pct = U.clamp(p|0, 0, 100);
-    progBar.style.width = pct + '%';
-    progText.textContent = pct + '%';
+    if (progBar) progBar.style.width = pct + '%';
+    if (progText) progText.textContent = pct + '%';
     if (window.MGBridge && typeof MGBridge.progress === 'function') MGBridge.progress(pct);
   }
 
   function complete(){
     setProgress(100);
     started = false; dragging = false;
-    toast('✅ สะอาดเรียบร้อย!');
+    // removed completion toast per request
     try { window.MGBridge?.complete?.({ key:'mop' }); } catch {}
   }
 
@@ -269,7 +269,7 @@
     if (started) return;
     started = true; dragging = false;
     try { window.MGBridge?.setActive?.('mop'); } catch {}
-    toast('เริ่มถูพื้น!');
+    // removed popup toast per request
   }
 
   let lastX = canvas.width/2, lastY = canvas.height/2;
@@ -277,7 +277,7 @@
     genWet();
     draw();
     setProgress(0);
-    started = false; dragging = false; mopHeld = false; mopPos = { x: 120, y: (canvas.height||450)-80 };
+    started = false; dragging = false; mopHeld = false; mopPos = { x: 120, y: (canvas.height||600)-80 };
   }
 
   function onPointerDown(e){
@@ -287,7 +287,7 @@
     // Pick up mop if clicking near it
     if (!mopHeld){
       const dx = x - mopPos.x, dy = y - mopPos.y;
-      if (Math.hypot(dx,dy) <= 30){ mopHeld = true; toast('หยิบไม้ถูแล้ว!'); draw(); return; }
+      if (Math.hypot(dx,dy) <= 30){ mopHeld = true; /* removed pickup toast */ draw(); return; }
     }
     dragging = true; handlePointer(e);
   }
@@ -299,7 +299,7 @@
   function onKey(e){
     if (e.key === 'Escape') { try { window.MGBridge?.cancel?.(); } catch {} }
     if ((e.key === ' ' || e.key === 'Enter') && !started) start();
-    if (e.key === 'd' || e.key === 'D'){ if (mopHeld){ mopHeld=false; mopPos.x=lastX; mopPos.y=lastY; toast('วางไม้ถูแล้ว'); draw(); } }
+  if (e.key === 'd' || e.key === 'D'){ if (mopHeld){ mopHeld=false; mopPos.x=lastX; mopPos.y=lastY; /* removed drop toast */ draw(); } }
   }
 
   function loop(){ if (!paused){ /* could animate wet trails, etc. */ } raf = requestAnimationFrame(loop); }
@@ -322,9 +322,9 @@
   function applyDifficulty(diff){
     // Adjust mop size and completion threshold by difficulty
     const d = String(diff||'normal').toLowerCase();
-    if (d === 'easy'){ mopRadius = 34; threshold = 0.999; dryRate = 0.85; coverage = 0.22; }
-    else if (d === 'hard'){ mopRadius = 22; threshold = 0.999; dryRate = 0.6; coverage = 0.45; }
-    else { mopRadius = 28; threshold = 0.999; dryRate = 0.75; coverage = 0.30; }
+    if (d === 'easy'){ mopRadius = 34; threshold = 0.95; dryRate = 0.85; coverage = 0.22; }
+    else if (d === 'hard'){ mopRadius = 22; threshold = 0.95; dryRate = 0.6; coverage = 0.45; }
+    else { mopRadius = 28; threshold = 0.95; dryRate = 0.75; coverage = 0.30; }
   }
 
   function initWith(data){

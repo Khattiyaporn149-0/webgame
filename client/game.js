@@ -20,7 +20,10 @@ const LOG_FADE_DURATION_MS = 10000;
 // ตัวแปรสถานะภารกิจ
 let currentMissionProgress = 0;
 const MAX_MISSION_PROGRESS = 10; 
-const MISSION_INCREASE_AMOUNT = 1; 
+const MISSION_INCREASE_AMOUNT = 1;
+
+// Deduplication tracker for minigame completions (prevent duplicate toasts/progress)
+const __completedMinigames = new Set(); 
 
 // *******************************************
 // NEW: ตัวแปรสถานะบทบาทและความสามารถ
@@ -953,7 +956,7 @@ function __urlFor(key){
 }
 
 // 2) overlay + iframe ครั้งเดียว
-let __mgModal, __mgFrame, __pending=null, __closing=false;
+let __mgModal, __mgFrame, __pending=null, __closing=false, __mgSessionComplete=false;
 let __awaitingCompleteTimeout = null;
 function __ensureOverlay(){
   if (__mgModal) return;
@@ -990,10 +993,20 @@ async function __openMiniFor(obj){
   if (typeof obj.active !== 'undefined' && obj.active === false) { addLogEvent?.('\u26a0\ufe0f ภารกิจนี้ถูกทำแล้วในรอบนี้'); return; }
   __ensureOverlay();
   await __loadReg();
+  // reset session completion guard for this minigame open
+  __mgSessionComplete = false;
   const key = (obj.mg?.key || obj.mg).toLowerCase();
   const difficulty = obj.mg?.difficulty || 'normal';
   __pending = { obj, key, difficulty };
-  try { __mgFrame.src = __urlFor(key); } catch {}
+  try {
+    // Append origin (object id) so minigame iframe knows which interactable opened it.
+    let url = __urlFor(key) || '';
+    try {
+      const originParam = encodeURIComponent(obj?.id || '');
+      url += (url.indexOf('?') >= 0 ? '&' : '?') + 'origin=' + originParam;
+    } catch(_) {}
+    __mgFrame.src = url;
+  } catch {}
   __mgModal.style.display = 'flex';
   __setProgress(0);
 }
@@ -1035,7 +1048,31 @@ function __onMsg(e){
   }
 }
   else if (d.type === 'mg:complete'){
-    try { if (__awaitingCompleteTimeout) { clearTimeout(__awaitingCompleteTimeout); __awaitingCompleteTimeout = null; } } catch(_){}
+    try { if (__awaitingCompleteTimeout) { clearTimeout(__awaitingCompleteTimeout); __awaitingCompleteTimeout = null; } } catch(_){ }
+    // Session guard: only process one completion per overlay open
+    if (__mgSessionComplete) {
+      console.log('[game.js] mg:complete ignored (already completed in this session)');
+      if (__pending?.obj) __pending.obj.active = false;
+      setTimeout(()=> __closeMini(), 300);
+      return;
+    }
+    __mgSessionComplete = true;
+    
+    // Deduplication: determine unique key for this completion
+    const completionKey = (d.key || d.id || __pending?.obj?.id || __pending?.obj?.mg?.key || 'unknown')?.toString().toLowerCase();
+    
+    // Skip if already processed
+    if (__completedMinigames.has(completionKey)) {
+      console.log(`[game.js] mg:complete for '${completionKey}' already processed - skipping duplicate`);
+      if (__pending?.obj) __pending.obj.active = false;
+      setTimeout(()=> __closeMini(), 300);
+      return;
+    }
+    
+    // Mark as completed
+    __completedMinigames.add(completionKey);
+    console.log(`[game.js] mg:complete for '${completionKey}' - processing (first time)`);
+    
     try {
       __setProgress(100);
       addLogEvent?.('✅ Minigame complete!');
@@ -1117,6 +1154,17 @@ function checkObjectInteractions() {
 
   // แสดง Hint ถ้าอยู่ใกล้
   if (nearObj) {
+    // If this object launches the rhythm minigame and it's already completed,
+    // hide the hint and prevent starting it again (check per-object key).
+    const mgKey = (nearObj && nearObj.mg) ? (typeof nearObj.mg === 'string' ? nearObj.mg : (nearObj.mg.key || '')) : '';
+    try {
+      const storageKey = mgKey ? `minigame_completed:${String(mgKey).toLowerCase()}:${nearObj.id}` : null;
+      const isRhythmCompleted = storageKey ? (localStorage.getItem(storageKey) === 'true') : false;
+      if (mgKey && String(mgKey).toLowerCase() === 'rhythm' && isRhythmCompleted) {
+        interactionHint.style.display = 'none';
+        return;
+      }
+    } catch (e) { /* ignore */ }
     interactionHint.style.display = 'block';
     interactionHint.textContent = `Press E to interact with ${nearObj.type}`;
     if (keysPressed[INTERACTION_KEY]) {
