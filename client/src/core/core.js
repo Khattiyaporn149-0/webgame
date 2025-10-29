@@ -39,6 +39,13 @@ export const state = {
   displayName: null,
   charFolder: 'mini_brown',
   playerColor: '#00ffcc',
+  
+  // ✅ Task System
+  myRole: null,              // "Visitor" | "Thief"
+  myWaves: [],               // [[task1, task2], [task3, task4, task5], [task6, task7, task8]]
+  myCurrentWave: 0,          // 1, 2, 3
+  myUnlockedTasks: [],       // ["align", "mop", ...]
+  myCompletedTasks: [],      // ["align", ...]
 };
 
 export const refs = {
@@ -91,6 +98,50 @@ function charToColor(ch){
     mini_yellow:   '#FFD54F',
   };
   return map[ch] || '#FFFFFF';
+}
+
+// ===============================
+// Task System Functions
+// ===============================
+export function initPlayerTasks() {
+  try {
+    state.myRole = sessionStorage.getItem("myRole") || null;
+    const wavesStr = sessionStorage.getItem("myWaves");
+    state.myWaves = wavesStr ? JSON.parse(wavesStr) : [];
+    state.myCurrentWave = parseInt(sessionStorage.getItem("myCurrentWave") || "0", 10);
+    
+    // ตั้งค่า unlocked tasks = wave แรก (ถ้ามี)
+    if (state.myCurrentWave > 0 && state.myWaves[state.myCurrentWave - 1]) {
+      state.myUnlockedTasks = [...state.myWaves[state.myCurrentWave - 1]];
+    } else {
+      state.myUnlockedTasks = [];
+    }
+    
+    state.myCompletedTasks = [];
+    
+    console.log("✅ Task system initialized:", {
+      role: state.myRole,
+      waves: state.myWaves,
+      currentWave: state.myCurrentWave,
+      unlocked: state.myUnlockedTasks
+    });
+    
+    // ซ่อน mission bar ถ้าเป็น Thief
+    if (state.myRole === "Thief") {
+      const missionBar = document.querySelector('.mission-bar');
+      if (missionBar) missionBar.style.display = 'none';
+    }
+  } catch (e) {
+    console.warn("⚠️ Failed to init tasks:", e);
+  }
+}
+
+export function getMyTaskProgress() {
+  if (state.myRole !== "Visitor") return { completed: 0, total: 0, percent: 0 };
+  const total = 8;
+  const completed = state.myCompletedTasks.length;
+  const percent = Math.round((completed / total) * 100);
+  return { completed, total, percent };
 }
 let currentAnim = 'idle', frameIdx = 0, lastFrameAt = 0;
 function tickAnimation(ts){
@@ -248,6 +299,9 @@ export async function initGame(){
   try { if (refs.nameplate) refs.nameplate.textContent = state.displayName; } catch {}
 
   await loadCollisionData(); // -> state.collisionObjects
+
+  // ✅ โหลดข้อมูลภารกิจจาก sessionStorage
+  initPlayerTasks();
 
   installInput();
   // คำนวณรหัสห้องจาก URL หรือ localStorage ให้ socket และ firebase ใช้ห้องเดียวกัน

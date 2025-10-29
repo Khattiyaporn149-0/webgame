@@ -4,6 +4,9 @@ import {
   rtdb, ref, set, update, onValue, onDisconnect, push, get, remove, serverTimestamp
 } from "../services/firebase.js";
 
+// ✅ Socket.IO for game start
+let socket = null;
+
 /* ---------- Utils & Context ---------- */
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -30,6 +33,24 @@ const uid =
 
 $("roomName").textContent = savedRoom.name || "Room";
 $("roomCode").textContent = roomCode || savedRoom.code || "-";
+
+// ✅ รีเซ็ต task data เมื่อกลับมา lobby
+try {
+  sessionStorage.removeItem("myRole");
+  sessionStorage.removeItem("myWaves");
+  sessionStorage.removeItem("myCurrentWave");
+  console.log("✅ Lobby: Task data cleared");
+  
+  // ส่ง game:reset ไป server (ถ้ามี socket)
+  if (typeof io !== 'undefined') {
+    const resetSocket = io("http://localhost:3000");
+    resetSocket.emit("game:reset", { room: roomCode });
+    console.log("🔄 Sent game:reset to server");
+    setTimeout(() => resetSocket.disconnect(), 1000);
+  }
+} catch (e) {
+  console.warn("⚠️ Failed to clear task data:", e);
+}
 
 /* ---------- BG ---------- */
 const canvas = $("bgCanvas");
@@ -292,15 +313,35 @@ function startCountdown() {
   let count = 3;
   overlay.textContent = count;
   overlay.classList.add("show");
+
+  // เชื่อมต่อ Socket.IO และส่ง game:start
+  if (!socket) {
+    socket = io("http://localhost:3000");
+    
+    // รอรับ tasks:assigned
+    socket.once("tasks:assigned", (data) => {
+      console.log("✅ Received task assignment:", data);
+      
+      // เก็บข้อมูลลง sessionStorage
+      sessionStorage.setItem("myRole", data.role);
+      sessionStorage.setItem("myWaves", JSON.stringify(data.waves || []));
+      sessionStorage.setItem("myCurrentWave", data.currentWave || 0);
+      
+      // redirect ไปหน้าเกม
+      location.href = `game.html?code=${encodeURIComponent(roomCode)}`;
+    });
+
+    // ส่ง game:start ไป server
+    socket.emit("game:start", { room: roomCode });
+    console.log("🎮 Sent game:start to server");
+  }
+
   const t = setInterval(() => {
     count--;
     overlay.textContent = count > 0 ? count : "GO!";
     if (count < 0) {
       clearInterval(t);
       overlay.classList.remove("show");
-      // ถ้าต้องการรีเซ็ตแชตก่อนเริ่มเกม ให้ปลดคอมเมนต์สองบรรทัดด้านล่างนี้ (ตรวจ rules ให้เขียน chat ได้)
-      // try { await set(ref(rtdb, `lobbies/${roomCode}/chat`), null); } catch {}
-      location.href = `game.html?code=${encodeURIComponent(roomCode)}`;
     }
   }, 1000);
 }

@@ -202,6 +202,47 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
     }
   });
 
+  // ✅ Wave Unlock
+  socket.on('wave:unlock', (data) => {
+    try {
+      const { currentWave, unlockedTasks } = data;
+      coreState.myCurrentWave = currentWave;
+      coreState.myUnlockedTasks = [...coreState.myUnlockedTasks, ...unlockedTasks];
+      
+      // อัพเดท sessionStorage
+      sessionStorage.setItem("myCurrentWave", currentWave);
+      
+      console.log(`🔓 Wave ${currentWave} unlocked!`, unlockedTasks);
+      // แสดง notification (optional)
+      if (typeof window.showNotification === 'function') {
+        window.showNotification(`Wave ${currentWave} unlocked!`);
+      }
+    } catch (e) {
+      console.error('wave:unlock handler failed', e);
+    }
+  });
+
+  // ✅ Visitors Win
+  socket.on('game:visitorsWin', (data) => {
+    try {
+      console.log('🎉 Visitors Win!', data);
+      // เรียก endgame overlay
+      import('./endgame.js').then(m => {
+        const showEnd = m?.showEnd || m?.default;
+        if (showEnd) {
+          showEnd({
+            outcome: 'visitors_win',
+            reason: 'all_tasks_complete',
+            title: 'VISITORS WIN!',
+            desc: data?.message || 'All visitors completed their tasks!',
+          });
+        }
+      }).catch(err => console.error('endgame load failed', err));
+    } catch (e) {
+      console.error('game:visitorsWin handler failed', e);
+    }
+  });
+
   socket.on('disconnect', (r) => console.log('Socket disconnected:', r));
   socket.on('error', (e) => console.error('Socket error:', e));
 }
