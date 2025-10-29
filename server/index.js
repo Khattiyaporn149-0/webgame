@@ -10,13 +10,19 @@ const io = new Server(server, { cors: { origin: "*" } });
 app.use(express.static(path.join(__dirname, "../client")));
 const PORT = 3000;
 
-// memory
+// ===============================
+// In-memory room state
+// ===============================
 const gameRooms = {};
 function ensureGameRoom(code) {
   if (!gameRooms[code]) {
-    // players: Map(uid -> playerObj)
-    // removeTimers: Map(uid -> timeoutId) used to delay actual removal on disconnect
-    gameRooms[code] = { players: new Map(), interval: null, removeTimers: new Map() };
+    gameRooms[code] = {
+      players: new Map(),        // uid -> { uid, name, color, char, x, y, ... }
+      removeTimers: new Map(),   // uid -> timeoutId (for graceful disconnect)
+      interval: null,            // snapshot ticker
+    };
+
+    // ส่ง snapshot ให้ทั้งห้องเป็นระยะ (heartbeat)
     gameRooms[code].interval = setInterval(() => tickRoom(code), 100);
   }
   return gameRooms[code];
@@ -25,141 +31,148 @@ function ensureGameRoom(code) {
 function tickRoom(code) {
   const gr = gameRooms[code];
   if (!gr) return;
+
   const payload = {
-    players: Array.from(gr.players.values())
+    room: code,
+    players: Array.from(gr.players.values()),
   };
   io.to(code).volatile.emit("snapshot", payload);
 }
 
+// ===============================
+// Socket.io
+// ===============================
 io.on("connection", (socket) => {
   console.log("🟢 Connected:", socket.id);
 
-  // ===============================
   // JOIN ROOM
-  // ===============================
-  socket.on("game:join", (data) => {
+  socket.on("game:join", (data = {}) => {
     const { room, uid, name, color, char, x, y } = data;
     if (!room || !uid) return;
+
     const gr = ensureGameRoom(room);
-    // If this uid already existed (graceful reconnect), cancel any pending removal and update socketId
+
+    // ถ้าเคยตั้ง timer ลบทิ้งเพราะ reconnect แล้ว
     if (gr.removeTimers.has(uid)) {
       clearTimeout(gr.removeTimers.get(uid));
       gr.removeTimers.delete(uid);
     }
+
     const existing = gr.players.get(uid);
     if (existing) {
+      // อัปเดต player ที่มีอยู่
       existing.socketId = socket.id;
-      existing.name = name || existing.name;
+      existing.name  = name  || existing.name;
       existing.color = color || existing.color;
-      existing.char = char || existing.char;
-      existing.x = (typeof x === 'number') ? x : existing.x;
-      existing.y = (typeof y === 'number') ? y : existing.y;
+      existing.char  = char  || existing.char;
+      existing.x = (typeof x === "number") ? x : existing.x;
+      existing.y = (typeof y === "number") ? y : existing.y;
+      existing.lastMoveAt = Date.now();
     } else {
+      // สร้าง player ใหม่
       gr.players.set(uid, {
-        uid, name, color, char, x, y,
+        uid,
+        name,
+        color,
+        char,
+        x,
+        y,
         socketId: socket.id,
+        room,
+        lastMoveAt: Date.now(),
       });
     }
+
+    // bind player identity กับ socket ตัวนี้
+    socket.data.room = room;
+    socket.data.uid  = uid;
+
     socket.join(room);
     console.log(`👋 ${name} joined ${room}`);
-    io.to(room).emit("snapshot", { players: Array.from(gr.players.values()) });
+
+    io.to(room).emit("snapshot", {
+      room,
+      players: Array.from(gr.players.values()),
+    });
   });
 
-  // ===============================
-  // MOVE
-  // ===============================
-  // Receive move deltas from clients. Include optional ts for staleness checks.
-  socket.on("player:move", (data) => {
-    const { uid, x, y, ts } = data || {};
-    if (!uid) return;
-    for (const [room, gr] of Object.entries(gameRooms)) {
-      if (gr.players.has(uid)) {
-        const p = gr.players.get(uid);
-        p.x = x; p.y = y; p.lastMoveAt = ts || Date.now();
-        // Broadcast a small delta message for immediate client-side application
-        io.to(room).volatile.emit("player:movedelta", { uid, x, y, ts: p.lastMoveAt });
-        // Also emit the snapshot for clients relying on snapshot
-        io.to(room).volatile.emit("snapshot", { players: Array.from(gr.players.values()) });
-        return;
-      }
-    }
+  // MOVE (อัปเดตตำแหน่งผู้เล่นคนนั้น แล้ว broadcast)
+  socket.on("player:move", (data = {}) => {
+    const room = socket.data.room;
+    const uid  = socket.data.uid;
+    if (!room || !uid) return;
+
+    const gr = gameRooms[room];
+    if (!gr) return;
+
+    const p = gr.players.get(uid);
+    if (!p) return;
+
+    // ใช้ค่าจาก data.x / data.y ถ้ามาเป็นตัวเลข
+    if (typeof data.x === "number") p.x = data.x;
+    if (typeof data.y === "number") p.y = data.y;
+    p.lastMoveAt = data.ts || Date.now();
+
+    // ยิง delta เล็ก ๆ (optional: clientอาจไม่ใช้ก็ได้)
+    io.to(room).volatile.emit("player:movedelta", {
+      uid,
+      x: p.x,
+      y: p.y,
+      ts: p.lastMoveAt,
+    });
+
+    // ยิง snapshot ใหม่ทันที (ทันใจกว่าแค่รอ tickRoom)
+    io.to(room).volatile.emit("snapshot", {
+      room,
+      players: Array.from(gr.players.values()),
+    });
   });
 
-  io.on('connection', (socket) => {
-  socket.on('meeting:start', (data) => {
-    const room = data?.room;
-    if (!room) return;
-    console.log(`📞 Meeting triggered in room ${room}`);
-    io.to(room).emit('meeting:start', data);  // ✅ ส่งให้ทุกคนในห้องนั้นเห็น
-  });
-});
-
-
-  // ===============================
-  // CHAT (per-room)
-  // ===============================
+  // CHAT (เลือกเก็บตัวเดียวพอ)
   socket.on("chat:message", (data = {}) => {
-    try {
-      const room = data?.room;
-      if (!room || typeof data?.text !== 'string' || !data.text.trim()) return;
-      const payload = {
-        room,
-        uid: data?.uid || null,
-        name: data?.name || 'Unknown',
-        text: String(data.text).slice(0, 500),
-        ts: Date.now(),
-      };
-      io.to(room).emit("chat:message", payload);
-    } catch (e) {
-      console.warn('chat:message error', e?.message || e);
+    // รูปแบบ data ที่ client ส่งควรมี { text, uid, name, room? }
+    if (!data?.text || !data?.uid) return;
+
+    // ถ้า client ไม่ส่ง room มาก็ใช้ socket.data.room
+    const room = data.room || socket.data.room;
+    if (!room) {
+      console.warn("⚠️ chat:message ไม่มี room:", data);
+      return;
     }
+
+    const payload = {
+      room,
+      uid: data.uid,
+      name: data.name || "Unknown",
+      text: String(data.text).slice(0, 500),
+      ts: Date.now(),
+    };
+
+    io.to(room).emit("chat:message", payload);
+    console.log(`💬 [${room}] ${payload.name}: ${payload.text}`);
   });
 
-  // ===============================
-// CHAT (ใหม่)
-// ===============================
-socket.on("chat:message", (data) => {
-  if (!data?.text || !data?.uid) return;
-
-  // หาห้องที่ผู้เล่นอยู่
-  let room = data.room;
-  if (!room) {
-    for (const [r, gr] of Object.entries(gameRooms)) {
-      if (gr.players.has(data.uid)) {
-        room = r;
-        break;
-      }
-    }
-  }
-
-  if (room) {
-    io.to(room).emit("chat:message", data);
-    console.log(`💬 [${room}] ${data.name}: ${data.text}`);
-  } else {
-    console.warn("⚠️ chat:message ไม่มี room:", data);
-  }
-});
-
-
-
-  // ===============================
-  // DISCONNECT
-  // ===============================
+  // DISCONNECT (grace 5s ก่อนลบออกจากห้อง)
   socket.on("disconnect", () => {
-    // Instead of removing player immediately, schedule removal after a grace period
+    console.log("🔴 Disconnected:", socket.id);
     const GRACE_MS = 5000;
+
     for (const [room, gr] of Object.entries(gameRooms)) {
       for (const [uid, p] of gr.players.entries()) {
         if (p.socketId === socket.id) {
-          // schedule removal
           if (gr.removeTimers.has(uid)) clearTimeout(gr.removeTimers.get(uid));
+
           const t = setTimeout(() => {
             try {
               gr.players.delete(uid);
               gr.removeTimers.delete(uid);
               console.log(`🗑️ Player ${uid} removed from room ${room} after disconnect timeout`);
-              // broadcast updated snapshot
-              io.to(room).emit('snapshot', { players: Array.from(gr.players.values()) });
+
+              io.to(room).emit("snapshot", {
+                room,
+                players: Array.from(gr.players.values()),
+              });
+
               if (gr.players.size === 0) {
                 clearInterval(gr.interval);
                 delete gameRooms[room];
@@ -167,12 +180,14 @@ socket.on("chat:message", (data) => {
               }
             } catch (e) {}
           }, GRACE_MS);
+
           gr.removeTimers.set(uid, t);
         }
       }
     }
-    console.log("🔴 Disconnected:", socket.id);
   });
 });
 
-server.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+server.listen(PORT, () => {
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
+});

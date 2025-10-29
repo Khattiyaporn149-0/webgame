@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Create Room</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="../styles/styles.css" />
 
   <style>
     /* ==== BG / Overlay แบบเดียวกับ roomlist ==== */
@@ -178,8 +178,10 @@
   </div>
 
   <!-- โหลดตัวกลางเสียง/ตั้งค่า + โค้ดหน้า -->
-  <script src="./common-settings.js" defer></script>
-  <script type="module" src="./createroom.js"></script>
+  <script type="module" src="../src/services/common-settings.js"></script>
+
+  <script type="module" src="../src/services/firebase.js"></script>
+  <script type="module" src="../src/ui/createroom.js"></script>
 
   <!-- Wiring ปุ่ม Settings + คลิก SFX -->
   <script>

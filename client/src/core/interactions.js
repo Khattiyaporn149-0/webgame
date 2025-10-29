@@ -115,7 +115,7 @@ export function startMeeting(at = CONST.MEETING_POINT){
     card.dataset.player = p.uid;
 
     const img = document.createElement('img');
-    img.src = `assets/Characters/${p.char}/idle_1.png`;
+    img.src = `../assets/Characters/${p.char}/idle_1.png`;
     img.alt = p.name;
 
     const name = document.createElement('span');

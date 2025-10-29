@@ -1,4 +1,4 @@
-import { auth, provider, signInWithPopup, rtdb, ref, set } from "./firebase.js";
+import { auth, provider, signInWithPopup, rtdb, ref, set } from "../services/firebase.js";
 
 
 
@@ -15,13 +15,13 @@ if (!localStorage.getItem("ggd.uid")) {
 
 // ============ 🎵 SOUND SYSTEM ============
 if (!window.bgm) {
-  window.bgm = new Audio("assets/sounds/galaxy-283941.mp3");
+  window.bgm = new Audio("../assets/sounds/galaxy-283941.mp3");
   window.bgm.loop = true;
   window.bgm.volume = 0.5;
   document.addEventListener("click", () => bgm.play().catch(() => {}), { once: true });
 }
 if (!window.clickSound) {
-  window.clickSound = new Audio("assets/sounds/click.mp3");
+  window.clickSound = new Audio("../assets/sounds/click.mp3");
   window.clickSound.volume = 0.8;
 }
 
@@ -792,5 +792,4 @@ const collection = [
   if (document.readyState === 'complete' || document.readyState === 'interactive') init();
   else document.addEventListener('DOMContentLoaded', init, { once: true });
 })();
-
 

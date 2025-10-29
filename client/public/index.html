@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+  />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Heist</title>
+
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://www.gstatic.com https://cdnjs.cloudflare.com https://cdn.socket.io; connect-src 'self' https://*.firebasedatabase.app wss://*.firebasedatabase.app https://www.googleapis.com https://securetoken.googleapis.com https://www.gstatic.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com https://*.firebasedatabase.app https://cdnjs.cloudflare.com https://cdn.socket.io; img-src 'self' data: blob: https://www.gstatic.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com data:;">
+
+  <!-- 🔄 important: เปลี่ยน path CSS ให้ขึ้นไปนอก public ก่อน -->
+  <link rel="stylesheet" href="../styles/styles.css" />
+  <link rel="icon" href="../assets/favicon.png" />
+</head>
+<body>
+
+      <div id="app"></div>
+    <noscript>This game requires JavaScript enabled.</noscript>
+  <!-- BACKGROUND -->
+  <div class="bg">
+    <div class="bg-video-overlay"></div>
+    <canvas id="bg-canvas"></canvas>
+  </div>
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="login-tag">
+      <span class="tag-icon">🪪</span>
+      LOGGED IN AS <b id="playerNameTop">Guest</b>
+      <span class="clan">[The Heist]</span>
+      <span class="ver" id="ver">V.test</span>
+    </div>
+    <div class="top-icons">
+      <button class="icon-btn" title="Profile" id="btnProfile" aria-label="Profile">
+        <svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-5 0-9 2.5-9 5.5V22h18v-2.5C21 16.5 17 14 12 14Z"/></svg>
+      </button>
+      <button class="icon-btn" title="World" id="btnWorld" aria-label="World">
+        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2Zm7.93 9h-3.18A15.1 15.1 0 0 0 16 7.05 8.01 8.01 0 0 1 19.93 11ZM8.18 11H4.07A8.01 8.01 0 0 1 8 7.05 15.1 15.1 0 0 0 8.18 11Zm0 2A15.1 15.1 0 0 0 8 16.95 8.01 8.01 0 0 1 4.07 13Zm8.64 0h3.22A8.01 8.01 0 0 1 16 16.95 15.1 15.1 0 0 0 16.82 13ZM10 16.9A20.79 20.79 0 0 1 9.19 13h5.62A20.79 20.79 0 0 1 14 16.9 18.07 18.07 0 0 1 12 20a18.07 18.07 0 0 1-2-3.1ZM14 7.1A20.79 20.79 0 0 1 14.81 11H9.19A20.79 20.79 0 0 1 10 7.1 18.07 18.07 0 0 1 12 4a18.07 18.07 0 0 1 2 3.1Z"/></svg>
+      </button>
+      <button class="icon-btn" title="Settings" id="btnSettingsTop" aria-label="Settings">
+        <svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 1-4 4 4 4 0 0 1 4-4Zm9 4a7.43 7.43 0 0 0-.09-1l2.09-1.64-2-3.46-2.49.63a7.51 7.51 0 0 0-1.73-1L14.5 2h-5l-.28 2.53a7.51 7.51 0 0 0-1.73 1l-2.49-.63-2 3.46L4.09 11a7.43 7.43 0 0 0 0 2l-2.09 1.64 2 3.46 2.49-.63a7.51 7.51 0 0 0 1.73 1L9.5 22h5l.28-2.53a7.51 7.51 0 0 0 1.73-1l2.49.63 2-3.46L20.91 13a7.43 7.43 0 0 0 .09-1Z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- START SCREEN -->
+  <div class="start-screen" id="startScreen">
+    <div class="start-panel">
+      <h1>🎮 Start Game</h1>
+      <p>กรุณากรอกชื่อผู้เล่นก่อนเริ่ม</p>
+      <input type="text" id="playerNameInput" placeholder="เช่น MasterHeist" maxlength="16" />
+      <button id="startBtn">Start</button>
+
+      <div class="or-line">
+        <span>หรือ</span>
+      </div>
+
+      <button id="loginGoogleBtn" class="google-btn">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="google icon" />
+        <span>Login with Google</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN WRAP -->
+  <div class="wrap">
+    <!-- LEFT RAIL -->
+    <aside class="left-rail">
+      <button class="rail-btn gift">
+        <span class="emoji">🎁</span>
+        <span class="label">Gifts</span>
+        <span class="badge">3</span>
+      </button>
+      <button class="rail-btn missions">
+        <span class="emoji">🗂️</span>
+        <span class="label">Missions</span>
+        <span class="badge">New</span>
+      </button>
+      <button class="rail-btn calendar">
+        <span class="emoji">🗓️</span>
+        <span class="label">7 Day(s)</span>
+      </button>
+      <button class="rail-btn timer">
+        <span class="emoji">⏰</span>
+        <span class="label"><span id="countdown">23:59:59</span></span>
+        <span class="badge">Bonus ×3</span>
+      </button>
+    </aside>
+
+    <!-- CENTER STACK -->
+    <main class="center-stack">
+      <div class="title-stack">
+        <div class="game-title">
+          <span class="word word-2">THE</span>
+          <span class="word word-3">HEIST</span>
+        </div>
+      </div>
+
+      <div class="primary-buttons">
+        <button class="cta Join" id="btnJoin">
+          <i class="fa-solid fa-rocket"></i>
+          JOIN GAME
+        </button>
+
+        <button class="cta Create" id="btnCreate">
+          <i class="fa-solid fa-hammer"></i>
+          CREATE GAME
+        </button>
+      </div>
+
+      <div class="secondary-buttons">
+        <button class="sec-btn" id="btnCollection">COLLECTION</button>
+        <button class="sec-btn" id="btnClaw">CLAW MACHINE</button>
+      </div>
+    </main>
+
+    <!-- RIGHT RAIL -->
+    <aside class="right-rail">
+      <div class="right-group">
+        <button class="right-btn" id="btnTutorial">❓ TUTORIAL</button>
+        <button class="right-btn" id="btnClassic">🎵 MUSIC</button>
+        <button class="right-btn" id="btnFriends">👥 FRIENDS</button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div class="modal" id="settingsModal" aria-hidden="true" role="dialog">
+    <div class="dialog">
+      <div class="dialog-head">
+        <h3>Settings</h3>
+        <button class="x" id="closeSettings">✖</button>
+      </div>
+      <div class="dialog-body">
+        <label class="row">
+          <span>Master Volume</span>
+          <input id="rangeMaster" type="range" min="0" max="1" step="0.01">
+        </label>
+        <label class="row">
+          <span>Music</span>
+          <input id="rangeMusic" type="range" min="0" max="1" step="0.01">
+        </label>
+        <label class="row">
+          <span>SFX</span>
+          <input id="rangeSfx" type="range" min="0" max="1" step="0.01">
+        </label>
+        <label class="row">
+          <span>Region</span>
+          <select id="regionSel">
+            <option value="asia">Asia</option>
+            <option value="na">North America</option>
+            <option value="eu">Europe</option>
+          </select>
+        </label>
+        <div class="note">* ค่านี้จะถูกบันทึกลงในเบราว์เซอร์ (localStorage)</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <!-- PROFILE MODAL -->
+  <div class="modal" id="profileModal" aria-hidden="true" role="dialog">
+    <div class="dialog">
+      <div class="dialog-head">
+        <h3>👤 PROFILE</h3>
+        <button class="x" id="closeProfile">✖</button>
+      </div>
+
+      <div class="dialog-body center">
+        <div class="profile-box">
+          <div class="profile-row">
+            <span class="label">Current Name:</span>
+            <span id="displayName" class="value">Guest</span>
+
+            <div id="editNameGroup" class="edit-group hidden">
+              <input type="text" id="editNameInput" maxlength="16" />
+              <button id="saveNameBtn" class="mini-btn save">💾</button>
+              <button id="cancelNameBtn" class="mini-btn cancel">✖</button>
+            </div>
+
+            <button id="editNameBtn" class="icon-btn small" title="Edit Name">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+          </div>
+
+          <div class="profile-row">
+            <button id="googleLoginBtn" class="google-btn">
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
+              <span>Login with Google</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TUTORIAL MODAL -->
+  <div class="modal" id="tutorialModal" aria-hidden="true" role="dialog">
+    <div class="dialog tutorial-dialog">
+      <div class="dialog-head">
+        <h3>📘 TUTORIAL</h3>
+        <button class="x" id="closeTutorial">✖</button>
+      </div>
+
+      <div class="tab-header">
+        <button class="tab-btn active" data-tab="howto">🕹️ วิธีเล่น</button>
+        <button class="tab-btn" data-tab="story">📖 เนื้อเรื่อง</button>
+        <button class="tab-btn" data-tab="system">⚙️ ระบบเกม</button>
+      </div>
+
+      <div class="tab-content">
+        <div class="tab-pane active" id="tab-howto">
+          <ul>
+            <li>1️⃣ กรอกชื่อผู้เล่นแล้วกด <b>Start</b></li>
+            <li>2️⃣ เข้าร่วมหรือสร้างห้องเกม</li>
+            <li>3️⃣ เมื่อผู้เล่นทุกคนพร้อม เกมจะเริ่มอัตโนมัติ</li>
+            <li>4️⃣ ใช้ปุ่ม <b>W A S D</b> เพื่อเคลื่อนไหว</li>
+            <li>5️⃣ ทำภารกิจให้สำเร็จก่อนหมดเวลา!</li>
+          </ul>
+          <p class="note">💡 เคล็ดลับ: เล่นกับเพื่อนจะมันส์กว่าเยอะ!</p>
+        </div>
+
+        <div class="tab-pane" id="tab-story">
+          <p><b>เนื้อเรื่อง:</b></p>
+          <p>
+            คุณและผู้ร่วมชะตากรรมอีกหลายคนถูกขังอยู่ภายในพิพิธภัณฑ์แห่งนี้ —
+            เมื่อระบบรักษาความปลอดภัยถูกแฮ็กและปิดลงโดย “หัวขโมยปริศนา”
+            ที่อาจกำลังแฝงตัวอยู่ในกลุ่มของคุณเอง...
+          </p>
+
+          <p>
+            ท่ามกลางความมืดมิดที่มีเพียงแสงสลัว ทุกคนต้องร่วมมือกัน
+            เพื่อกู้คืนระบบและหาทางหนีออกไปให้ได้ —
+            แต่จงระวัง เพราะคุณไม่มีทางรู้เลยว่าใครคือผู้บริสุทธิ์...
+            และใครคือผู้บุกรุกตัวจริง
+            หรือบางที... มันอาจเป็น <b>คุณ</b> เอง?
+          </p>
+        </div>
+
+        <div class="tab-pane" id="tab-system">
+          <ul>
+            <li>💾 <b>ระบบห้องเกม:</b> สร้าง/เข้าร่วมห้องได้สูงสุด 6 คน</li>
+            <li>🧠 <b>ระบบภารกิจ:</b> มี mini task สุ่มในแต่ละด่าน</li>
+            <li>🎭 <b>ระบบบทบาท:</b> ผู้เล่นบางคนอาจมีภารกิจลับซ่อนอยู่...</li>
+            <li>🎵 <b>ระบบเสียง:</b> ปรับเพลง/เอฟเฟกต์ได้ใน Settings</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLAW MACHINE MODAL -->
+  <div class="modal" id="clawModal" aria-hidden="true" role="dialog">
+    <div class="claw-dialog">
+      <div class="claw-head">
+        <h3>🕹️ CLAW MACHINE</h3>
+        <button class="x" id="closeClaw">✖</button>
+      </div>
+      <div class="claw-body">
+        <div class="claw-view">
+          <div class="claw-arm" id="clawArm">🤖</div>
+          <div class="claw-prize" id="clawPrize">🎁</div>
+        </div>
+        <button id="btnPlayClaw" class="play-btn">DROP CLAW (x1 Token)</button>
+        <p class="token-info">Tokens: <span id="tokenCount">0</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- COLLECTION MODAL -->
+  <div class="modal" id="collectionModal" aria-hidden="true" role="dialog">
+    <div class="coll-dialog">
+      <div class="coll-head">
+        <h3>📦 COLLECTION</h3>
+        <button class="x" id="closeCollection">✖</button>
+      </div>
+      <div class="coll-body" id="collectionGrid"></div>
+    </div>
+  </div>
+
+  <!-- MINIGAME IFRAME MODAL -->
+  <div class="modal" id="minigameModal" aria-hidden="true" role="dialog">
+    <div class="dialog" style="max-width: 980px; width: 92vw; height: 82vh; display:flex; flex-direction: column">
+      <div class="dialog-head">
+        <h3>🎮 MINIGAMES</h3>
+        <button class="x" id="closeMinigame">✖</button>
+      </div>
+      <div class="dialog-body" style="display:flex; flex-direction: column; gap:10px; padding:10px; height:100%;">
+        <div class="mg-progress" style="height:8px; background: var(--panel-2, #14182b); border:1px solid var(--stroke, #2b3554); border-radius:6px; overflow:hidden;">
+          <div id="mgProgressFill" style="height:100%; width:0%; background:#2b64ff;"></div>
+        </div>
+        <div style="flex:1; min-height:0;">
+          <iframe id="minigameFrame" title="Minigame" src="about:blank" style="width:100%; height:100%; border:0; background:#000; border-radius:10px" allow="autoplay; fullscreen"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ แก้ path ให้ชี้ไป src/ui/... เพราะไฟล์ย้ายแล้ว -->
+  <script type="module" src="../src/services/common-settings.js"></script>
+  <!-- firebase service ควร import ที่นี่ด้วย -->
+  <script type="module" src="../src/services/firebase.js"></script>
+
+  <script type="module" src="../src/ui/app.js"></script>
+  <script type="module" src="../src/ui/streak.js"></script>
+  <script type="module" src="../src/core/missions.js"></script>
+  <script type="module" src="../src/ui/friends.js"></script>
+
+
+  <!-- iframe helper ยังอยู่ข้างๆ index.html ใน public -->
+  <script src="./minigame-iframe.js"></script>
+</body>
+</html>

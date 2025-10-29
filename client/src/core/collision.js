@@ -6,7 +6,7 @@ export async function loadCollisionData(){
 
   // Try SVG
   try {
-    const res = await fetch('assets/maps/collision.svg', { cache:'no-store' });
+    const res = await fetch('../assets/maps/collision.svg', { cache:'no-store' });
     if (res.ok){
       const txt = await res.text();
       const doc = new DOMParser().parseFromString(txt, 'image/svg+xml');
@@ -38,7 +38,7 @@ export async function loadCollisionData(){
 
   // Fallback JSON
   try {
-    const res = await fetch('assets/maps/collision.json', { cache:'no-store' });
+    const res = await fetch('../assets/maps/collision.json', { cache:'no-store' });
     if (res.ok){
       const data = await res.json();
       const rects = Array.isArray(data) ? data : (Array.isArray(data.rects) ? data.rects : []);

@@ -41,7 +41,7 @@ export function initChat(stateRef){
   let lastMaxTs = 0;
   try {
     (async () => {
-      const fb = await import('../firebase.js');
+      const fb = await import('../services/firebase.js');
       const { rtdb, ref, onValue } = fb;
       const playersRef = ref(rtdb, `lobbies/${_state?.currentRoom || roomCode}/players`);
       onValue(playersRef, (snap) => {
@@ -155,7 +155,7 @@ export function initChat(stateRef){
     // บันทึกลง Firebase (source of truth) แยกเป็นต่อผู้เล่นในห้อง
     try {
       (async () => {
-        const fb = await import('../firebase.js');
+        const fb = await import('../services/firebase.js');
         const { rtdb, ref, push } = fb;
         const newRef = await push(ref(rtdb, `lobbies/${payload.room}/players/${payload.uid}/chat`), payload);
         // mark as rendered by id to avoid onValue rendering the same bubble again

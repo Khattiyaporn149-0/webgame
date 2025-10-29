@@ -27,7 +27,7 @@ function setHudIcon(role, abilityName){
   const txt = byId('role-icon-text');
   if (!hud || !img || !txt) return;
 
-  img.src = `assets/role/${abilityName}.png`;
+  img.src = `../assets/role/${abilityName}.png`;
   txt.textContent = `${abilityName} (${role})`;
   hud.style.boxShadow = role === 'Thief'
     ? '0 0 15px 3px #ff3333'

@@ -8,7 +8,12 @@
     "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["socket.io", "express", "game", "multiplayer"],
+  "keywords": [
+    "socket.io",
+    "express",
+    "game",
+    "multiplayer"
+  ],
   "author": "Aum",
   "license": "ISC",
   "dependencies": {

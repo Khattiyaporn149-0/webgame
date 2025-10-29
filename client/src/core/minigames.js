@@ -1,5 +1,6 @@
 // minigames.js — iframe overlay + registry bridge
-const REG_PATH = 'minigames/registry.json';
+// Registry lives at client/src/minigames/registry.json (page is in public/)
+const REG_PATH = '../src/minigames/registry.json';
 let regCache = null;
 let modal, frame, fill, closing = false;
 let pending = null; // { obj, key, difficulty, onComplete }
@@ -14,7 +15,14 @@ async function loadReg(){
 function urlFor(key){
   const k = (key||'overworld').toLowerCase();
   const reg = regCache || {};
-  return reg[k] || reg.overworld || (`minigames/dodge-square/world.html?game=${encodeURIComponent(k)}`);
+  const raw = reg[k] || reg.overworld;
+  if (raw) {
+    // normalize: add '../src/' if it's a relative path into the repo
+    const isAbs = /^(https?:)?\//.test(raw) || raw.startsWith('..');
+    return isAbs ? raw : `../src/${raw}`;
+  }
+  // Fallback to the default world in src
+  return `../src/minigames/dodge-square/world.html?game=${encodeURIComponent(k)}`;
 }
 
 function ensureOverlay(){

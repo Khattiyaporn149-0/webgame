@@ -60,14 +60,14 @@ export const refs = {
   get sfxHeist(){ return document.getElementById('sfx-heist'); },
 };
 
-let idleFrames = ['assets/Characters/mini_brown/idle_1.png'];
-let walkFrames = Array.from({length:8},(_,i)=>`assets/Characters/mini_brown/walk_${i+1}.png`);
+let idleFrames = ['../assets/Characters/mini_brown/idle_1.png'];
+let walkFrames = Array.from({length:8},(_,i)=>`../assets/Characters/mini_brown/walk_${i+1}.png`);
 function setCharacterFolder(folder){
   try {
     if (typeof folder !== 'string' || !folder) return;
     state.charFolder = folder;
-    idleFrames = [`assets/Characters/${folder}/idle_1.png`];
-    walkFrames = Array.from({length:8},(_,i)=>`assets/Characters/${folder}/walk_${i+1}.png`);
+    idleFrames = [`../assets/Characters/${folder}/idle_1.png`];
+    walkFrames = Array.from({length:8},(_,i)=>`../assets/Characters/${folder}/walk_${i+1}.png`);
     if (refs.player) refs.player.src = idleFrames[0];
     // ปรับขนาดกล่อง player-wrap ให้ตรงกับรูป (เพื่อให้ nameplate อยู่กึ่งกลางจริง)
     try {
@@ -260,27 +260,35 @@ export async function initGame(){
 
   // ฉีด state เข้า chat และเปิด socket เข้าห้องเดียวกัน
   initChat(state);
-  // เลือก server socket อัตโนมัติ: ถ้าเปิดจาก localhost ให้เชื่อมไปที่ localhost:3000
+  // เลือกเซิร์ฟเวอร์ Socket: ค่าเริ่มต้นใช้โปรดักชัน
+  // เปิดใช้ local ws เฉพาะเมื่อใส่ `?ws=local` หรือ localStorage.setItem('ws.local','1')
   let serverUrl = 'https://webgame-25n5.onrender.com';
   try {
-    const host = location.hostname;
-    // Prefer local development server when running on localhost/127.0.0.1
-    if (host === 'localhost' || host === '127.0.0.1') {
+    const useLocal = /(?:^|[?&])ws=local(?:=1)?(?:&|$)/.test(location.search) || localStorage.getItem('ws.local') === '1';
+    if (useLocal) {
+      const host = location.hostname || '127.0.0.1';
       serverUrl = `${location.protocol}//${host}:3000`;
-    } else if (location.port) {
-      // If the page is served from a specific port, prefer same origin
-      serverUrl = `${location.protocol}//${location.hostname}:${location.port}`;
     }
-  } catch (e) {
-    // ignore and fall back to production server
-  }
-  initMultiplayer({ serverUrl, room: state.currentRoom });
+  } catch {}
+  try {
+    initMultiplayer({
+      serverUrl,
+      room: state.currentRoom,
+      uid: state.uid,
+      name: state.displayName,
+      char: state.charFolder,       // <= นี่คือ mini_pink / mini_blue etc.
+      color: state.playerColor,     // <= สี nameplate
+      x: state.playerX,
+      y: state.playerY,
+    });
+  } catch {}
   startRemotePlayersRenderLoop();
+
 
   // Presence แบบเบาๆ ใน Firebase ภายใต้ lobbies/<code>/players/<uid> (ให้ตรงกับ rules ปัจจุบัน)
   // ทำแบบไดนามิกและห่อ try/catch เผื่อโหลด firebase ไม่สำเร็จ
   try {
-    const fb = await import('../firebase.js');
+    const fb = await import('../services/firebase.js');
     const { rtdb, ref, update, onDisconnect, serverTimestamp, get, onValue } = fb;
     const playerRef = ref(rtdb, `lobbies/${state.currentRoom}/players/${state.uid}`);
     // update แทน set เพื่อไม่ลบ field char ที่ล็อบบี้ตั้งไว้

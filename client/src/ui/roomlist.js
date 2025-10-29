@@ -52,7 +52,7 @@ if (urlCode && joinModal && joinInput) {
 }
 
 /* ---------- Firebase ---------- */
-import { rtdb, ref, onValue, get, update, remove } from "./firebase.js";
+import { rtdb, ref, onValue, get, update, remove } from "../services/firebase.js";
 
 /** เก็บ snapshot ล่าสุดของ rooms ให้ภารโรงใช้ */
 let latestRooms = {};

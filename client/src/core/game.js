@@ -250,11 +250,11 @@ const WALL_COLLISION_BOXES = [];
 // *******************************************
 // 4. การจัดการแอนิเมชัน (คงเดิม)
 // *******************************************
-const idleFrames = ['assets/images/idle_1.png']; 
+const idleFrames = ['../assets/images/idle_1.png']; 
 const walkFrames = [
-    'assets/images/walk_1.png', 'assets/images/walk_2.png', 'assets/images/walk_3.png', 
-    'assets/images/walk_4.png', 'assets/images/walk_5.png', 'assets/images/walk_6.png',
-    'assets/images/walk_7.png', 'assets/images/walk_8.png'
+    '../assets/images/walk_1.png', '../assets/images/walk_2.png', '../assets/images/walk_3.png', 
+    '../assets/images/walk_4.png', '../assets/images/walk_5.png', '../assets/images/walk_6.png',
+    '../assets/images/walk_7.png', '../assets/images/walk_8.png'
 ]; 
 let currentAnimation = 'idle';
 let currentFrameIndex = 0;
@@ -647,7 +647,7 @@ async function loadCollisionData() {
     collisionObjects = [];
     // 1) ลองโหลดจาก SVG ก่อน
     try {   
-        const res = await fetch('assets/maps/collision.svg', { cache: 'no-cache' });
+        const res = await fetch('../assets/maps/collision.svg', { cache: 'no-cache' });
         if (res.ok) {
             const svgText = await res.text();
             const parser = new DOMParser();
@@ -692,7 +692,7 @@ async function loadCollisionData() {
 
     // 2) Fallback: โหลดจาก JSON
     try {
-        const res = await fetch('assets/maps/collision.json', { cache: 'no-cache' });
+        const res = await fetch('../assets/maps/collision.json', { cache: 'no-cache' });
         if (res.ok) {
             const data = await res.json();
             let rects = [];
@@ -1552,7 +1552,7 @@ function renderRemotePlayers() {
     let el = remotePlayers[p.uid];
     if (!el) {
       el = document.createElement("img");
-      el.src = "assets/images/idle_1.png";
+      el.src = "../assets/images/idle_1.png";
       el.className = "remote-player";
       Object.assign(el.style, {
         position: "absolute",
@@ -1622,8 +1622,6 @@ socket.on("error", (error) => {
 });
 
 // ===== End Multiplayer Section =====
-
-
 
 
 
