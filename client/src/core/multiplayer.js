@@ -125,6 +125,25 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
         x: finalX,
         y: finalY,
       });
+      // ขอ tasks และ state (resume) อีกครั้งในหน้าเกม เผื่อหลุดจาก lobby redirect
+      try {
+        socket.emit('tasks:request', { room: currentRoom, uid: finalUid });
+        socket.emit('state:request', { room: currentRoom, uid: finalUid });
+      } catch {}
+      // เพิ่ม retry เบาๆ กันกรณี latency/ลำดับ event
+      try {
+        let tries = 0;
+        const tick = setInterval(() => {
+          const role = sessionStorage.getItem('myRole');
+          if (role) { clearInterval(tick); return; }
+          tries++;
+          if (tries > 5) { clearInterval(tick); return; }
+          if (socket && socket.connected) {
+            console.warn(`[multiplayer] retry tasks:request ${tries}/5`);
+            socket.emit('tasks:request', { room: currentRoom, uid: finalUid });
+          }
+        }, 1200);
+      } catch {}
     } catch (e) {
       console.warn('emit join failed', e);
     }
@@ -199,6 +218,148 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
       startMeeting(data?.at || { x: data?.x ?? 4000, y: data?.y ?? 4000 });
     } catch (e) {
       console.error('meeting:start handler failed', e);
+    }
+  });
+
+  // ✅ Wave Unlock
+  socket.on('wave:unlock', (data) => {
+    try {
+      const { currentWave, unlockedTasks } = data || {};
+      if (!Array.isArray(unlockedTasks)) return;
+
+      // อัปเดต state ให้ถูกต้อง (เดิมอ้างอิงตัวแปรผิด)
+      state.myCurrentWave = currentWave;
+      state.myUnlockedTasks = [...state.myUnlockedTasks, ...unlockedTasks];
+
+      // อัปเดต sessionStorage (กันรีโหลดหน้าแล้วค่าหาย)
+      try {
+        sessionStorage.setItem('myCurrentWave', String(currentWave));
+      } catch {}
+
+      console.log(`🔓 Wave ${currentWave} unlocked!`, unlockedTasks);
+
+      // อัปเดตแผนที่ย่อและ world markers ถ้ามีฟังก์ชันให้เรียก
+      try {
+        // refresh minimap
+        import('./minimap.js').then(m => m.updateMiniMapDisplay?.()).catch(()=>{});
+      } catch {}
+      try {
+        // refresh world task hints (defined in interactions.js)
+        import('./interactions.js').then(m => m.updateTaskWorldHints?.()).catch(()=>{});
+      } catch {}
+
+      if (typeof window.showNotification === 'function') {
+        window.showNotification(`Wave ${currentWave} unlocked!`);
+      }
+    } catch (e) {
+      console.error('wave:unlock handler failed', e);
+    }
+  });
+
+  // ✅ Receive tasks while already in game page
+  socket.on('tasks:assigned', (data={}) => {
+    try {
+      const role = data.role || null;
+      const waves = Array.isArray(data.waves) ? data.waves : [];
+      const currentWave = Number(data.currentWave || 0);
+
+      // persist
+      try { sessionStorage.setItem('myRole', role); } catch {}
+      try { sessionStorage.setItem('myWaves', JSON.stringify(waves)); } catch {}
+      try { sessionStorage.setItem('myCurrentWave', String(currentWave)); } catch {}
+  // note: completedTasks will be set by state:resume if available
+
+      // update runtime state
+      state.myRole = role;
+      state.myWaves = waves;
+      state.myCurrentWave = currentWave;
+      state.myUnlockedTasks = currentWave > 0 && waves[currentWave-1] ? [...waves[currentWave-1]] : [];
+
+      // refresh UI hints
+      try { import('./minimap.js').then(m=>m.updateMiniMapDisplay?.()); } catch {}
+      try { import('./interactions.js').then(m=>m.updateTaskWorldHints?.()); } catch {}
+      console.log('📦 tasks:assigned applied in game page', { role, currentWave, waves });
+
+      // แสดง role reveal จาก server (กันซ้ำถ้าเคยตั้งบทบาทในหน้านี้แล้ว)
+      try {
+        import('./roles.js').then(m => {
+          // ถ้า roles module เคยรู้บทบาทอยู่แล้ว และตรงกับที่ server ส่งมา ให้ข้ามการ reveal
+          if (typeof m.getRole === 'function' && m.getRole() === role) return;
+          if (typeof m.isRoleRevealed === 'function' && m.isRoleRevealed()) return;
+          const reveal = m.revealRole || m.default;
+          if (reveal && role) reveal(role);
+        }).catch(()=>{});
+      } catch {}
+    } catch (e) {
+      console.error('tasks:assigned handler failed', e);
+    }
+  });
+
+  // ✅ Resume complete state on refresh
+  socket.on('state:resume', (data={}) => {
+    try {
+      const role = data.role || null;
+      const waves = Array.isArray(data.waves) ? data.waves : [];
+      const currentWave = Number(data.currentWave || 0);
+      const completed = Array.isArray(data.completedTasks) ? data.completedTasks : [];
+      const x = Number.isFinite(data.x) ? data.x : state.playerX;
+      const y = Number.isFinite(data.y) ? data.y : state.playerY;
+
+      // persist
+      try { sessionStorage.setItem('myRole', role); } catch {}
+      try { sessionStorage.setItem('myWaves', JSON.stringify(waves)); } catch {}
+      try { sessionStorage.setItem('myCurrentWave', String(currentWave)); } catch {}
+      try { sessionStorage.setItem('myCompletedTasks', JSON.stringify(completed)); } catch {}
+
+      // apply runtime
+      state.myRole = role;
+      state.myWaves = waves;
+      state.myCurrentWave = currentWave;
+      state.myCompletedTasks = completed;
+      state.myUnlockedTasks = currentWave > 0 && waves[currentWave-1] ? [...waves[currentWave-1]] : [];
+
+      // restore player position
+      state.playerX = x; state.playerY = y;
+
+      // refresh UI
+      try { import('./minimap.js').then(m=>m.updateMiniMapDisplay?.()); } catch {}
+      try { import('./interactions.js').then(m=>{ m.updateTaskWorldHints?.(); m.refreshMissionUI?.(); }); } catch {}
+      console.log('🔁 state:resume applied', { role, currentWave, completedCount: completed.length, x, y });
+
+      // เรียก revealRole เมื่อรีเฟรชหน้า เพื่อให้ HUD/mission bar ถูกต้องตามบทบาททันที
+      try {
+        import('./roles.js').then(m => {
+          if (!role) return;
+          // กันซ้ำ: ถ้า module รู้บทบาทอยู่แล้วให้ข้าม
+          if (typeof m.getRole === 'function' && m.getRole() === role) return;
+          if (typeof m.isRoleRevealed === 'function' && m.isRoleRevealed()) return;
+          const reveal = m.revealRole || m.default;
+          if (reveal) reveal(role);
+        }).catch(()=>{});
+      } catch {}
+    } catch (e) {
+      console.error('state:resume handler failed', e);
+    }
+  });
+
+  // ✅ Visitors Win
+  socket.on('game:visitorsWin', (data) => {
+    try {
+      console.log('🎉 Visitors Win!', data);
+      // เรียก endgame overlay
+      import('./endgame.js').then(m => {
+        const showEnd = m?.showEnd || m?.default;
+        if (showEnd) {
+          showEnd({
+            outcome: 'visitors_win',
+            reason: 'all_tasks_complete',
+            title: 'VISITORS WIN!',
+            desc: data?.message || 'All visitors completed their tasks!',
+          });
+        }
+      }).catch(err => console.error('endgame load failed', err));
+    } catch (e) {
+      console.error('game:visitorsWin handler failed', e);
     }
   });
 

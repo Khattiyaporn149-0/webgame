@@ -66,17 +66,62 @@ try {
 function dist(x1,y1,x2,y2){ return Math.hypot(x1-x2, y1-y2); }
 
 function setMissionUI(){
-  const pct = Math.round(state.missionProgress/CONST.MAX_MISSION_PROGRESS*100);
+  // ✅ ใช้ระบบภารกิจใหม่
+  if (state.myRole !== "Visitor") return;
+  
+  const completed = state.myCompletedTasks.length;
+  const total = 8;
+  const pct = Math.round((completed / total) * 100);
+  
   if (refs.missionBarFill) refs.missionBarFill.style.width = `${pct}%`;
-  if (refs.missionText) refs.missionText.textContent = `${pct}%`;
+  // ✅ ไม่แสดงตัวเลข (จะลบ element ในขั้นถัดไป)
+  if (refs.missionText) refs.missionText.textContent = '';
+}
 
-  // End condition: Visitors complete 100%
-  // เพิ่มใหม่: ตรวจครบ 100% แล้วสั่งจบเกม — 2025-10-13 21:14:26 +07:00
+export function refreshMissionUI(){
+  setMissionUI();
+}
+
+// ===============================
+// World Task Hints (pulsing markers on assigned tasks)
+// ===============================
+let _taskHintEls = new Map(); // mg -> HTMLElement
+let _taskHintStyleInjected = false;
+function ensureTaskHintStyle(){
+  if (_taskHintStyleInjected) return; _taskHintStyleInjected = true;
   try {
-    if (!__endFired && getRole()==='Visitor' && state.missionProgress >= CONST.MAX_MISSION_PROGRESS){
-      endGame({ outcome: 'visitors_win', reason: 'missions_complete', percent: pct });
-    }
+    const css = `
+    @keyframes taskPulse { 0%{ transform: translate(-50%, -100%) scale(0.9); opacity: .8 } 50%{ transform: translate(-50%, -100%) scale(1.1); opacity: 1 } 100%{ transform: translate(-50%, -100%) scale(0.9); opacity: .8 } }
+    .task-marker{ position:absolute; width:22px; height:22px; border-radius:50%; background:rgba(255, 221, 0, .9); box-shadow:0 0 10px rgba(255,221,0,.8), 0 0 18px rgba(255,221,0,.6); pointer-events:none; z-index:500; animation: taskPulse 1.2s infinite; border:2px solid #000; }
+    .task-marker::after{ content:''; position:absolute; left:50%; top:50%; width:6px; height:6px; background:#000; border-radius:50%; transform:translate(-50%, -50%); }
+    `;
+    const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s);
   } catch {}
+}
+
+export function updateTaskWorldHints(){
+  try {
+    if (state.myRole !== 'Visitor') return;
+    ensureTaskHintStyle();
+    const gc = document.getElementById('game-container');
+    if (!gc) return;
+
+    // ต้องมีเฉพาะ task ที่ปลดล็อคและยังไม่เสร็จ
+    const need = new Set();
+    for (const mg of state.myUnlockedTasks){
+      if (state.myCompletedTasks.includes(mg)) continue;
+      need.add(mg);
+      let el = _taskHintEls.get(mg);
+      if (!el){ el = document.createElement('div'); el.className = 'task-marker'; gc.appendChild(el); _taskHintEls.set(mg, el); }
+      const obj = INTERACTABLE_OBJECTS.find(o => o.mg === mg);
+      if (obj){ const r = normRect(obj); const cx = r.x + r.w/2; const cy = r.y; el.style.left = `${cx}px`; el.style.top = `${cy}px`; el.style.display = 'block'; el.title = `Task: ${mg}`; }
+    }
+
+    // ซ่อนของที่ไม่อยู่ใน need อีกแล้ว
+    for (const [mg, el] of _taskHintEls.entries()){
+      if (!need.has(mg)) { el.style.display = 'none'; }
+    }
+  } catch (e) { /* noop */ }
 }
 export function startMeeting(at = CONST.MEETING_POINT){
   if (state.isMeetingActive) return;
@@ -195,7 +240,7 @@ export function checkInteractions(){
 }
 
 // 1️⃣ ข้อมูล Object ที่โต้ตอบได้ (เพิ่มอันใหม่ได้เรื่อยๆ)
-    const INTERACTABLE_OBJECTS = [
+  export const INTERACTABLE_OBJECTS = [
     { id: 'printer', x: 3400, y: 3470, width: 100, height: 110, type: 'printer', active: true},
     { id: 'tree_middle_room', x: 4750, y: 4300, width: -50,height: -100, type: 'tree', active: true },
     { id: 'Telephone', x: 4100, y: 4390, width: -100, height: 200, type: 'Telephone', active: true },
@@ -222,6 +267,9 @@ function normRect({x,y,width:w,height:h}){
 
 let telCooldown=false, telRemain=0, telTimer=null, telUsed=0;
 
+// ✅ 8 minigames ที่ใช้ในระบบภารกิจ
+const VALID_MINIGAMES = ["align", "mop", "upload", "dodge", "rhythm", "switch", "wires", "math"];
+
 export function checkObjectInteractions(){
   const pcx = state.playerX + state.playerW/2;
   const pcy = state.playerY + state.playerH/2;
@@ -229,6 +277,17 @@ export function checkObjectInteractions(){
   let near = null;
   for (const raw of INTERACTABLE_OBJECTS){
     if (!raw.active) continue;
+    
+    // ✅ กรองเฉพาะ object ที่มี mg และอยู่ใน VALID_MINIGAMES
+    if (raw.mg && !VALID_MINIGAMES.includes(raw.mg)) continue;
+    
+    // ✅ ถ้าเป็น Visitor ต้องเช็คว่าปลดล็อคแล้วหรือยัง
+    if (state.myRole === "Visitor" && raw.mg) {
+      if (!state.myUnlockedTasks.includes(raw.mg)) continue;
+      // ถ้าทำไปแล้วก็ไม่แสดง
+      if (state.myCompletedTasks.includes(raw.mg)) continue;
+    }
+    
     const {x,y,w,h} = normRect(raw);
     const ocx = x+w/2, ocy = y+h/2;
     if (dist(pcx,pcy,ocx,ocy) < CONST.INTERACTION_RADIUS){ near = { ...raw, x,y,w,h }; break; }
@@ -277,10 +336,31 @@ export function checkObjectInteractions(){
     // Fallback to legacy opener only if the new system isn't available
     openMinigameForObject(near, {
       onComplete: (obj) => {
-        const inc = Number(obj?.mg?.progress) || 1;
-        state.missionProgress = Math.min(CONST.MAX_MISSION_PROGRESS, state.missionProgress + inc);
-        setMissionUI();
-        log('✅ Minigame complete! (+progress)');
+        // ✅ เฉพาะ Visitor เท่านั้นที่ส่งผลกับ progress
+        if (state.myRole === "Visitor" && obj.mg) {
+          const taskName = obj.mg;
+          
+          // เช็คว่าทำไปแล้วหรือยัง
+          if (!state.myCompletedTasks.includes(taskName)) {
+            state.myCompletedTasks.push(taskName);
+            try { sessionStorage.setItem('myCompletedTasks', JSON.stringify(state.myCompletedTasks)); } catch {}
+            
+            // ส่งไป server
+            if (window.socket && window.socket.connected) {
+              window.socket.emit("task:complete", { taskName });
+              console.log(`✅ Task completed: ${taskName}`);
+            }
+            
+            // อัพเดท UI
+            setMissionUI();
+            try { updateTaskWorldHints?.(); } catch {}
+            log('✅ Minigame complete! (+progress)');
+          }
+        } else if (state.myRole === "Thief") {
+          // Thief เล่นได้แต่ไม่นับ
+          log('🎮 Minigame complete (no progress)');
+        }
+        
         obj.active = false;
       }
     });

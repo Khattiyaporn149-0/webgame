@@ -1,6 +1,6 @@
 // minimap.js — toggleFullScreenMap, updateMiniMapDisplay
 import { CONST, state } from './core.js';
-import { MISSION_SPOTS_DATA } from './interactions.js';
+import { MISSION_SPOTS_DATA, INTERACTABLE_OBJECTS } from './interactions.js';
 
 let isFull = false;
 
@@ -94,4 +94,49 @@ export function updateMiniMapDisplay(){
     d.style.top  = `${spot.y + spot.height/2}px`;
     d.style.transform = dotT;
   });
+
+  // ===== Task dots for current wave (Visitor only) =====
+  try {
+    const contentEl = qs('minimap-content');
+    if (contentEl && state.myRole === 'Visitor'){
+      // สร้าง container ถ้ายังไม่มี
+      let container = contentEl.querySelector('#minimap-task-dots');
+      if (!container){ container = document.createElement('div'); container.id = 'minimap-task-dots'; contentEl.appendChild(container); }
+
+      // ทำ map ของ element ตามชื่อ task
+      const existing = new Map();
+      for (const el of Array.from(container.children)){
+        existing.set(el.dataset.mg, el);
+      }
+
+      const needed = new Set();
+      for (const mg of (state.myUnlockedTasks || [])){
+        if (state.myCompletedTasks?.includes(mg)) continue; // ไม่ต้องโชว์ถ้าทำเสร็จแล้ว
+        needed.add(mg);
+        let el = existing.get(mg);
+        if (!el){
+          el = document.createElement('div');
+          el.className = 'minimap-mission-dot';
+          el.style.background = '#ffdd00';
+          el.style.boxShadow = '0 0 6px rgba(255,221,0,.9)';
+          el.dataset.mg = mg;
+          container.appendChild(el);
+        }
+        const obj = INTERACTABLE_OBJECTS.find(o => o.mg === mg);
+        if (obj){
+          const r = (o=>{ let {x,y,width:w,height:h}=o; if (w<0){x+=w;w=-w;} if(h<0){y+=h;h=-h;} return {x,y,w,h}; })(obj);
+          el.style.left = `${r.x + r.w/2}px`;
+          el.style.top  = `${r.y + r.h/2}px`;
+          el.style.transform = dotT;
+          el.title = `Task: ${mg}`;
+          el.style.display = 'block';
+        }
+      }
+
+      // ซ่อน/ลบที่ไม่ต้องใช้
+      for (const [mg, el] of existing.entries()){
+        if (!needed.has(mg)) el.style.display = 'none';
+      }
+    }
+  } catch {}
 }
