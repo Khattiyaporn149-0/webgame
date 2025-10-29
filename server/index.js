@@ -107,6 +107,7 @@ io.on("connection", (socket) => {
         socketId: socket.id,
         room,
         lastMoveAt: Date.now(),
+        role: "Visitor", // ✅ Default role
       });
     }
 
