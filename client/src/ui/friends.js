@@ -4,7 +4,7 @@
 // - userCodes/{code}: uid
 // - friends/{uid}/{friendUid}: true  (mutual on add)
 
-import { rtdb, ref, set, update, onValue, get } from "../services/firebase.js";
+import { rtdb, ref, set, update, onValue, get, auth } from "../services/firebase.js";
 
 (function(){
   const MODAL_ID = 'friendsModal';
@@ -34,6 +34,11 @@ import { rtdb, ref, set, update, onValue, get } from "../services/firebase.js";
     state.uid = localStorage.getItem('ggd.uid') || state.uid;
     state.name = localStorage.getItem('ggd.name') || state.name || 'Guest';
     if (!state.uid) return;
+    // Require real Firebase Auth session to manage profiles/friends
+    const authedUid = auth && auth.currentUser ? auth.currentUser.uid : null;
+    if (!authedUid || authedUid !== state.uid) {
+      return; // not signed in with Firebase; skip writes to protected paths
+    }
 
     try {
       const userSnap = await get(ref(rtdb, `users/${state.uid}`));
@@ -148,6 +153,7 @@ import { rtdb, ref, set, update, onValue, get } from "../services/firebase.js";
 
   async function addFriendByCode(){
     if (!state.uid) { window.showToast && showToast('Please start the game first', 'warning'); return; }
+    if (!auth || !auth.currentUser) { window.showToast && showToast('Please login with Google first', 'warning'); return; }
     await ensureUserProfile();
     const input = document.getElementById('friendCodeInput');
     const raw = input?.value || '';
