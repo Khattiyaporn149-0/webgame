@@ -1,12 +1,11 @@
-import { auth, provider, signInWithPopup, rtdb, ref, set } from "../services/firebase.js";
+import { auth, provider, signInWithPopup, rtdb, ref, set, watchAuthState } from "../services/firebase.js";
 
 
 
 // 🧩 Auto-generate guest UID ถ้าไม่มี
 if (!localStorage.getItem("ggd.uid")) {
   const guest = crypto.randomUUID ? crypto.randomUUID() : "uid_" + Math.random().toString(36).slice(2, 10);
-  localStorage.setItem("ggd.uid", guest);
-  localStorage.setItem("ggd.name", "Guest");
+  localStorage.setItem("ggd.uid", null);
   // ระบุสถานะ auth เป็น guest (กันสับสนว่าเป็น Google)
   if (!localStorage.getItem("ggd.auth")) {
     localStorage.setItem("ggd.auth", "guest");
@@ -39,6 +38,15 @@ const state = {
   version: "V.beta 2.0.1"
 };
 
+// Aliases used throughout this file; keep from becoming undefined
+state.name = localStorage.getItem("ggd.name") || "";
+state.uid  = localStorage.getItem("ggd.uid")  || null;
+// Sanitize bad persisted values
+if (state.name === "undefined" || state.name === "null") {
+  try { localStorage.removeItem("ggd.name"); } catch {}
+  state.name = "";
+}
+
 // If unified GameSettings exists (from common-settings.js), initialize from it
 try {
   if (window.GameSettings && typeof window.GameSettings.get === 'function') {
@@ -66,8 +74,11 @@ function saveState() {
 }
 
 function updateVolumes() {
-  bgm.volume = state.master * state.music;
-  clickSound.volume = state.master * state.sfx;
+  const master = Number.isFinite(+state.master) ? +state.master : 1;
+  const music  = Number.isFinite(+state.music)  ? +state.music  : 0.6;
+  const sfx    = Number.isFinite(+state.sfx)    ? +state.sfx    : 0.9;
+  bgm.volume = Math.max(0, Math.min(1, master * music));
+  clickSound.volume = Math.max(0, Math.min(1, master * sfx));
 }
 updateVolumes();
 
@@ -103,11 +114,11 @@ const loginBtn = document.getElementById("loginGoogleBtn");
 const playerNameInput = document.getElementById("playerNameInput");
 const playerNameStored = localStorage.getItem("ggd.name") || localStorage.getItem("playerName") || "";
 if (playerNameInput) {
-  playerNameInput.value = state.name !== "Guest" ? state.name : playerNameStored;
+  playerNameInput.value = state.name || playerNameStored || "";
 }
 showStartScreen(); // เริ่มด้วยการโชว์หน้าตั้งชื่อก่อน
 
-document.getElementById("playerNameTop").textContent = state.name;
+document.getElementById("playerNameTop").textContent = state.name || "Guest";
 document.getElementById("ver").textContent = state.version;
 
 
@@ -139,13 +150,16 @@ function nameOk(n) {
 // Startup gating: if a valid name already exists, keep the start screen hidden
 (function ensureStartScreenState(){
   try {
-    const stored = localStorage.getItem("ggd.name") || localStorage.getItem("playerName") || "";
-    const candidate = state.name !== "Guest" ? state.name : stored;
-    if (nameOk(candidate) && candidate !== "Guest") {
-      if (state.name === "Guest") { state.name = candidate; saveState(); }
+    // Only hide if user has completed onboarding once and has a valid name
+    const stored = (localStorage.getItem("ggd.name") || "").trim();
+    const onboarded = localStorage.getItem("ggd.onboarded") === "1";
+    if (onboarded && nameOk(stored)) {
+      if (!state.name) { state.name = stored; saveState(); }
       hideStartScreen();
       const top = document.getElementById("playerNameTop");
-      if (top) top.textContent = state.name;
+      if (top) top.textContent = state.name || "Guest";
+    } else {
+      showStartScreen();
     }
   } catch {}
 })();
@@ -156,6 +170,7 @@ startBtn?.addEventListener("click", () => {
   clickSound.pause(); clickSound.currentTime = 0; clickSound.play();
   state.name = name;
   saveState();
+  try { localStorage.setItem("ggd.onboarded", "1"); } catch {}
   document.getElementById("playerNameTop").textContent = state.name;
   hideStartScreen();
 });
@@ -177,7 +192,8 @@ const cancelNameBtn = document.getElementById("cancelNameBtn");
 
 // Helper: ตรวจสอบสถานะว่าเป็น Google Login จริงไหม
 function isGoogleLoggedIn() {
-  return localStorage.getItem("ggd.auth") === "google";
+  // Trust actual Firebase auth state; avoids stale localStorage
+  return !!(auth && auth.currentUser);
 }
 
 // 🔐 GOOGLE LOGIN (รวม logic ไว้ที่เดียว ใช้ซ้ำได้)
@@ -194,6 +210,7 @@ async function handleGoogleLogin(trigger = "start") {
     localStorage.setItem("ggd.uid", state.uid);
     // ระบุว่าเป็นการล็อกอินด้วย Google ชัดเจน
     localStorage.setItem("ggd.auth", "google");
+    try { localStorage.setItem("ggd.onboarded", "1"); } catch {}
     saveState();
 
     // ✅ อัปเดต Realtime DB (เก็บข้อมูลผู้ใช้)
@@ -233,7 +250,7 @@ function updateProfileUI() {
   if (!googleLoginBtn || !displayNameEl) return;
 
   // ✅ อัปเดตชื่อในโปรไฟล์
-  displayNameEl.textContent = state.name || "Guest";
+  displayNameEl.textContent = state.name || "Not set";
 
   // ✅ อัปเดตปุ่ม Google Login ตามสถานะ (ดูจาก flag ไม่ใช่แค่มี guest uid)
   if (isGoogleLoggedIn()) {
@@ -572,6 +589,14 @@ document.addEventListener("DOMContentLoaded", () => {
   GiftSystem.updateBadge();
   MissionSystem.load();
   LoginSystem.init();
+  // Keep UI/localStorage in sync with real Firebase auth state
+  try {
+    watchAuthState((user) => {
+      const top = document.getElementById("playerNameTop");
+      if (user && top) top.textContent = user.displayName || "Unknown";
+      try { updateProfileUI(); } catch {}
+    });
+  } catch {}
   BonusSystem.update();
   setInterval(() => BonusSystem.update(), 1000);
 
@@ -790,4 +815,3 @@ const collection = [
   if (document.readyState === 'complete' || document.readyState === 'interactive') init();
   else document.addEventListener('DOMContentLoaded', init, { once: true });
 })();
-

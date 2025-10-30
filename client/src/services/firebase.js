@@ -56,9 +56,12 @@ export function watchAuthState(callback) {
       // Fire and forget; keep users_safe fresh
       persistUserSafeProfile(user);
     } else {
-      // Keep existing guest uid/name; just mark as guest
-      if (!localStorage.getItem("ggd.auth")) {
-        localStorage.setItem("ggd.auth", "guest");
+      // No Firebase user: ensure UI treats as guest
+      localStorage.setItem("ggd.auth", "guest");
+      // Clean up obviously bad names from previous runs
+      const nm = localStorage.getItem("ggd.name");
+      if (!nm || nm === "undefined" || nm === "null") {
+        try { localStorage.removeItem("ggd.name"); } catch {}
       }
     }
     callback(user || null);
