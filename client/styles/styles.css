@@ -11,10 +11,10 @@
 }
 
 html ,body, * {
-  cursor: url("assets/Normal\ Select.cur"), all-scroll;
+  cursor: url("../assets/Normal\ Select.cur"), auto;
 }
 button:hover, a:hover {
-  cursor: url("./assets/Alternate\ Select.cur") 8 8, pointer;
+  cursor: url("../assets/Alternate\ Select.cur") 8 8, pointer;
 }
 
 * { box-sizing: border-box }
@@ -1078,4 +1078,3 @@ option {
   transform: scale(1);
   opacity: 1;
 }
-
