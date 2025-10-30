@@ -263,6 +263,8 @@ $("btnBack").onclick = async () => {
 /* ---------- Players list sync + host auto-promotion ---------- */
 const playerListEl = $("playerList");
 const playerCountEl = $("playerCount");
+let latestLobbyPlayerCount = 0; // จำนวนผู้เล่นทั้งหมดในล็อบบี้ล่าสุด
+let latestReadyCount = 0;       // จำนวนผู้เล่นที่กด Ready ล่าสุด (ใช้เป็นเกณฑ์เริ่มเกม)
 
 let countdownStarted = false;
 onValue(lobbyPlayersRef, async (snap) => {
@@ -286,6 +288,8 @@ onValue(lobbyPlayersRef, async (snap) => {
 
   // นับคน & sync room & bump
   playerCountEl.textContent = `${players.length} player${players.length > 1 ? "s" : ""}`;
+  latestLobbyPlayerCount = players.length;
+  latestReadyCount = players.filter(p => !!p.ready).length;
   try { await update(roomRef, { playerCount: players.length, lastActivity: serverTimestamp() }); } catch {}
 
   // เลือกโฮสใหม่อัตโนมัติ (คนที่ joinTime เก่าสุด)
@@ -413,6 +417,13 @@ function startCountdownTimer() {
         console.log(`🎨 [${displayName}] Using char: ${playerChar}, color: ${playerColor}`);
         
         // ⭐ ผูก tasks:assigned listener ก่อน (เพื่อไม่พลาดข้อมูล)
+        let redirected = false;
+        const safeRedirect = () => {
+          if (redirected) return; redirected = true;
+          console.log(`🚀 [${displayName}] Redirecting to game...`);
+          location.href = `game.html?code=${encodeURIComponent(roomCode)}`;
+        };
+
         socket.once("tasks:assigned", (data) => {
           console.log(`✅ [${displayName}] Received task assignment:`, data);
           
@@ -421,10 +432,11 @@ function startCountdownTimer() {
           sessionStorage.setItem("myWaves", JSON.stringify(data.waves || []));
           sessionStorage.setItem("myCurrentWave", data.currentWave || 0);
           
-          // redirect ไปหน้าเกม
-          console.log(`🚀 [${displayName}] Redirecting to game...`);
-          location.href = `game.html?code=${encodeURIComponent(roomCode)}`;
+          // redirect ไปหน้าเกม (กันซ้ำ)
+          safeRedirect();
         });
+
+        // ไม่ใช้ state:resume เป็นตัวบังคับเข้าเกม เพื่อคง flow ปกติ (เข้าก็ต่อเมื่อได้ tasks/role จริง)
         
         // ส่ง game:join ก่อน
         socket.emit("game:join", {
@@ -446,26 +458,55 @@ function startCountdownTimer() {
           
           // ถ้าเป็น host ให้ส่ง game:start ทันที
           if (isHost) {
-            console.log("🎮 [HOST] Sending game:start to server...");
-            socket.emit("game:start", { room: roomCode });
+            // แทนที่จะ start ทันที ให้รอจน snapshot จาก server มีจำนวนผู้เล่น >= จำนวนที่ Ready จริงในล็อบบี้
+            // ใช้ค่า expected แบบ dynamic จาก latestReadyCount เพื่อรองรับกรณีมีคนยกเลิก Ready/ออกห้อง
+            let expected = latestReadyCount || 0;
+            let started = false;
+            const tryStart = () => {
+              if (started) return;
+              console.log(`👀 [HOST] Waiting ready players to join socket: expect ${expected}`);
+              const onSnap = (payload={}) => {
+                try {
+                  const arr = Array.isArray(payload.players) ? payload.players : [];
+                  const count = arr.length;
+                  // อัปเดต expected แบบสดใหม่ทุกครั้ง
+                  expected = latestReadyCount || 0;
+                  if (count >= expected && expected >= 3) {
+                    socket.off('snapshot', onSnap);
+                    started = true;
+                    console.log(`🎮 [HOST] All ${count} joined. Starting game...`);
+                    socket.emit('game:start', { room: roomCode, expectedReady: latestReadyCount });
+                    socket.emit('tasks:request', { room: roomCode, uid });
+                  }
+                } catch {}
+              };
+              socket.on('snapshot', onSnap);
+            };
+            tryStart();
           }
+
+          // ผู้เล่นทุกคนสามารถขอ tasks ได้เช่นกัน (กันกรณี server ช้าหรือพลาด)
+          setTimeout(() => {
+            if (!sessionStorage.getItem("myRole")) {
+              console.log("📦 Requesting tasks after join ack...");
+              socket.emit("tasks:request", { room: roomCode, uid });
+              // ไม่ขอ state เพื่อไม่เปลี่ยน flow การ redirect
+            }
+          }, 300);
         });
         
-        // Backup: ถ้า 1 วิยังไม่ได้ ack ให้ส่ง game:start อยู่ดี (non-host รอต่อ)
-        setTimeout(() => {
-          if (!joinAckReceived && isHost) {
-            console.warn("⚠️ [HOST] No join:ack after 1s, sending game:start anyway...");
-            socket.emit("game:start", { room: roomCode });
-          }
-        }, 1000);
+        // ไม่ส่ง game:start แบบเร่ง หากยังไม่ได้ ack (ย้ายไป logic ด้านบน)
         
-        // ถ้า 5 วินาทียังไม่ได้ tasks ให้ขอใหม่
-        setTimeout(() => {
-          if (!sessionStorage.getItem("myRole")) {
-            console.warn("⚠️ [${displayName}] No tasks received after 5s, requesting again...");
-            socket.emit("tasks:request");
-          }
-        }, 5000);
+        // ถ้ายังไม่ได้ tasks ให้ขอซ้ำแบบมี payload และเว้นช่วงสั้นลง
+        let tries = 0;
+        const retry = () => {
+          if (sessionStorage.getItem("myRole")) return; // ได้แล้วเลิก
+          tries += 1;
+          console.warn(`⚠️ [${displayName}] No tasks yet (try ${tries}), requesting...`);
+          socket.emit("tasks:request", { room: roomCode, uid });
+          if (tries < 5) setTimeout(retry, 1000); // ลองสูงสุด 5 ครั้ง ทุก 1s
+        };
+        setTimeout(retry, 1500);
       }
     }
   }, 1000);
