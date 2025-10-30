@@ -18,7 +18,8 @@ if (!window.bgm) {
   window.bgm = new Audio("../assets/sounds/galaxy-283941.mp3");
   window.bgm.loop = true;
   window.bgm.volume = 0.5;
-  document.addEventListener("click", () => bgm.play().catch(() => {}), { once: true });
+  // Avoid referencing local const before it’s declared; call via window
+  document.addEventListener("click", () => { try { window.bgm?.play().catch(() => {}); } catch {} }, { once: true });
 }
 if (!window.clickSound) {
   window.clickSound = new Audio("../assets/sounds/click.mp3");
@@ -38,6 +39,14 @@ const state = {
   },
   version: "V.beta 2.0.1"
 };
+
+// Defaults for commonly used flat fields
+if (!state.name) state.name = localStorage.getItem("ggd.name") || "Guest";
+if (!state.uid) state.uid = localStorage.getItem("ggd.uid") || null;
+if (!Number.isFinite(+state.master)) state.master = +(localStorage.getItem("ggd.master") ?? 1);
+if (!Number.isFinite(+state.music))  state.music  = +(localStorage.getItem("ggd.music") ?? 1);
+if (!Number.isFinite(+state.sfx))    state.sfx    = +(localStorage.getItem("ggd.sfx") ?? 1);
+if (!state.region)                   state.region = localStorage.getItem("ggd.region") || "asia";
 
 // If unified GameSettings exists (from common-settings.js), initialize from it
 try {
@@ -107,8 +116,8 @@ if (playerNameInput) {
 }
 showStartScreen(); // เริ่มด้วยการโชว์หน้าตั้งชื่อก่อน
 
-document.getElementById("playerNameTop").textContent = state.name;
-document.getElementById("ver").textContent = state.version;
+try { const el = document.getElementById("playerNameTop"); if (el) el.textContent = state.name || "Guest"; } catch {}
+try { const elv = document.getElementById("ver"); if (elv) elv.textContent = state.version; } catch {}
 
 
 // ========= 🧠 START SCREEN =========
@@ -790,4 +799,3 @@ const collection = [
   if (document.readyState === 'complete' || document.readyState === 'interactive') init();
   else document.addEventListener('DOMContentLoaded', init, { once: true });
 })();
-
