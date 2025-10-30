@@ -4,7 +4,7 @@
 // - userCodes/{code}: uid
 // - friends/{uid}/{friendUid}: true  (mutual on add)
 
-import { rtdb, ref, set, update, onValue, get, auth } from "../services/firebase.js";
+import { rtdb, ref, set, update, onValue, get, auth, provider, signInWithPopup } from "../services/firebase.js";
 
 (function(){
   const MODAL_ID = 'friendsModal';
@@ -106,6 +106,7 @@ import { rtdb, ref, set, update, onValue, get, auth } from "../services/firebase
               <div id=\"myFriendCode\" style=\"font-weight:800; font-size:18px\">—</div>
             </div>
             <button id=\"copyFriendCode\" class=\"sec-btn\" style=\"white-space:nowrap\">Copy</button>
+            <button id=\"loginForCode\" class=\"sec-btn\" style=\"white-space:nowrap; display:none\">Login to generate</button>
           </div>
 
           <div class=\"row\" style=\"gap:8px; align-items:flex-end\">
@@ -124,19 +125,47 @@ import { rtdb, ref, set, update, onValue, get, auth } from "../services/firebase
     modal.addEventListener('click', (e)=>{ if (e.target===modal) close(); });
     modal.querySelector('#closeFriends')?.addEventListener('click', close);
     modal.querySelector('#copyFriendCode')?.addEventListener('click', copyCode);
+    modal.querySelector('#loginForCode')?.addEventListener('click', loginToGenerate);
     modal.querySelector('#btnAddFriend')?.addEventListener('click', () => addFriendByCode());
     const input = modal.querySelector('#friendCodeInput');
     input?.addEventListener('keydown', (e)=>{ if (e.key==='Enter') addFriendByCode(); });
     return modal;
   }
 
-  function open(){ ensureModal(); ensureUserProfile(); bindFriendsStream(); const m=document.getElementById(MODAL_ID); m.setAttribute('aria-hidden','false'); m.classList.add('show'); }
+  function open(){ ensureModal(); ensureUserProfile(); bindFriendsStream(); renderMyCode(); const m=document.getElementById(MODAL_ID); m.setAttribute('aria-hidden','false'); m.classList.add('show'); }
   function close(){ const m=document.getElementById(MODAL_ID); if (m){ m.classList.remove('show'); m.setAttribute('aria-hidden','true'); } }
 
   function renderMyCode(){
     const el = document.getElementById('myFriendCode');
     if (!el) return;
-    el.textContent = state.code || '—';
+    const copyBtn = document.getElementById('copyFriendCode');
+    const loginBtn = document.getElementById('loginForCode');
+    const isAuthed = !!(auth && auth.currentUser);
+    if (!isAuthed) {
+      el.textContent = '-';
+      if (loginBtn) loginBtn.style.display = '';
+      if (copyBtn) copyBtn.disabled = true;
+      return;
+    }
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (!state.code) {
+      el.textContent = 'Generating…';
+    } else {
+      el.textContent = state.code;
+      if (copyBtn) copyBtn.disabled = false;
+    }
+  }
+
+  async function loginToGenerate(){
+    try {
+      await signInWithPopup(auth, provider);
+      window.showToast && showToast('Logged in. Generating your code…', 'success');
+      await ensureUserProfile();
+      renderMyCode();
+    } catch (e) {
+      console.warn('loginToGenerate failed', e);
+      window.showToast && showToast('Login failed', 'error');
+    }
   }
 
   async function copyCode(){
