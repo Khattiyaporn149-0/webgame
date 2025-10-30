@@ -8,14 +8,13 @@
   --green: #54f4a8;
   --yellow: #ffd866;
   --white-15: rgba(255,255,255,.15);
+  /* Custom cursor variables */
+  --cursor-normal: url("../assets/Normal%20Select.cur"), auto;
+  --cursor-pointer: url("../assets/Alternate%20Select.cur") 8 8, pointer;
 }
 
-html ,body, * {
-  cursor: url("../assets/Normal\ Select.cur"), auto;
-}
-button:hover, a:hover {
-  cursor: url("../assets/Alternate\ Select.cur") 8 8, pointer;
-}
+html ,body, * { cursor: var(--cursor-normal); }
+button:hover, a:hover { cursor: var(--cursor-pointer); }
 
 * { box-sizing: border-box }
 html, body { height: 100% }
@@ -1078,3 +1077,32 @@ option {
   transform: scale(1);
   opacity: 1;
 }
+
+/* ---------- Cursor overrides (global) ---------- */
+/* Provide consistent Normal/Alternate cursors across the app */
+html, body, * { cursor: var(--cursor-normal); }
+
+/* Interactive elements use Alternate pointer */
+a, button, [role="button"],
+input[type="button"], input[type="submit"], input[type="reset"],
+label, select,
+.icon-btn, .rail-btn, .right-btn, .cta, .sec-btn,
+.join-btn, .join-code-btn, .char-btn,
+.dialog-head .x,
+.mission-card .do, .streak-card.available .claim,
+.switch-panel button,
+.coll-card, .play-btn,
+#btnProfile, #btnSettingsTop, #btnWorld, #btnTutorial, #btnFriends,
+#btnCollection, #btnCollectionTop, #btnClaw,
+#closeSettings, #closeProfile, #closeTutorial, #closeClaw,
+#btnPlayClaw,
+[onclick]
+{ cursor: var(--cursor-pointer) !important; }
+
+/* Text fields keep Normal cursor */
+input[type="text"], input[type="search"], input[type="email"], input[type="password"],
+textarea, [contenteditable="true"]
+{ cursor: var(--cursor-normal) !important; }
+
+/* Disabled state: revert to Normal */
+[disabled], .disabled { cursor: var(--cursor-normal) !important; }
