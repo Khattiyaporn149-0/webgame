@@ -36,7 +36,7 @@ const state = {
     name: null,
     id: null,
   },
-  version: "V.beta 2.0"
+  version: "V.beta 2.0.1"
 };
 
 // If unified GameSettings exists (from common-settings.js), initialize from it

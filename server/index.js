@@ -7,8 +7,16 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
+// Serve the built client. `client/public` contains the main index.html,
+// and `client` hosts shared asset folders like /styles and /assets.
+app.use(express.static(path.join(__dirname, "../client/public")));
 app.use(express.static(path.join(__dirname, "../client")));
-const PORT = 3000;
+
+// Root fallback to the SPA entrypoint
+app.get("/", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../client/public/index.html"));
+});
+const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
 // ===============================
 // Game Constants
