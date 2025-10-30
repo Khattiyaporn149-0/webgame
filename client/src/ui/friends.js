@@ -15,6 +15,7 @@ import { rtdb, ref, set, update, onValue, get, auth } from "../services/firebase
     name: localStorage.getItem('ggd.name') || 'Guest',
     code: null,
     friends: {},
+    busy: false,
   };
 
   function uuidLike(){
@@ -123,7 +124,7 @@ import { rtdb, ref, set, update, onValue, get, auth } from "../services/firebase
     modal.addEventListener('click', (e)=>{ if (e.target===modal) close(); });
     modal.querySelector('#closeFriends')?.addEventListener('click', close);
     modal.querySelector('#copyFriendCode')?.addEventListener('click', copyCode);
-    modal.querySelector('#btnAddFriend')?.addEventListener('click', addFriendByCode);
+    modal.querySelector('#btnAddFriend')?.addEventListener('click', () => addFriendByCode());
     const input = modal.querySelector('#friendCodeInput');
     input?.addEventListener('keydown', (e)=>{ if (e.key==='Enter') addFriendByCode(); });
     return modal;
@@ -151,31 +152,44 @@ import { rtdb, ref, set, update, onValue, get, auth } from "../services/firebase
     return String(v||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0, 16);
   }
 
-  async function addFriendByCode(){
+  function setAddBusy(b){
+    state.busy = !!b;
+    const btn = document.getElementById('btnAddFriend');
+    if (btn){
+      btn.disabled = state.busy;
+      btn.textContent = state.busy ? 'Adding…' : 'Add';
+    }
+  }
+
+  async function addFriendByCode(explicit){
     if (!state.uid) { window.showToast && showToast('Please start the game first', 'warning'); return; }
     if (!auth || !auth.currentUser) { window.showToast && showToast('Please login with Google first', 'warning'); return; }
     await ensureUserProfile();
     const input = document.getElementById('friendCodeInput');
-    const raw = input?.value || '';
+    const raw = explicit || input?.value || '';
     const code = normalizeCode(raw);
     if (!code || code.length < 4) { window.showToast && showToast('Invalid code', 'error'); return; }
     if (code === state.code) { window.showToast && showToast('You cannot add yourself', 'warning'); return; }
 
     try {
+      if (state.busy) return; setAddBusy(true);
       const mapSnap = await get(ref(rtdb, `userCodes/${code}`));
       if (!mapSnap.exists()) { window.showToast && showToast('Code not found', 'error'); return; }
       const otherUid = mapSnap.val();
       if (otherUid === state.uid) { window.showToast && showToast('You cannot add yourself', 'warning'); return; }
+      if (state.friends && state.friends[otherUid]) { window.showToast && showToast('Already friends', 'info'); return; }
 
       await update(ref(rtdb), {
         [`friends/${state.uid}/${otherUid}`]: true,
         [`friends/${otherUid}/${state.uid}`]: true,
       });
       window.showToast && showToast('Friend added!', 'success');
-      input.value = '';
+      if (input) input.value = '';
     } catch (e) {
       console.warn('addFriendByCode failed', e);
       window.showToast && showToast('Failed to add friend', 'error');
+    } finally {
+      setAddBusy(false);
     }
   }
 
@@ -187,15 +201,24 @@ import { rtdb, ref, set, update, onValue, get, auth } from "../services/firebase
     list.innerHTML = entries.map(uid=> `
       <div class="row" style="gap:8px; align-items:center; background: var(--panel-2); border:1px solid var(--stroke); padding:10px; border-radius:10px">
         <div style="flex:1" data-fuid="${uid}">Loading...</div>
+        <span class="status" data-fstat="${uid}" style="opacity:.8; font-size:12px; margin-right:8px;">·</span>
         <button class="sec-btn" data-rm="${uid}">Remove</button>
       </div>
     `).join('');
     entries.forEach(async (uid)=>{
       try {
         const snap = await get(ref(rtdb, `users/${uid}`));
-        const name = (snap.exists() && snap.val()?.name) || uid.slice(0,6);
+        const v = snap.exists() ? (snap.val()||{}) : {};
+        const name = v.name || uid.slice(0,6);
         const el = document.querySelector(`[data-fuid="${uid}"]`);
         if (el) el.textContent = name;
+        const stat = document.querySelector(`[data-fstat="${uid}"]`);
+        if (stat) {
+          const freshMs = 2 * 60 * 1000;
+          const online = typeof v.updatedAt === 'number' && (Date.now() - v.updatedAt) < freshMs;
+          stat.textContent = online ? 'online' : 'offline';
+          stat.style.color = online ? '#54f4a8' : '#b6c3de';
+        }
       } catch {}
     });
     list.querySelectorAll('button[data-rm]')?.forEach(btn=>{
@@ -207,6 +230,7 @@ import { rtdb, ref, set, update, onValue, get, auth } from "../services/firebase
   async function removeFriend(friendUid){
     if (!friendUid || !state.uid) return;
     try {
+      if (!confirm('Remove this friend?')) return;
       await update(ref(rtdb), {
         [`friends/${state.uid}/${friendUid}`]: null,
         [`friends/${friendUid}/${state.uid}`]: null,
@@ -236,7 +260,32 @@ import { rtdb, ref, set, update, onValue, get, auth } from "../services/firebase
     btn.addEventListener('click', (e)=>{ try { e.preventDefault(); e.stopImmediatePropagation(); } catch {}; open(); });
   }
 
-  function init(){ ensureModal(); ensureUserProfile(); bindOpenButton(); }
+  function bindInviteFromURL(){
+    try {
+      const url = new URL(location.href);
+      const q = url.searchParams.get('add') || (location.hash.match(/add=([A-Za-z0-9]+)/)?.[1] || '');
+      const code = normalizeCode(q);
+      if (code && code.length >= 4) {
+        const input = document.getElementById('friendCodeInput');
+        if (input) input.value = code;
+        if (auth && auth.currentUser) addFriendByCode(code);
+      }
+    } catch {}
+  }
+
+  function heartbeatPresence(){
+    const authedUid = auth && auth.currentUser ? auth.currentUser.uid : null;
+    if (!authedUid || authedUid !== state.uid) return;
+    try { update(ref(rtdb, `users/${state.uid}`), { updatedAt: Date.now(), name: state.name || 'Guest' }); } catch {}
+  }
+
+  function init(){
+    ensureModal();
+    ensureUserProfile();
+    bindOpenButton();
+    bindInviteFromURL();
+    try { heartbeatPresence(); setInterval(heartbeatPresence, 60 * 1000); } catch {}
+  }
   if (document.readyState==='complete' || document.readyState==='interactive') init();
   else document.addEventListener('DOMContentLoaded', init, { once: true });
 })();
