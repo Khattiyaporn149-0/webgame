@@ -77,6 +77,52 @@ function setMissionUI(){
   // ✅ ไม่แสดงตัวเลข (จะลบ element ในขั้นถัดไป)
   if (refs.missionText) refs.missionText.textContent = '';
 }
+
+export function refreshMissionUI(){
+  setMissionUI();
+}
+
+// ===============================
+// World Task Hints (pulsing markers on assigned tasks)
+// ===============================
+let _taskHintEls = new Map(); // mg -> HTMLElement
+let _taskHintStyleInjected = false;
+function ensureTaskHintStyle(){
+  if (_taskHintStyleInjected) return; _taskHintStyleInjected = true;
+  try {
+    const css = `
+    @keyframes taskPulse { 0%{ transform: translate(-50%, -100%) scale(0.9); opacity: .8 } 50%{ transform: translate(-50%, -100%) scale(1.1); opacity: 1 } 100%{ transform: translate(-50%, -100%) scale(0.9); opacity: .8 } }
+    .task-marker{ position:absolute; width:22px; height:22px; border-radius:50%; background:rgba(255, 221, 0, .9); box-shadow:0 0 10px rgba(255,221,0,.8), 0 0 18px rgba(255,221,0,.6); pointer-events:none; z-index:500; animation: taskPulse 1.2s infinite; border:2px solid #000; }
+    .task-marker::after{ content:''; position:absolute; left:50%; top:50%; width:6px; height:6px; background:#000; border-radius:50%; transform:translate(-50%, -50%); }
+    `;
+    const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s);
+  } catch {}
+}
+
+export function updateTaskWorldHints(){
+  try {
+    if (state.myRole !== 'Visitor') return;
+    ensureTaskHintStyle();
+    const gc = document.getElementById('game-container');
+    if (!gc) return;
+
+    // ต้องมีเฉพาะ task ที่ปลดล็อคและยังไม่เสร็จ
+    const need = new Set();
+    for (const mg of state.myUnlockedTasks){
+      if (state.myCompletedTasks.includes(mg)) continue;
+      need.add(mg);
+      let el = _taskHintEls.get(mg);
+      if (!el){ el = document.createElement('div'); el.className = 'task-marker'; gc.appendChild(el); _taskHintEls.set(mg, el); }
+      const obj = INTERACTABLE_OBJECTS.find(o => o.mg === mg);
+      if (obj){ const r = normRect(obj); const cx = r.x + r.w/2; const cy = r.y; el.style.left = `${cx}px`; el.style.top = `${cy}px`; el.style.display = 'block'; el.title = `Task: ${mg}`; }
+    }
+
+    // ซ่อนของที่ไม่อยู่ใน need อีกแล้ว
+    for (const [mg, el] of _taskHintEls.entries()){
+      if (!need.has(mg)) { el.style.display = 'none'; }
+    }
+  } catch (e) { /* noop */ }
+}
 export function startMeeting(at = CONST.MEETING_POINT){
   if (state.isMeetingActive) return;
   state.isMeetingActive = true;
@@ -194,7 +240,7 @@ export function checkInteractions(){
 }
 
 // 1️⃣ ข้อมูล Object ที่โต้ตอบได้ (เพิ่มอันใหม่ได้เรื่อยๆ)
-    const INTERACTABLE_OBJECTS = [
+  export const INTERACTABLE_OBJECTS = [
     { id: 'printer', x: 3400, y: 3470, width: 100, height: 110, type: 'printer', active: true},
     { id: 'tree_middle_room', x: 4750, y: 4300, width: -50,height: -100, type: 'tree', active: true },
     { id: 'Telephone', x: 4100, y: 4390, width: -100, height: 200, type: 'Telephone', active: true },
@@ -297,6 +343,7 @@ export function checkObjectInteractions(){
           // เช็คว่าทำไปแล้วหรือยัง
           if (!state.myCompletedTasks.includes(taskName)) {
             state.myCompletedTasks.push(taskName);
+            try { sessionStorage.setItem('myCompletedTasks', JSON.stringify(state.myCompletedTasks)); } catch {}
             
             // ส่งไป server
             if (window.socket && window.socket.connected) {
@@ -306,6 +353,7 @@ export function checkObjectInteractions(){
             
             // อัพเดท UI
             setMissionUI();
+            try { updateTaskWorldHints?.(); } catch {}
             log('✅ Minigame complete! (+progress)');
           }
         } else if (state.myRole === "Thief") {

@@ -303,8 +303,21 @@ onValue(lobbyPlayersRef, async (snap) => {
     }
   }
 
-  // เริ่มเมื่อทุกคนพร้อม (>=2)
-  const allReady = players.length >= 2 && players.every((p) => p.ready);
+  // ✅ ต้องมีอย่างน้อย 3 คนถึงจะเริ่มเกมได้
+  const minPlayers = 3;
+  const allReady = players.length >= minPlayers && players.every((p) => p.ready);
+  
+  // แสดงข้อความเตือนถ้าคนน้อยกว่า 3
+  const warningEl = $("minPlayerWarning");
+  if (warningEl) {
+    if (players.length < minPlayers && players.some(p => p.ready)) {
+      warningEl.style.display = "block";
+      warningEl.textContent = `⚠️ ต้องมีอย่างน้อง ${minPlayers} คนถึงจะเริ่มเกมได้ (ตอนนี้มี ${players.length} คน)`;
+    } else {
+      warningEl.style.display = "none";
+    }
+  }
+  
   if (allReady && !countdownStarted) {
     countdownStarted = true;
     startCountdown();
@@ -312,58 +325,148 @@ onValue(lobbyPlayersRef, async (snap) => {
 });
 
 function startCountdown() {
+  // ⭐ ล้าง role และ game state เก่าออกเพื่อเริ่มเกมใหม่
+  sessionStorage.removeItem("myRole");
+  sessionStorage.removeItem("myWaves");
+  sessionStorage.removeItem("myCurrentWave");
+  sessionStorage.removeItem("myCompletedTasks");
+  sessionStorage.removeItem("roleRevealShown"); // ลบ flag เพื่อให้แสดง modal ใหม่
+  sessionStorage.removeItem("myAbilityRole");
+  sessionStorage.removeItem("myAbilityName");
+  sessionStorage.removeItem("myAbilityDesc");
+
+  // ⭐ ลบ listener เก่าออก (แต่ไม่ disconnect socket)
+  if (socket) {
+    console.log("🔄 Clearing old listeners...");
+    socket.off("tasks:assigned");
+    socket.off("game:join:ack");
+  }
+
+  // ⭐ ถ้ายังไม่มี socket หรือ disconnect แล้ว ให้สร้างใหม่
+  if (!socket || !socket.connected) {
+    console.log("🔌 Creating new socket connection...");
+    // เชื่อมต่อ Socket.IO ใหม่
+  const host = location.hostname || '127.0.0.1';
+  const proto = location.protocol.startsWith('https') ? 'https' : 'http';
+  const localUrl = `${proto}://${host}:3000`;
+  const remoteUrl = 'https://webgame-25n5.onrender.com';
+  let connectingTo = 'local';
+  
+  function bindHandlers(){
+    // เพิ่ม error handling
+    socket.on("connect_error", (err) => {
+      console.error("❌ Socket connection error:", err.message);
+      if (connectingTo === 'local'){
+        console.warn('🔁 Fallback to remote server...');
+        connectingTo = 'remote';
+        try { socket.removeAllListeners?.(); socket.disconnect?.(); } catch {}
+        socket = io(remoteUrl, { transports: ['websocket','polling'] });
+        try { localStorage.removeItem('ws.local'); } catch {}
+        bindHandlers();
+      }
+    });
+  
+    socket.on("connect", () => {
+      console.log(`✅ Socket connected in lobby! (${connectingTo})`);
+      try {
+        if (connectingTo === 'local') localStorage.setItem('ws.local','1');
+        else localStorage.removeItem('ws.local');
+      } catch {}
+      
+      // ⭐ เมื่อ connect สำเร็จแล้ว ค่อยเริ่มนับถอยหลัง
+      startCountdownTimer();
+    });
+  }
+
+    // เริ่มจาก local ก่อน ถ้าไม่ได้จะสลับไป remote
+    socket = io(localUrl, { transports: ['websocket','polling'] });
+    try { localStorage.setItem('ws.local','1'); } catch {}
+    bindHandlers();
+  } else {
+    // ⭐ ถ้า socket connected อยู่แล้ว เริ่มนับถอยหลังทันที
+    console.log("✅ Socket already connected, starting countdown...");
+    startCountdownTimer();
+  }
+}
+
+// ⭐ ฟังก์ชันนับถอยหลัง (แยกออกมาเพื่อเรียกหลังจาก socket connected)
+function startCountdownTimer() {
   let count = 3;
   overlay.textContent = count;
   overlay.classList.add("show");
 
-  // เชื่อมต่อ Socket.IO และส่ง game:start
-  if (!socket) {
-    const host = location.hostname || '127.0.0.1';
-    const proto = location.protocol.startsWith('https') ? 'https' : 'http';
-    socket = io(`${proto}://${host}:3000`, { transports: ['websocket','polling'] });
-    
-    // เพิ่ม error handling
-    socket.on("connect_error", (err) => {
-      console.error("❌ Socket connection error:", err.message);
-      alert("Cannot connect to server. Please make sure the server is running.");
-    });
-    
-    socket.on("connect", () => {
-      console.log("✅ Socket connected!");
-      // ส่ง game:start ไป server หลังจากเชื่อมต่อแล้ว
-      socket.emit("game:start", { room: roomCode });
-      console.log("🎮 Sent game:start to server");
-    });
-    
-    // รอรับ tasks:assigned
-    socket.once("tasks:assigned", (data) => {
-      console.log("✅ Received task assignment:", data);
-      
-      // เก็บข้อมูลลง sessionStorage
-      sessionStorage.setItem("myRole", data.role);
-      sessionStorage.setItem("myWaves", JSON.stringify(data.waves || []));
-      sessionStorage.setItem("myCurrentWave", data.currentWave || 0);
-      
-      // redirect ไปหน้าเกม
-      location.href = `game.html?code=${encodeURIComponent(roomCode)}`;
-    });
-    
-    // Timeout fallback ถ้าไม่ได้รับ tasks:assigned ภายใน 10 วินาที
-    setTimeout(() => {
-      if (sessionStorage.getItem("myRole") === null) {
-        console.warn("⚠️ Timeout waiting for task assignment");
-        alert("Server timeout. Redirecting to game anyway...");
-        location.href = `game.html?code=${encodeURIComponent(roomCode)}`;
-      }
-    }, 10000);
-  }
-
+  // ⭐ นับถอยหลังทุกครั้ง
   const t = setInterval(() => {
     count--;
     overlay.textContent = count > 0 ? count : "GO!";
     if (count < 0) {
       clearInterval(t);
       overlay.classList.remove("show");
+      
+      // ⭐ ส่ง game:join + game:start หลังจากนับถอยหลังเสร็จแล้ว
+      if (socket && socket.connected) {
+        // อ่านค่าจาก ggd.char และ ggd.color ที่บันทึกไว้ใน lobby
+        const playerChar = localStorage.getItem("ggd.char") || "mini_mint";
+        const playerColor = localStorage.getItem("ggd.color") || "#3EB489";
+        const isHost = JSON.parse(localStorage.getItem("currentRoom") || "{}").isHost;
+        
+        console.log(`🎨 [${displayName}] Using char: ${playerChar}, color: ${playerColor}`);
+        
+        // ⭐ ผูก tasks:assigned listener ก่อน (เพื่อไม่พลาดข้อมูล)
+        socket.once("tasks:assigned", (data) => {
+          console.log(`✅ [${displayName}] Received task assignment:`, data);
+          
+          // เก็บข้อมูลลง sessionStorage
+          sessionStorage.setItem("myRole", data.role);
+          sessionStorage.setItem("myWaves", JSON.stringify(data.waves || []));
+          sessionStorage.setItem("myCurrentWave", data.currentWave || 0);
+          
+          // redirect ไปหน้าเกม
+          console.log(`🚀 [${displayName}] Redirecting to game...`);
+          location.href = `game.html?code=${encodeURIComponent(roomCode)}`;
+        });
+        
+        // ส่ง game:join ก่อน
+        socket.emit("game:join", {
+          room: roomCode,
+          uid,
+          name: displayName,
+          color: playerColor,
+          char: playerChar,
+          x: 3500,
+          y: 3900
+        });
+        console.log(`📍 [${displayName}] Sent game:join after countdown`);
+        
+        // ⭐ รอ acknowledgment จาก server ว่าได้รับ game:join แล้ว
+        let joinAckReceived = false;
+        socket.once("game:join:ack", (data) => {
+          console.log(`✔️ [${displayName}] Server acknowledged game:join`, data);
+          joinAckReceived = true;
+          
+          // ถ้าเป็น host ให้ส่ง game:start ทันที
+          if (isHost) {
+            console.log("🎮 [HOST] Sending game:start to server...");
+            socket.emit("game:start", { room: roomCode });
+          }
+        });
+        
+        // Backup: ถ้า 1 วิยังไม่ได้ ack ให้ส่ง game:start อยู่ดี (non-host รอต่อ)
+        setTimeout(() => {
+          if (!joinAckReceived && isHost) {
+            console.warn("⚠️ [HOST] No join:ack after 1s, sending game:start anyway...");
+            socket.emit("game:start", { room: roomCode });
+          }
+        }, 1000);
+        
+        // ถ้า 5 วินาทียังไม่ได้ tasks ให้ขอใหม่
+        setTimeout(() => {
+          if (!sessionStorage.getItem("myRole")) {
+            console.warn("⚠️ [${displayName}] No tasks received after 5s, requesting again...");
+            socket.emit("tasks:request");
+          }
+        }, 5000);
+      }
     }
   }, 1000);
 }

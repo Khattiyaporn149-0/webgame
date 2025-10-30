@@ -24,6 +24,87 @@ const MINIGAMES = [
   "math"
 ];
 
+// Default spawn point (on purple floor)
+const DEFAULT_SPAWN = { x: 3500, y: 3900 };
+// Spawn zone (small randomization inside safe area)
+const SPAWN_ZONE = { x1: 3420, y1: 3820, x2: 3580, y2: 3980 };
+function randomSpawnInZone(){
+  const x = Math.floor(Math.random() * (SPAWN_ZONE.x2 - SPAWN_ZONE.x1 + 1)) + SPAWN_ZONE.x1;
+  const y = Math.floor(Math.random() * (SPAWN_ZONE.y2 - SPAWN_ZONE.y1 + 1)) + SPAWN_ZONE.y1;
+  return { x, y };
+}
+function ensureSpawn(x, y){
+  // If invalid or zero-ish, return zone spawn; else return the same
+  if (!Number.isFinite(x) || !Number.isFinite(y) || (x <= 0 && y <= 0)) return randomSpawnInZone();
+  return { x, y };
+}
+
+// Decide number of thieves based on player count (supports 2+ players)
+function decideThievesCount(n){
+  if (n <= 1) return 0;
+  if (n >= 7) return 2;
+  return 1; // 2..6 players => 1 thief
+}
+
+function shuffleInPlace(arr){
+  for (let i = arr.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Helper to assign or re-emit tasks to a specific player
+function assignTasksToPlayer(gr, uid, { force = false } = {}){
+  if (!gr || !uid) return;
+  const player = gr.players.get(uid);
+  if (!player) return;
+
+  // default role
+  const role = player.role;
+  // ถ้ายังไม่รู้บทบาท อย่ามอบหมายใดๆ รอให้ client ส่ง role:set มาก่อน
+  if (!role) {
+    return;
+  }
+  if (role === 'Visitor'){
+    // If already has tasks and not forcing, just re-emit to current socket
+    if (!force && Array.isArray(player.waves) && player.waves.length){
+      const targetSocket = io.sockets.sockets.get(player.socketId);
+      if (targetSocket){
+        targetSocket.emit('tasks:assigned', {
+          role,
+          waves: player.waves,
+          currentWave: player.currentWave || 1,
+        });
+      }
+      return;
+    }
+
+    // create fresh tasks
+    const shuffled = shuffleArray(MINIGAMES);
+    const waves = [
+      shuffled.slice(0,2),
+      shuffled.slice(2,5),
+      shuffled.slice(5,8),
+    ];
+    player.waves = waves;
+    player.currentWave = 1;
+    if (!Array.isArray(player.completedTasks)) player.completedTasks = [];
+
+    const targetSocket = io.sockets.sockets.get(player.socketId);
+    if (targetSocket){
+      targetSocket.emit('tasks:assigned', { role, waves, currentWave: 1 });
+      console.log(`✅ Tasks assigned to ${player.name} (Visitor): Wave 1 = [${waves[0].join(', ')}]`);
+    }
+  } else {
+    const targetSocket = io.sockets.sockets.get(player.socketId);
+    if (targetSocket){
+      targetSocket.emit('tasks:assigned', { role: 'Thief', waves: [], currentWave: 0 });
+      console.log(`✅ Role assigned to ${player.name} (Thief)`);
+    }
+  }
+}
+
 // ===============================
 // In-memory room state
 // ===============================
@@ -35,6 +116,7 @@ function ensureGameRoom(code) {
       removeTimers: new Map(),   // uid -> timeoutId (for graceful disconnect)
       interval: null,            // snapshot ticker
       gameStarted: false,        // เกมเริ่มหรือยัง
+      visitorTargets: new Set(), // รายชื่อ Visitor ที่ต้องทำครบ 8/8 ในเกมนี้
     };
 
     // ส่ง snapshot ให้ทั้งห้องเป็นระยะ (heartbeat)
@@ -87,27 +169,57 @@ io.on("connection", (socket) => {
 
     const existing = gr.players.get(uid);
     if (existing) {
-      // อัปเดต player ที่มีอยู่
+      // อัปเดต player ที่มีอยู่ (รีเฟรชหรือ reconnect)
+      console.log(`🔄 Updating ${name} socketId: ${existing.socketId} → ${socket.id}, color: ${existing.color} → ${color}, char: ${existing.char} → ${char}`);
       existing.socketId = socket.id;
       existing.name  = name  || existing.name;
       existing.color = color || existing.color;
       existing.char  = char  || existing.char;
-      existing.x = (typeof x === "number") ? x : existing.x;
-      existing.y = (typeof y === "number") ? y : existing.y;
+      
+      // ⭐ ถ้าเกมเริ่มแล้วและผู้เล่นมี role แล้ว ให้ส่ง tasks ใหม่ทันที
+      if (gr.gameStarted && existing.role) {
+        console.log(`🎮 Game already started, resending tasks to ${name} (${existing.role})`);
+        if (existing.role === 'Visitor') {
+          assignTasksToPlayer(gr, uid, { force: false });
+        } else {
+          const targetSocket = io.sockets.sockets.get(socket.id);
+          if (targetSocket) {
+            targetSocket.emit('tasks:assigned', { role: 'Thief', waves: [], currentWave: 0 });
+            console.log(`✅ Resent Thief tasks to ${name}`);
+          }
+        }
+      }
+      
+      // ตรวจสอบว่าตำแหน่งเดิมถูกต้องหรือไม่
+      const hasValidPosition = Number.isFinite(existing.x) && Number.isFinite(existing.y) 
+        && existing.x > 0 && existing.y > 0
+        && existing.x >= SPAWN_ZONE.x1 && existing.x <= SPAWN_ZONE.x2
+        && existing.y >= SPAWN_ZONE.y1 && existing.y <= SPAWN_ZONE.y2;
+      
+      if (!hasValidPosition) {
+        // ถ้าตำแหน่งเดิมไม่ถูกต้อง ให้ spawn ใหม่ในโซนปลอดภัย
+        const sp = randomSpawnInZone();
+        existing.x = sp.x;
+        existing.y = sp.y;
+        console.log(`🔄 Respawning ${name} at (${sp.x}, ${sp.y}) - invalid old position`);
+      }
+      // ถ้าตำแหน่งเดิมถูกต้อง ให้ใช้ตำแหน่งเดิม (ไม่ต้องทำอะไร)
+      
       existing.lastMoveAt = Date.now();
     } else {
       // สร้าง player ใหม่
+      const sp = randomSpawnInZone();
       gr.players.set(uid, {
         uid,
         name,
         color,
         char,
-        x,
-        y,
+        x: sp.x,
+        y: sp.y,
         socketId: socket.id,
         room,
         lastMoveAt: Date.now(),
-        role: "Visitor", // ✅ Default role
+        role: null,
       });
     }
 
@@ -116,12 +228,26 @@ io.on("connection", (socket) => {
     socket.data.uid  = uid;
 
     socket.join(room);
-    console.log(`👋 ${name} joined ${room}`);
+    console.log(`👋 ${name} (${uid}) joined ${room} with socketId ${socket.id}`);
+
+    // ⭐ ตอบกลับให้ client รู้ว่า server ได้รับ game:join แล้ว
+    socket.emit("game:join:ack", { success: true, uid, room });
 
     io.to(room).emit("snapshot", {
       room,
       players: Array.from(gr.players.values()),
     });
+
+    // ถ้าเกมเริ่มแล้ว แต่ผู้เล่นนี้ยังไม่มีบทบาท (กรณี join กลางเกมหรือรีเฟรชหลุดตอนแจกบทบาท)
+    try {
+      const p = gr.players.get(uid);
+      if (gr.gameStarted && p && !p.role) {
+        // ค่าปลอดภัย: ใส่ Visitor ให้ไปก่อน แล้วมอบหมาย task ทันที
+        p.role = 'Visitor';
+        gr.visitorTargets?.add?.(uid);
+        assignTasksToPlayer(gr, uid, { force: true });
+      }
+    } catch {}
   });
 
   // MOVE (อัปเดตตำแหน่งผู้เล่นคนนั้น แล้ว broadcast)
@@ -169,57 +295,106 @@ io.on("connection", (socket) => {
   // ===============================
   socket.on("game:start", (data = {}) => {
     const { room } = data;
-    if (!room) return;
+    if (!room) {
+      console.error("❌ game:start received without room!");
+      return;
+    }
 
     const gr = gameRooms[room];
-    if (!gr || gr.gameStarted) return;
+    if (!gr) {
+      console.error(`❌ Room ${room} not found!`);
+      return;
+    }
+    
+    if (gr.gameStarted) {
+      console.warn(`⚠️ Room ${room} already started, ignoring duplicate game:start`);
+      return;
+    }
 
     gr.gameStarted = true;
-    console.log(`🎮 Game starting in room ${room}`);
+    gr.visitorTargets = new Set(); // reset targets at start
+    console.log(`🎮 Game starting in room ${room} with ${gr.players.size} players`);
 
-    // วนส่งภารกิจให้แต่ละคน
-    for (const [uid, player] of gr.players.entries()) {
-      const role = player.role || "Visitor"; // ใช้ role ที่มีอยู่แล้ว หรือ default เป็น Visitor
+    // 1) Decide roles server-side
+    const roster = Array.from(gr.players.values());
+    const N = roster.length;
+    if (N < 3) {
+      console.warn(`🚫 Not enough players to start game in ${room} (N=${N}, minimum 3 required)`);
+      // ส่ง error กลับไปให้ client รู้
+      io.to(room).emit('game:error', { message: 'ต้องมีอย่างน้อย 3 คนถึงจะเริ่มเกมได้' });
+      return;
+    }
+    const T = decideThievesCount(N);
+    const indices = shuffleInPlace([...Array(N).keys()]);
+    const thiefIdx = new Set(indices.slice(0, T));
 
-      if (role === "Visitor") {
-        // สุ่มลำดับภารกิจ 8 อัน
-        const shuffled = shuffleArray(MINIGAMES);
-        
-        // แบ่งเป็น 3 ระลอก: 2 + 3 + 3
-        const waves = [
-          shuffled.slice(0, 2),   // Wave 1: 2 tasks
-          shuffled.slice(2, 5),   // Wave 2: 3 tasks
-          shuffled.slice(5, 8)    // Wave 3: 3 tasks
-        ];
+    // assign roles
+    roster.forEach((p, i) => {
+      p.role = thiefIdx.has(i) ? 'Thief' : 'Visitor';
+    });
 
-        // เก็บข้อมูลไว้ที่ player object
-        player.waves = waves;
-        player.currentWave = 1;
-        player.completedTasks = [];
-
-        // ส่งไปให้ client ของคนนั้น
-        const targetSocket = io.sockets.sockets.get(player.socketId);
-        if (targetSocket) {
-          targetSocket.emit("tasks:assigned", {
-            role,
-            waves,
-            currentWave: 1
-          });
-          console.log(`✅ Tasks assigned to ${player.name} (Visitor)`);
-        }
-      } else if (role === "Thief") {
-        // Thief ไม่มีระบบภารกิจ
-        const targetSocket = io.sockets.sockets.get(player.socketId);
-        if (targetSocket) {
-          targetSocket.emit("tasks:assigned", {
-            role: "Thief",
-            waves: [],
-            currentWave: 0
-          });
-          console.log(`✅ Role assigned to ${player.name} (Thief)`);
+    // 2) Emit role + tasks per player
+    for (const [uid, p] of gr.players.entries()) {
+      console.log(`📤 Sending tasks to ${p.name} (${uid}) via socketId: ${p.socketId}, role: ${p.role}`);
+      if (p.role === 'Visitor') {
+        gr.visitorTargets.add(uid);
+        assignTasksToPlayer(gr, uid, { force: true });
+      } else {
+        const targetSocket = io.sockets.sockets.get(p.socketId);
+        if (targetSocket){
+          targetSocket.emit('tasks:assigned', { role: 'Thief', waves: [], currentWave: 0 });
+          console.log(`🎭 Role -> Thief assigned to ${p.name}`);
+        } else {
+          console.error(`❌ Socket ${p.socketId} not found for ${p.name}!`);
         }
       }
     }
+  });
+
+  // ===============================
+  // SET ROLE (จาก client หลัง reveal)
+  // ===============================
+  socket.on('role:set', (data = {}) => {
+    const room = data.room || socket.data.room;
+    const uid  = data.uid  || socket.data.uid;
+    const role = (data.role || '').toString();
+    if (!room || !uid || !role) return;
+    const gr = gameRooms[room];
+    if (!gr) return;
+    const p = gr.players.get(uid);
+    if (!p) return;
+    // If role already assigned by server (authoritative), ignore client request
+    if (p.role) {
+      console.log(`ℹ️ role:set ignored for ${uid} (already ${p.role})`);
+      return;
+    }
+    p.role = role === 'Thief' ? 'Thief' : 'Visitor';
+    console.log(`🎭 role:set -> ${p.name} (${uid}) = ${p.role} in room ${room}`);
+
+    if (p.role === 'Visitor') {
+      gr.visitorTargets.add(uid);
+      assignTasksToPlayer(gr, uid, { force: true });
+    } else {
+      // ถ้าเป็น Thief ให้เคลียร์ tasks ที่อาจถูกกำหนดก่อนหน้า แล้วบอกสถานะ Thief
+      p.waves = [];
+      p.currentWave = 0;
+      p.completedTasks = [];
+      const targetSocket = io.sockets.sockets.get(p.socketId);
+      if (targetSocket){
+        targetSocket.emit('tasks:assigned', { role: 'Thief', waves: [], currentWave: 0 });
+      }
+    }
+  });
+
+  // ===== Request tasks (robust re-emit) =====
+  socket.on('tasks:request', (data = {}) => {
+    const room = data.room || socket.data.room;
+    const uid  = data.uid  || socket.data.uid;
+    if (!room || !uid) { console.warn('tasks:request missing room/uid', { room, uid }); return; }
+    const gr = gameRooms[room];
+    if (!gr) { console.warn('tasks:request: room not found', room); return; }
+    console.log(`📦 tasks:request from ${uid} in room ${room}`);
+    assignTasksToPlayer(gr, uid, { force: false });
   });
 
   // ===============================
@@ -287,11 +462,13 @@ io.on("connection", (socket) => {
       }
     }
 
-    // เช็คว่า Visitor ทุกคนทำครบ 8/8 หรือยัง
-    const allVisitors = Array.from(gr.players.values()).filter(p => p.role === "Visitor");
-    const allComplete = allVisitors.every(p => p.completedTasks && p.completedTasks.length === 8);
+    // เช็คว่า Visitor ที่เป็นเป้าหมายในเกมนี้ทำครบ 8/8 หรือยัง
+    const targets = gr.visitorTargets && gr.visitorTargets.size > 0
+      ? Array.from(gr.visitorTargets).map(id => gr.players.get(id)).filter(Boolean)
+      : Array.from(gr.players.values()).filter(p => p.role === 'Visitor');
+    const allComplete = targets.length > 0 && targets.every(p => Array.isArray(p.completedTasks) && p.completedTasks.length === 8);
 
-    if (allComplete && allVisitors.length > 0) {
+    if (allComplete && targets.length > 0) {
       console.log(`🎉 All Visitors completed their tasks in room ${room}!`);
       io.to(room).emit("game:visitorsWin", {
         message: "Visitors Win!"
@@ -340,6 +517,7 @@ io.on("connection", (socket) => {
             try {
               gr.players.delete(uid);
               gr.removeTimers.delete(uid);
+              try { gr.visitorTargets?.delete(uid); } catch {}
               console.log(`🗑️ Player ${uid} removed from room ${room} after disconnect timeout`);
 
               io.to(room).emit("snapshot", {
@@ -359,6 +537,28 @@ io.on("connection", (socket) => {
         }
       }
     }
+  });
+
+  // ===============================
+  // STATE RESUME (for F5 refresh)
+  // ===============================
+  socket.on('state:request', (data = {}) => {
+    const room = data.room || socket.data.room;
+    const uid  = data.uid  || socket.data.uid;
+    if (!room || !uid) return;
+    const gr = gameRooms[room];
+    if (!gr) return;
+    const p = gr.players.get(uid);
+    if (!p) return;
+    const targetSocket = io.sockets.sockets.get(p.socketId);
+    if (!targetSocket) return;
+    targetSocket.emit('state:resume', {
+      role: p.role || null,
+      waves: Array.isArray(p.waves) ? p.waves : [],
+      currentWave: p.currentWave || 0,
+      completedTasks: Array.isArray(p.completedTasks) ? p.completedTasks : [],
+      ...(function(){ const sp = ensureSpawn(p.x, p.y); return { x: sp.x, y: sp.y }; })(),
+    });
   });
 });
 

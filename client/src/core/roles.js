@@ -38,13 +38,33 @@ function setHudIcon(role, abilityName){
   setTimeout(()=> hud.style.transform = 'scale(1)', 250);
 }
 
-export async function initRoles(){
-  // สุ่มบทบาท + ความสามารถ
-  _role = Math.random() < 0.5 ? 'Visitor' : 'Thief';
+export async function revealRole(role){
+  // กำหนดบทบาทจากเซิร์ฟเวอร์เท่านั้น
+  _role = role === 'Thief' ? 'Thief' : 'Visitor';
   const pool = _role === 'Visitor' ? VISITOR_ABILITIES : THIEF_ABILITIES;
-  const keys = Object.keys(pool);
-  _abilityName = keys[Math.floor(Math.random()*keys.length)];
-  _abilityDesc = pool[_abilityName];
+
+  // โหลดความสามารถที่เคยสุ่มไว้ใน sessionStorage (คงอยู่หลัง F5)
+  try {
+    const savedRole = sessionStorage.getItem('myAbilityRole');
+    const savedName = sessionStorage.getItem('myAbilityName');
+    const savedDesc = sessionStorage.getItem('myAbilityDesc');
+    if (savedRole === _role && savedName && savedDesc) {
+      _abilityName = savedName;
+      _abilityDesc = savedDesc;
+    }
+  } catch {}
+
+  // ถ้ายังไม่มี ให้สุ่มแล้วบันทึกไว้
+  if (!_abilityName) {
+    const keys = Object.keys(pool);
+    _abilityName = keys[Math.floor(Math.random()*keys.length)] || keys[0] || (_role==='Thief'?'Hacker':'Engineer');
+    _abilityDesc = pool[_abilityName] || '';
+    try {
+      sessionStorage.setItem('myAbilityRole', _role);
+      sessionStorage.setItem('myAbilityName', _abilityName);
+      sessionStorage.setItem('myAbilityDesc', _abilityDesc);
+    } catch {}
+  }
 
   // เข้าถึง modal
   const modal = byId('role-reveal-modal');
@@ -72,44 +92,65 @@ export async function initRoles(){
     if (player?.src) charImg.src = player.src;
   }
 
-  // แสดง modal + บล็อกการเดินชั่วคราว
-  _revealed = true;
-  if (modal){
-    modal.style.opacity = '1';
-    modal.style.display = 'flex';
-  }
+  // ตัดสินใจว่าจะโชว์ modal หรือไม่: โชว์ครั้งแรกเท่านั้น (ต่อ tab/session)
+  let showModal = true;
+  try {
+    if (sessionStorage.getItem('roleRevealShown') === '1') showModal = false;
+    else sessionStorage.setItem('roleRevealShown', '1');
+  } catch {}
 
-  // แถบภารกิจซ่อนถ้าเป็นโจร
+  // อัปเดต HUD และ mission bar เสมอ
+  setHudIcon(_role, _abilityName);
   const missionHud = byId('mission-status-container');
   if (missionHud) missionHud.style.display = _role === 'Thief' ? 'none' : 'block';
 
-  // HUD ไอคอน
-  setHudIcon(_role, _abilityName);
-
-  // ปิด modal อัตโนมัติ
-setTimeout(async () => {
-  if (modal){
-    modal.style.opacity = '0';
-    setTimeout(()=> { modal.style.display = 'none'; }, 1000);
-  }
-  _revealed = false;
-
-  // 🟢 โหลด chat.js ตอนนี้จริง ๆ
-  const { initChat } = await import('./chat.js');
-  initChat();
-
-    // log บอกผู้เล่น (ถ้ามีกล่อง log)
-    const box = byId('log-container');
-    if (box){
-      const p1 = document.createElement('p'); p1.className = 'log-message';
-      p1.textContent = `คุณได้รับบทบาทเป็น: ${_role} (${_abilityName})`;
-      box.insertBefore(p1, box.firstChild || null);
-      const p2 = document.createElement('p'); p2.className = 'log-message';
-      p2.textContent = `สิ่งที่ทำได้: ${_abilityDesc}`;
-      box.insertBefore(p2, p1);
-      setTimeout(()=>{ p1.style.opacity='0'; p2.style.opacity='0'; }, 10000);
-      setTimeout(()=>{ p1.remove(); p2.remove(); }, 11000);
+  if (showModal) {
+    _revealed = true;
+    if (modal){
+      modal.style.opacity = '1';
+      modal.style.display = 'flex';
     }
-    
-  }, ROLE_REVEAL_DURATION);
+  } else {
+    _revealed = false;
+  }
+
+  // แจ้งบทบาทให้ server ทราบทันที เพื่อให้มอบหมายภารกิจเฉพาะ Visitor
+  try {
+    const { socket } = await import('./multiplayer.js');
+    const params = new URLSearchParams(location.search);
+    const room = params.get('code') || (JSON.parse(localStorage.getItem('currentRoom')||'{}')||{}).code || 'lobby01';
+    const uid = localStorage.getItem('ggd.uid') || sessionStorage.getItem('ggd.uid') || sessionStorage.getItem('uid');
+    if (socket && uid) {
+      socket.emit('role:set', { room, uid, role: _role });
+    }
+  } catch {}
+
+  // ปิด modal อัตโนมัติ ถ้าเปิดอยู่
+  if (showModal) {
+    setTimeout(async () => {
+      if (modal){
+        modal.style.opacity = '0';
+        setTimeout(()=> { modal.style.display = 'none'; }, 1000);
+      }
+      _revealed = false;
+
+      // 🟢 โหลด chat.js ตอนนี้จริง ๆ
+      const { initChat } = await import('./chat.js');
+      initChat();
+
+      // log บอกผู้เล่น (ถ้ามีกล่อง log)
+      const box = byId('log-container');
+      if (box){
+        const p1 = document.createElement('p'); p1.className = 'log-message';
+        p1.textContent = `คุณได้รับบทบาทเป็น: ${_role} (${_abilityName})`;
+        box.insertBefore(p1, box.firstChild || null);
+        const p2 = document.createElement('p'); p2.className = 'log-message';
+        p2.textContent = `สิ่งที่ทำได้: ${_abilityDesc}`;
+        box.insertBefore(p2, p1);
+        setTimeout(()=>{ p1.style.opacity='0'; p2.style.opacity='0'; }, 10000);
+        setTimeout(()=>{ p1.remove(); p2.remove(); }, 11000);
+      }
+      
+    }, ROLE_REVEAL_DURATION);
+  }
 }

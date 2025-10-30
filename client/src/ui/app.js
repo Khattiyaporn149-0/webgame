@@ -32,13 +32,11 @@ const clickSound = window.clickSound;
 
 // ========= 🌐 GLOBAL STATE ==========
 const state = {
-  name: localStorage.getItem("ggd.name") || "Guest",
-  uid: localStorage.getItem("ggd.uid") || null,
-  music: parseFloat(localStorage.getItem("ggd.music") || "0.6"),
-  sfx: parseFloat(localStorage.getItem("ggd.sfx") || "0.9"),
-  master: parseFloat(localStorage.getItem("ggd.master") || "1"),
-  region: localStorage.getItem("ggd.region") || "asia",
-  version: "V.beta1.0"
+  user: {
+    name: null,
+    id: null,
+  },
+  version: "V.beta 2.0"
 };
 
 // If unified GameSettings exists (from common-settings.js), initialize from it

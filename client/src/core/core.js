@@ -2,10 +2,10 @@
 
 import { loadCollisionData, checkCollision } from './collision.js';
 import { toggleFullScreenMap, updateMiniMapDisplay } from './minimap.js';
-import { checkInteractions, checkObjectInteractions, startMeeting, endMeeting } from './interactions.js';
+import { checkInteractions, checkObjectInteractions, startMeeting, endMeeting, updateTaskWorldHints } from './interactions.js';
 import { initMultiplayer, sendPlayerPositionThrottled, startRemotePlayersRenderLoop } from './multiplayer.js';
 import { initChat, isTyping } from './chat.js';
-import { initRoles, isRoleRevealed } from './roles.js';
+import { isRoleRevealed } from './roles.js';
 import { installDebugHotkeys, renderDebugOverlayIfNeeded } from './debug.js';
 
 export const CONST = {
@@ -27,7 +27,7 @@ export const CONST = {
 };
 
 export const state = {
-  playerX: 3500, playerY: 3500, playerW: 200, playerH: 220,
+  playerX: 3500, playerY: 3900, playerW: 200, playerH: 220,
   containerX: 0, containerY: 0,
   viewportW: window.innerWidth, viewportH: window.innerHeight,
   isMoving: false,
@@ -109,6 +109,8 @@ export function initPlayerTasks() {
     const wavesStr = sessionStorage.getItem("myWaves");
     state.myWaves = wavesStr ? JSON.parse(wavesStr) : [];
     state.myCurrentWave = parseInt(sessionStorage.getItem("myCurrentWave") || "0", 10);
+    const completedStr = sessionStorage.getItem('myCompletedTasks');
+    state.myCompletedTasks = completedStr ? JSON.parse(completedStr) : [];
     
     // ตั้งค่า unlocked tasks = wave แรก (ถ้ามี)
     if (state.myCurrentWave > 0 && state.myWaves[state.myCurrentWave - 1]) {
@@ -117,13 +119,12 @@ export function initPlayerTasks() {
       state.myUnlockedTasks = [];
     }
     
-    state.myCompletedTasks = [];
-    
     console.log("✅ Task system initialized:", {
       role: state.myRole,
       waves: state.myWaves,
       currentWave: state.myCurrentWave,
-      unlocked: state.myUnlockedTasks
+      unlocked: state.myUnlockedTasks,
+      completed: state.myCompletedTasks
     });
     
     // ซ่อน mission bar ถ้าเป็น Thief
@@ -131,9 +132,21 @@ export function initPlayerTasks() {
       const missionBar = document.querySelector('.mission-bar');
       if (missionBar) missionBar.style.display = 'none';
     }
-  } catch (e) {
+    
+    } catch (e) {
     console.warn("⚠️ Failed to init tasks:", e);
   }
+  
+  // ✅ อัปเดต progress bar ทันทีหลังโหลดข้อมูล
+  try {
+    if (state.myRole === "Visitor") {
+      const completed = state.myCompletedTasks.length;
+      const total = 8;
+      const pct = Math.round((completed / total) * 100);
+      const fill = document.getElementById('mission-bar-fill');
+      if (fill) fill.style.width = `${pct}%`;
+    }
+  } catch {}
 }
 
 export function getMyTaskProgress() {
@@ -287,6 +300,13 @@ export async function initGame(){
     state.uid = sessionStorage.getItem('uid') || (sessionStorage.setItem('uid', crypto.randomUUID()), sessionStorage.getItem('uid'));
   }
   state.displayName = localStorage.getItem('ggd.name') || localStorage.getItem('playerName') || `Player_${state.uid.slice(0,4)}`;
+  // กำหนดรหัสห้องให้เร็วขึ้น (ต้องใช้สำหรับโหลด position ต่อไป)
+  try {
+    const paramsEarly = new URLSearchParams(location.search);
+    const codeFromUrlEarly = paramsEarly.get('code');
+    const codeFromStoreEarly = (JSON.parse(localStorage.getItem('currentRoom') || '{}') || {}).code;
+    state.currentRoom = codeFromUrlEarly || codeFromStoreEarly || 'lobby01';
+  } catch { state.currentRoom = 'lobby01'; }
   // ตั้งคาแร็กเตอร์เริ่มต้น (จะอัปเดตจาก Firebase ตามห้องอีกที)
   try {
     const localChar = localStorage.getItem('ggd.char') || 'mini_brown';
@@ -302,15 +322,14 @@ export async function initGame(){
 
   // ✅ โหลดข้อมูลภารกิจจาก sessionStorage
   initPlayerTasks();
+  // ไม่โหลดตำแหน่งเดิม: ให้เซิร์ฟเวอร์กำหนดจุดเกิดบนพื้นม่วงทุกครั้ง (แก้ปัญหาเกิดนอกแมพ)
+  // state.playerX/Y จะใช้ค่า default จาก state declaration (3500, 3900) หรือค่าที่ได้จาก server ตอน state:resume
+  // แสดงตัวบอกตำแหน่งภารกิจของ wave ปัจจุบันบนแผนที่และโลก
+  try { updateTaskWorldHints?.(); } catch {}
 
   installInput();
   // คำนวณรหัสห้องจาก URL หรือ localStorage ให้ socket และ firebase ใช้ห้องเดียวกัน
-  try {
-    const params = new URLSearchParams(location.search);
-    const codeFromUrl = params.get('code');
-    const codeFromStore = (JSON.parse(localStorage.getItem('currentRoom') || '{}') || {}).code;
-    state.currentRoom = codeFromUrl || codeFromStore || 'lobby01';
-  } catch { state.currentRoom = 'lobby01'; }
+  // (ตั้งไว้แล้วด้านบน)
 
   // ฉีด state เข้า chat และเปิด socket เข้าห้องเดียวกัน
   initChat(state);
@@ -380,8 +399,7 @@ export async function initGame(){
     console.warn('Firebase presence skipped:', e?.message || e);
   }
 
-  // Role reveal (ไม่บล็อก loop แต่กันเดินผ่าน isRoleRevealed())
-  initRoles();
+  // Role reveal: จะถูกเรียกโดย multiplayer เมื่อได้รับ role จาก server
 
   if (refs.bgmMusic){ refs.bgmMusic.volume = 0.4; refs.bgmMusic.play().catch(()=>{}); }
 
