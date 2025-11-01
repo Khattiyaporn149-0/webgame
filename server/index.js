@@ -321,17 +321,18 @@ io.on("connection", (socket) => {
 
     gr.gameStarted = true;
     gr.visitorTargets = new Set(); // reset targets at start
-    console.log(`🎮 Game starting in room ${room} with ${gr.players.size} players`);
-
-    // 1) Decide roles server-side
-    const roster = Array.from(gr.players.values());
+    const rosterAll = Array.from(gr.players.values());
+    const roster = rosterAll.filter(p => io.sockets.sockets.get(p.socketId)); // ใช้เฉพาะคนที่ยังต่อ socket อยู่จริง
     const N = roster.length;
+    const ghost = rosterAll.length - N;
+    console.log(`🎮 Game starting in room ${room} with ${N} connected players${ghost>0?` (filtered ${ghost} disconnected)`:''}`);
+
     if (N < 3) {
       console.warn(`🚫 Not enough players to start game in ${room} (N=${N}, minimum 3 required)`);
-      // ส่ง error กลับไปให้ client รู้
       io.to(room).emit('game:error', { message: 'ต้องมีอย่างน้อย 3 คนถึงจะเริ่มเกมได้' });
       return;
     }
+
     const T = decideThievesCount(N);
     const indices = shuffleInPlace([...Array(N).keys()]);
     const thiefIdx = new Set(indices.slice(0, T));
@@ -341,8 +342,9 @@ io.on("connection", (socket) => {
       p.role = thiefIdx.has(i) ? 'Thief' : 'Visitor';
     });
 
-    // 2) Emit role + tasks per player
-    for (const [uid, p] of gr.players.entries()) {
+    // Emit role + tasks per player
+    for (const p of roster) {
+      const uid = p.uid;
       console.log(`📤 Sending tasks to ${p.name} (${uid}) via socketId: ${p.socketId}, role: ${p.role}`);
       if (p.role === 'Visitor') {
         gr.visitorTargets.add(uid);
@@ -357,6 +359,24 @@ io.on("connection", (socket) => {
         }
       }
     }
+
+    // Post-emit resync: re-emit roles/tasks shortly after start to catch late listeners
+    setTimeout(() => {
+      try {
+        for (const [uid, p] of gr.players.entries()) {
+          const targetSocket = io.sockets.sockets.get(p.socketId);
+          if (!targetSocket) continue;
+          if (p.role === 'Visitor') {
+            assignTasksToPlayer(gr, uid, { force: false });
+          } else {
+            targetSocket.emit('tasks:assigned', { role: 'Thief', waves: [], currentWave: 0 });
+          }
+        }
+        console.log(`🔁 Post-emit tasks/roles re-sent in room ${room}`);
+      } catch (e) {
+        console.warn('post-emit resend failed', e);
+      }
+    }, 300);
   });
 
   // ===============================
