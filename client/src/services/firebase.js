@@ -24,6 +24,41 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
 
+// Helpers: centralized identity for pages
+export function currentUid() {
+  const u = auth?.currentUser?.uid || null;
+  if (u) {
+    try { sessionStorage.setItem("ggd.uid", u); } catch {}
+    return u;
+  }
+  try {
+    const s = sessionStorage.getItem("ggd.uid");
+    if (s && typeof s === "string" && s.length) return s;
+  } catch {}
+  const rand = (self.crypto?.randomUUID?.() || ("uid_" + Math.random().toString(36).slice(2, 10)));
+  const guest = String(rand).startsWith("uid_") ? String(rand) : ("uid_" + String(rand));
+  try { sessionStorage.setItem("ggd.uid", guest); } catch {}
+  return guest;
+}
+
+export function currentDisplayName() {
+  return (
+    auth?.currentUser?.displayName ||
+    localStorage.getItem("ggd.name") ||
+    localStorage.getItem("playerName") ||
+    `Player_${Math.random().toString(36).slice(2,7)}`
+  );
+}
+
+export function waitAuthReady() {
+  return new Promise((resolve) => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      try { unsub(); } catch {}
+      resolve(u || null);
+    });
+  });
+}
+
 async function persistUserSafeProfile(user) {
   try {
     await set(ref(rtdb, `users_safe/${user.uid}`), {
@@ -32,6 +67,13 @@ async function persistUserSafeProfile(user) {
       photo: user.photoURL || null,
       lastLogin: new Date().toISOString(),
     });
+    // Also keep basic public profile under /users for friends list rendering
+    try {
+      await update(ref(rtdb, `users/${user.uid}`), {
+        name: user.displayName || "Unknown",
+        updatedAt: Date.now(),
+      });
+    } catch {}
   } catch (e) {
     console.warn("[firebase] persist users_safe failed:", e?.code || e?.message || e);
   }

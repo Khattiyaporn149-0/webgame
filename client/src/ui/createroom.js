@@ -1,5 +1,5 @@
 // client/createroom.js
-import { rtdb, ref, set, update, onDisconnect, get } from "../services/firebase.js";
+import { rtdb, ref, set, update, onDisconnect, get, auth, currentUid, currentDisplayName, waitAuthReady } from "../services/firebase.js";
 import { serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 // ---------- DOM ----------
@@ -66,19 +66,28 @@ function genCode(len=4){
   return s;
 }
 function getPlayerName(){
-  return localStorage.getItem("ggd.name")
-      || localStorage.getItem("playerName")
-      || `Player_${Math.random().toString(36).slice(2,7)}`;
+  return currentDisplayName();
 }
-// uid ต่อแท็บ
-const uid = sessionStorage.getItem("ggd.uid") || (()=> {
+
+// Resolve uid against rules: use auth.uid if logged-in; else guest uid_...
+function resolveUid(){
+  const signedIn = auth?.currentUser?.uid || null;
+  const existing = sessionStorage.getItem("ggd.uid");
+  const chosen = signedIn || existing;
+  if (chosen) { sessionStorage.setItem("ggd.uid", chosen); return chosen; }
   const v = (crypto?.randomUUID?.() || ("uid_"+Math.random().toString(36).slice(2,10)));
   sessionStorage.setItem("ggd.uid", v);
   return v;
-})();
+}
+const uid = currentUid();
 
 // ---------- สร้างห้อง ----------
 async function createRoom(){
+  // Ensure Firebase Auth state is initialized to avoid uid mismatch
+  await waitAuthReady();
+  const authedUid = (auth && auth.currentUser && auth.currentUser.uid) ? auth.currentUser.uid : null;
+  const uid = authedUid || currentUid();
+  try { sessionStorage.setItem("ggd.uid", uid); } catch {}
   const roomName   = (nameInput.value || "").trim();
   const maxPlayers = parseInt(maxSel.value, 10);
   const roomType   = typeSel.value; // 'public' | 'private'
