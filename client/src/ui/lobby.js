@@ -462,8 +462,8 @@ function startCountdownTimer() {
         // ถ้า 5 วินาทียังไม่ได้ tasks ให้ขอใหม่
         setTimeout(() => {
           if (!sessionStorage.getItem("myRole")) {
-            console.warn("⚠️ [${displayName}] No tasks received after 5s, requesting again...");
-            socket.emit("tasks:request");
+            console.warn(`⚠️ [${displayName}] No tasks received after 5s, requesting again...`);
+            socket.emit("tasks:request", { room: roomCode, uid });
           }
         }, 5000);
       }
