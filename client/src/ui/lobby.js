@@ -1,7 +1,7 @@
 // client/lobby.js
 // ✅ ใช้ RTDB อย่างเดียว
 import {
-  rtdb, ref, set, update, onValue, onDisconnect, push, get, remove, serverTimestamp
+  rtdb, ref, set, update, onValue, onDisconnect, push, get, remove, serverTimestamp, auth, currentUid, currentDisplayName, waitAuthReady
 } from "../services/firebase.js";
 
 // ✅ Socket.IO for game start
@@ -18,18 +18,10 @@ if (!roomCode) {
   throw new Error("Missing room code");
 }
 
-const savedRoom = JSON.parse(localStorage.getItem("currentRoom") || "{}");
-const displayName =
-  localStorage.getItem("ggd.name") ||
-  localStorage.getItem("playerName") ||
-  `Player_${Math.random().toString(36).slice(2, 7)}`;
-const uid =
-  sessionStorage.getItem("ggd.uid") ||
-  (() => {
-    const v = crypto?.randomUUID?.() || "uid_" + Math.random().toString(36).slice(2, 10);
-    sessionStorage.setItem("ggd.uid", v);
-    return v;
-  })();
+await waitAuthReady();
+const savedRoom = JSON.parse(localStorage.getItem('currentRoom') || '{}');
+const displayName = currentDisplayName();
+const uid = currentUid();
 
 $("roomName").textContent = savedRoom.name || "Room";
 $("roomCode").textContent = roomCode || savedRoom.code || "-";
@@ -149,6 +141,15 @@ await set(playerRef, {
 onDisconnect(playerRef).remove();
 await bumpActivity();
 
+
+// Update presence so friends can join our room
+try {
+  const presRef = ref(rtdb, `users_safe/${uid}/presence`);
+
+  await set(presRef, { roomCode: roomCode, at: serverTimestamp() });
+  onDisconnect(presRef).remove();
+} catch {}
+
 /* ---------- Character selection (no-duplicate) ---------- */
 const characters = [
   "mini_brown","mini_coral","mini_gray","mini_lavender",
@@ -242,6 +243,8 @@ readyBtn.onclick = async () => {
 
 // ออกห้อง: ถ้าเราเป็นคนสุดท้าย → ลบ lobby → room (ตามกฎ)
 $("btnBack").onclick = async () => {
+
+  try { await set(ref(rtdb, `users_safe//presence`), null); } catch {}
   try { await set(playerRef, null); } catch {}
   try {
     const pSnap = await get(lobbyPlayersRef);

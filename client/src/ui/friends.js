@@ -4,7 +4,7 @@
 // - userCodes/{code}: uid
 // - friends/{uid}/{friendUid}: true  (mutual on add)
 
-import { rtdb, ref, set, update, onValue, get } from "../services/firebase.js";
+import { rtdb, ref, set, update, onValue, get, auth } from "../services/firebase.js";
 
 (function(){
   const MODAL_ID = 'friendsModal';
@@ -47,8 +47,8 @@ import { rtdb, ref, set, update, onValue, get } from "../services/firebase.js";
         } catch {}
       }
 
-      if (!code) {
-        // Find an unused code (few attempts)
+      const loggedIn = !!(auth && auth.currentUser);
+      if (!code && loggedIn) { // Find an unused code (few attempts)
         for (let i=0;i<5;i++) {
           const candidate = generateCode();
           const mapSnap = await get(ref(rtdb, `userCodes/${candidate}`));
@@ -130,7 +130,7 @@ import { rtdb, ref, set, update, onValue, get } from "../services/firebase.js";
   function renderMyCode(){
     const el = document.getElementById('myFriendCode');
     if (!el) return;
-    el.textContent = state.code || '—';
+    const loggedIn = !!(auth && auth.currentUser); el.textContent = state.code || (loggedIn ? '(creating...)' : 'Login required');
   }
 
   async function copyCode(){
@@ -148,6 +148,7 @@ import { rtdb, ref, set, update, onValue, get } from "../services/firebase.js";
 
   async function addFriendByCode(){
     if (!state.uid) { window.showToast && showToast('Please start the game first', 'warning'); return; }
+    if (!(auth && auth.currentUser)) { window.showToast && showToast('Login with Google required', 'warning'); return; }
     await ensureUserProfile();
     const input = document.getElementById('friendCodeInput');
     const raw = input?.value || '';
@@ -161,6 +162,7 @@ import { rtdb, ref, set, update, onValue, get } from "../services/firebase.js";
       const otherUid = mapSnap.val();
       if (otherUid === state.uid) { window.showToast && showToast('You cannot add yourself', 'warning'); return; }
 
+      // Send friend request to other user
       await update(ref(rtdb), {
         [`friends/${state.uid}/${otherUid}`]: true,
         [`friends/${otherUid}/${state.uid}`]: true,
@@ -168,11 +170,10 @@ import { rtdb, ref, set, update, onValue, get } from "../services/firebase.js";
       window.showToast && showToast('Friend added!', 'success');
       input.value = '';
     } catch (e) {
-      console.warn('addFriendByCode failed', e);
+      console.warn('addFriendByCode failed', e?.code || e);
       window.showToast && showToast('Failed to add friend', 'error');
     }
   }
-
   function renderFriends(){
     const list = document.getElementById('friendsList');
     if (!list) return;
@@ -186,6 +187,32 @@ import { rtdb, ref, set, update, onValue, get } from "../services/firebase.js";
     `).join('');
     entries.forEach(async (uid)=>{
       try {
+    // fetch presence and fill join button
+    entries.forEach(async (uid)=>{
+      try {
+        const snap = await get(ref(rtdb, `users/${uid}`));
+        const name = (snap.exists() && snap.val()?.name) || uid.slice(0,6);
+        const el = document.querySelector(`[data-fuid="${uid}"]`);
+        if (el) el.textContent = name;
+        // presence
+        try {
+          const pres = await get(ref(rtdb, `users_safe/${uid}/presence`));
+          const code = pres.exists() ? (pres.val()?.roomCode||"") : "";
+          if (code) {
+            // add join button
+            const row = el?.closest(".row");
+            if (row && !row.querySelector(`[data-join="${uid}"]`)) {
+              const jb = document.createElement("button");
+              jb.className = "sec-btn";
+              jb.textContent = "Join";
+              jb.setAttribute("data-join", uid);
+              jb.onclick = ()=> { location.href = `lobby.html?code=${encodeURIComponent(code)}`; };
+              row.appendChild(jb);
+            }
+          }
+        } catch {}
+      } catch {}
+    });
         const snap = await get(ref(rtdb, `users/${uid}`));
         const name = (snap.exists() && snap.val()?.name) || uid.slice(0,6);
         const el = document.querySelector(`[data-fuid="${uid}"]`);

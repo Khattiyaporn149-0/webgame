@@ -4,8 +4,10 @@ import { auth, provider, signInWithPopup, rtdb, ref, set, watchAuthState } from 
 
 // 🧩 Auto-generate guest UID ถ้าไม่มี
 if (!localStorage.getItem("ggd.uid")) {
-  const guest = crypto.randomUUID ? crypto.randomUUID() : "uid_" + Math.random().toString(36).slice(2, 10);
-  localStorage.setItem("ggd.uid", null);
+  // Ensure guest uid matches RTDB rules: must start with 'uid_'
+  const rand = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "").slice(0, 12) : Math.random().toString(36).slice(2, 10);
+  const guest = "uid_" + rand;
+  localStorage.setItem("ggd.uid", guest);
   // ระบุสถานะ auth เป็น guest (กันสับสนว่าเป็น Google)
   if (!localStorage.getItem("ggd.auth")) {
     localStorage.setItem("ggd.auth", "guest");
@@ -592,8 +594,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // Keep UI/localStorage in sync with real Firebase auth state
   try {
     watchAuthState((user) => {
-      const top = document.getElementById("playerNameTop");
-      if (user && top) top.textContent = user.displayName || "Unknown";
+      const top = document.getElementById('playerNameTop');
+      if (user) {
+        if (top) top.textContent = user.displayName || 'Unknown';
+        try { hideStartScreen(); } catch {}
+      }
       try { updateProfileUI(); } catch {}
     });
   } catch {}
