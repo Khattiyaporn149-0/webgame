@@ -42,9 +42,15 @@ export function currentUid() {
 }
 
 export function currentDisplayName() {
+  // ✅ Check localStorage FIRST for Google users (they may have changed their name)
+  // Then fall back to Firebase Auth displayName for consistency
+  const localName = localStorage.getItem("ggd.name");
+  if (localName && localName !== "undefined" && localName !== "null") {
+    return localName;
+  }
+  
   return (
     auth?.currentUser?.displayName ||
-    localStorage.getItem("ggd.name") ||
     localStorage.getItem("playerName") ||
     `Player_${Math.random().toString(36).slice(2,7)}`
   );
