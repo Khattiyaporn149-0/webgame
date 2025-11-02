@@ -262,8 +262,11 @@ function loop(ts){
 
 function installInput(){
   document.addEventListener('keydown', (e) => {
-    if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD', CONST.INTERACTION_KEY, 'KeyM'].includes(e.code)){
-      if (isTyping() && e.code !== 'KeyM') return;
+    const keys = ['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD', CONST.INTERACTION_KEY, 'KeyM'];
+    if (keys.includes(e.code)){
+      const t = e.target;
+      const inEditable = (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable));
+      if (isTyping() || inEditable) return; // allow typing in inputs/textareas/contenteditable
       e.preventDefault();
     }
     state.keysPressed[e.code] = true;

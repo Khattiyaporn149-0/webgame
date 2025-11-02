@@ -12,7 +12,13 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
+// Serve static files for the web client
+// Public root
 app.use(express.static(path.join(__dirname, "../client/public")));
+// Additional mounts for module and asset paths used by HTML
+app.use('/src', express.static(path.join(__dirname, "../client/src")));
+app.use('/styles', express.static(path.join(__dirname, "../client/styles")));
+app.use('/assets', express.static(path.join(__dirname, "../client/assets")));
 
 // เชื่อม socket handler
 registerSocketHandlers(io);

@@ -24,6 +24,13 @@ function ctxAndView(){
 
 export function installDebugHotkeys(){
   document.addEventListener('keydown', (e) => {
+    const dbgKeys = ['F3','F4','Backquote'];
+    if (!dbgKeys.includes(e.code)) return;
+    const t = e.target;
+    const inEditable = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+    if (inEditable) return; // ignore debug toggles while typing
+
+    e.preventDefault();
     if (e.code === 'F3'){ SHOW_BOXES = !SHOW_BOXES; }
     if (e.code === 'F4'){ SHOW_HITBOX = !SHOW_HITBOX; }
     if (e.code === 'Backquote'){
