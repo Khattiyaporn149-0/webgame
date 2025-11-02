@@ -182,6 +182,63 @@ export function updateThiefGemHUD(){
   } catch {}
 }
 
+// ✨ Visitor Mission Tracker (แบบ Thief) - แสดงความคืบหน้าภารกิจรวมทั้งทีม
+export function updateVisitorMissionHUD(){
+  try {
+    // Hide visitor HUD if not Visitor
+    if (state.myRole !== 'Visitor') {
+      const vHud = document.getElementById('visitor-task-progress');
+      if (vHud) vHud.style.display = 'none';
+      // Hide center objective banner for visitor when not visitor
+      const obj = document.getElementById('visitor-mission-objective');
+      if (obj) obj.style.display = 'none';
+      // Restore/hide mission bar for non-visitor
+      const missionBar = document.getElementById('mission-status-container');
+      if (missionBar) {
+        // Thief should not see mission bar
+        missionBar.style.display = (state.myRole === 'Thief') ? 'none' : '';
+        // Restore default positioning
+        missionBar.style.top = '20px';
+        missionBar.style.right = '190px';
+        missionBar.style.left = '';
+        missionBar.style.transform = '';
+      }
+      return;
+    }
+
+    // Compute progress from assigned waves
+    const allTasks = Array.isArray(state.myWaves) ? state.myWaves.flat() : [];
+    const done = Array.isArray(state.myCompletedTasks) ? state.myCompletedTasks.length : 0;
+    const total = allTasks.length || 8; // fallback 8
+
+    // Update new HUD under minimap
+    const hud = document.getElementById('visitor-task-progress');
+    const txt = document.getElementById('visitor-task-text');
+    if (hud) hud.style.display = 'block';
+    if (txt) txt.textContent = `Tasks: ${done} / ${total}`;
+
+    // Show center visitor objective banner
+    const obj = document.getElementById('visitor-mission-objective');
+    if (obj) obj.style.display = 'block';
+
+    // Move mission progress bar under the visitor objective (centered)
+    const missionBar = document.getElementById('mission-status-container');
+    if (missionBar) {
+      missionBar.style.display = 'block';
+      missionBar.style.position = 'fixed';
+      missionBar.style.top = '120px';
+      missionBar.style.left = '50%';
+      missionBar.style.right = 'auto';
+      missionBar.style.transform = 'translateX(-50%)';
+      missionBar.style.zIndex = '1200';
+      missionBar.style.width = '350px';
+    }
+    
+  } catch (e) {
+    console.error('updateVisitorMissionHUD failed:', e);
+  }
+}
+
 export function updateGemMarkers(){
   try {
     if (state.myRole !== 'Thief') { for (const [,el] of _gemEls) el.style.display='none'; return; }
@@ -216,6 +273,9 @@ export function updateGemMarkers(){
 
 export function checkGemInteractions(){
   try {
+    // 👻 Ghost ไม่สามารถขโมยอัญมณีได้
+    if (state.isGhost) return;
+    
     if (state.myRole !== 'Thief') return;
     const gems = Array.isArray(state.gems) && state.gems.length ? state.gems : [
       { id:'gem1', x:4300, y:7100, difficulty:'easy', time:10, stolenBy:null },
@@ -267,16 +327,33 @@ function openMiniggameForGem(gem, key){
     });
   } catch {}
 }
+// Meeting state
+let meetingTimer = null;
+let meetingTimeLeft = 60;
+let myVote = null;
+let voteResults = {}; // { uid: count }
+
 export function startMeeting(at = CONST.MEETING_POINT){
+  // 👻 Ghost ไม่สามารถเรียกประชุมได้
+  if (state.isGhost) {
+    log('👻 Ghost ไม่สามารถเรียกประชุมได้');
+    return;
+  }
+  
   if (state.isMeetingActive) return;
   state.isMeetingActive = true;
+
+  // Reset meeting state
+  meetingTimeLeft = 60;
+  myVote = null;
+  voteResults = {};
 
   // หยุดการเคลื่อนไหวและย้ายผู้เล่นไปจุดกลางประชุม
   state.playerX = at.x; 
   state.playerY = at.y;
   Object.keys(state.keysPressed).forEach(k => state.keysPressed[k] = false);
 
-  // 📡 Broadcast meeting:start to server so ALL players get notified (if not already called via socket)
+  // 📡 Notify server of meeting start
   try {
     if (window.socket && !at._broadcast) {
       window.socket.emit('meeting:start', { 
@@ -296,12 +373,34 @@ export function startMeeting(at = CONST.MEETING_POINT){
   refs.bgmMusic?.pause();
 
   const grid = document.getElementById('player-vote-grid');
-  const result = refs.voteResultText;
+  const timerEl = document.getElementById('meeting-timer');
+  const skipBtn = document.getElementById('skip-vote-btn');
+  const result = document.getElementById('vote-result');
+  
   if (!grid) return;
 
-  grid.innerHTML = '<p style="color:#aaa">🔔 กำลังเรียกทุกคนมาประชุม...</p>'; // loading
+  grid.innerHTML = '<p style="color:#aaa">🔔 กำลังเรียกทุกคนมาประชุม...</p>';
 
-  // � Request fresh snapshot from server ALWAYS
+  // ⏱️ Start countdown timer
+  if (timerEl) timerEl.textContent = meetingTimeLeft;
+  
+  if (meetingTimer) clearInterval(meetingTimer);
+  meetingTimer = setInterval(() => {
+    meetingTimeLeft--;
+    if (timerEl) {
+      timerEl.textContent = meetingTimeLeft;
+      if (meetingTimeLeft <= 10) {
+        timerEl.classList.add('urgent');
+      }
+    }
+    
+    if (meetingTimeLeft <= 0) {
+      clearInterval(meetingTimer);
+      finalizeMeeting();
+    }
+  }, 1000);
+
+  // Request fresh snapshot from server
   try {
     if (window.socket) {
       window.socket.emit('snapshot:request', { room: state.gameRoom });
@@ -311,13 +410,26 @@ export function startMeeting(at = CONST.MEETING_POINT){
     console.warn('[Meeting] Failed to request snapshot:', e);
   }
 
-  // ⏱ Wait for snapshot to arrive, then render players
+  // Setup skip vote button
+  if (skipBtn) {
+    skipBtn.disabled = false;
+    skipBtn.onclick = () => {
+      if (myVote !== null) return; // Already voted
+      castVote('skip');
+    };
+  }
+
+  // Wait for snapshot to arrive, then render players
   setTimeout(() => {
     try {
       let players = getCurrentPlayers();
       console.log(`[Meeting] Rendering ${players?.length || 0} players after snapshot`);
       
-      grid.innerHTML = ''; // clear loading
+      // 👻 กรอง Ghost ออกจากรายชื่อโหวต
+      players = players.filter(p => !p.isGhost);
+      console.log(`[Meeting] After filtering ghosts: ${players?.length || 0} alive players`);
+      
+      grid.innerHTML = '';
       
       if (!players || !players.length) {
         const emptyMsg = document.createElement('p');
@@ -327,7 +439,7 @@ export function startMeeting(at = CONST.MEETING_POINT){
         return;
       }
 
-      // ✅ สร้างการ์ดผู้เล่นแต่ละคน
+      // สร้างการ์ดผู้เล่นแต่ละคน
       players.forEach(p => {
         const card = document.createElement('div');
         card.className = 'player-card';
@@ -336,36 +448,278 @@ export function startMeeting(at = CONST.MEETING_POINT){
         const img = document.createElement('img');
         img.src = `../assets/Characters/${p.char}/idle_1.png`;
         img.alt = p.name;
+        img.onerror = () => { img.src = '../assets/images/idle_1.png'; };
 
         const name = document.createElement('span');
         name.className = 'name';
         name.textContent = p.name;
 
+        const voteCount = document.createElement('span');
+        voteCount.className = 'vote-count';
+        voteCount.textContent = '0 votes';
+
         const btn = document.createElement('button');
         btn.className = 'vote-btn';
-        btn.textContent = 'Vote';
+        btn.textContent = '🗳️ Vote';
         btn.addEventListener('click', () => {
-          if (result) result.textContent = `คุณโหวตให้ ${p.name}`;
-          setTimeout(() => endMeeting(), 2000);
+          if (myVote !== null) return; // Already voted
+          castVote(p.uid, p.name);
         });
 
-        card.append(img, name, btn);
+        card.append(img, name, voteCount, btn);
         grid.appendChild(card);
       });
     } catch (e) {
       console.error('[Meeting] Failed to render players:', e);
       grid.innerHTML = '<p style="color:#f44">(ข้อผิดพลาด)</p>';
     }
-  }, 300); // wait for snapshot
+  }, 300);
+  
+  // 💬 Setup Meeting Chat
+  setupMeetingChat();
+}
+
+function setupMeetingChat() {
+  const chatInput = document.getElementById('meeting-chat-input');
+  const chatSend = document.getElementById('meeting-chat-send');
+  const chatMessages = document.getElementById('meeting-chat-messages');
+  
+  if (!chatInput || !chatSend || !chatMessages) return;
+  
+  // Clear previous messages
+  chatMessages.innerHTML = '<p style="color:#888;text-align:center;font-size:0.9em;">💬 แชทในการประชุม</p>';
+  
+  // Send message function
+  const sendMessage = () => {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    
+    // Add to local chat immediately
+    addMeetingChatMessage(state.displayName || 'You', text, state.isGhost);
+    
+    // Emit to server
+    try {
+      if (window.socket) {
+        window.socket.emit('meeting:chat', {
+          room: state.gameRoom,
+          uid: state.uid,
+          name: state.displayName,
+          text: text,
+          isGhost: state.isGhost || false
+        });
+      }
+    } catch (e) {
+      console.warn('[Meeting Chat] Failed to emit:', e);
+    }
+    
+    chatInput.value = '';
+  };
+  
+  // Event listeners
+  chatSend.onclick = sendMessage;
+  chatInput.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+}
+
+function addMeetingChatMessage(name, text, isGhost = false) {
+  const chatMessages = document.getElementById('meeting-chat-messages');
+  if (!chatMessages) return;
+  
+  const msg = document.createElement('div');
+  msg.className = 'meeting-chat-msg' + (isGhost ? ' ghost' : '');
+  msg.innerHTML = `<strong>${isGhost ? '👻 ' : ''}${name}:</strong>${text}`;
+  
+  chatMessages.appendChild(msg);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function castVote(targetUid, targetName = 'Skip') {
+  // 👻 Ghost ไม่สามารถโหวตได้
+  if (state.isGhost) {
+    log('👻 Ghost ไม่สามารถโหวตได้');
+    return;
+  }
+  
+  if (myVote !== null) return; // Already voted
+  
+  myVote = targetUid;
+  
+  // Emit vote to server with total player count
+  try {
+    if (window.socket) {
+      let players = getCurrentPlayers();
+      // 👻 นับเฉพาะคนที่ไม่ใช่ Ghost
+      players = players.filter(p => !p.isGhost);
+      const totalPlayers = players ? players.length : 0;
+      
+      window.socket.emit('meeting:vote', {
+        room: state.gameRoom,
+        voter: state.uid,
+        target: targetUid,
+        totalPlayers: totalPlayers
+      });
+      console.log(`📡 [Meeting] Voted for ${targetName} (${totalPlayers} total players)`);
+    }
+  } catch (e) {
+    console.warn('[Meeting] Failed to emit vote:', e);
+  }
+
+  // Update UI
+  const result = document.getElementById('vote-result');
+  if (result) {
+    result.textContent = targetUid === 'skip' ? '✅ คุณข้ามโหวต' : `✅ คุณโหวตให้ ${targetName}`;
+  }
+
+  // Highlight voted card
+  const grid = document.getElementById('player-vote-grid');
+  if (grid) {
+    const allCards = grid.querySelectorAll('.player-card');
+    allCards.forEach(card => {
+      const btn = card.querySelector('.vote-btn');
+      if (btn) btn.disabled = true;
+      
+      if (card.dataset.player === targetUid) {
+        card.classList.add('my-vote');
+      }
+    });
+  }
+
+  // Disable skip button
+  const skipBtn = document.getElementById('skip-vote-btn');
+  if (skipBtn) skipBtn.disabled = true;
+}
+
+function updateVoteDisplay(votes) {
+  // votes = { uid: count, ... }
+  voteResults = votes;
+  
+  const grid = document.getElementById('player-vote-grid');
+  if (!grid) return;
+
+  const allCards = grid.querySelectorAll('.player-card');
+  allCards.forEach(card => {
+    const uid = card.dataset.player;
+    const count = votes[uid] || 0;
+    const voteCountEl = card.querySelector('.vote-count');
+    if (voteCountEl) {
+      voteCountEl.textContent = count === 1 ? '1 vote' : `${count} votes`;
+    }
+    
+    if (count > 0) {
+      card.classList.add('voted');
+    }
+  });
+}
+
+function finalizeMeeting() {
+  const result = document.getElementById('vote-result');
+  
+  // Find player with most votes
+  let maxVotes = 0;
+  let suspectUid = null;
+  let tie = false;
+  
+  for (const uid in voteResults) {
+    if (voteResults[uid] > maxVotes) {
+      maxVotes = voteResults[uid];
+      suspectUid = uid;
+      tie = false;
+    } else if (voteResults[uid] === maxVotes && maxVotes > 0) {
+      tie = true;
+    }
+  }
+
+  if (result) {
+    if (tie || maxVotes === 0) {
+      result.textContent = '🤷 ไม่มีใครถูกโหวตออก (เสมอกัน)';
+      
+      // Close meeting after 3 seconds (no ejection)
+      setTimeout(() => {
+        endMeeting();
+      }, 3000);
+    } else {
+      const players = getCurrentPlayers();
+      const suspect = players.find(p => p.uid === suspectUid);
+      const suspectName = suspect?.name || 'Unknown';
+      result.textContent = `⚠️ ${suspectName} ถูกโหวตออก! (${maxVotes} votes)`;
+      result.style.color = '#ff3333';
+      
+      // Notify server to eject player
+      try {
+        if (window.socket) {
+          window.socket.emit('meeting:eject', {
+            room: state.gameRoom,
+            ejectedUid: suspectUid,
+            ejectedName: suspectName
+          });
+          console.log(`🚪 [Meeting] Ejecting ${suspectName}`);
+        }
+      } catch (e) {
+        console.warn('[Meeting] Failed to emit eject:', e);
+      }
+      
+      // Close meeting after 4 seconds (longer to show ejection)
+      setTimeout(() => {
+        endMeeting();
+      }, 4000);
+    }
+  }
 }
 
 export function endMeeting(){
+  if (meetingTimer) {
+    clearInterval(meetingTimer);
+    meetingTimer = null;
+  }
+  
   state.isMeetingActive = false;
   refs.meetingModal && (refs.meetingModal.style.display = 'none');
   refs.bgmMusic?.play().catch(()=>{});
+  
+  // Reset meeting state
+  myVote = null;
+  voteResults = {};
+  meetingTimeLeft = 60;
+  
+  // Clear meeting chat
+  const chatMessages = document.getElementById('meeting-chat-messages');
+  if (chatMessages) chatMessages.innerHTML = '';
+  
+  // Remove urgent class from timer
+  const timerEl = document.getElementById('meeting-timer');
+  if (timerEl) timerEl.classList.remove('urgent');
+}
+
+// Listen for vote updates from server
+if (typeof window !== 'undefined') {
+  window.addEventListener('meeting:voteUpdate', (e) => {
+    const { votes } = e.detail || {};
+    if (votes) updateVoteDisplay(votes);
+  });
+  
+  // Listen for meeting complete (all voted)
+  window.addEventListener('meeting:allVoted', (e) => {
+    console.log('✅ [Meeting] All players have voted, finalizing...');
+    // Stop timer and finalize immediately
+    if (meetingTimer) {
+      clearInterval(meetingTimer);
+      meetingTimer = null;
+    }
+    finalizeMeeting();
+  });
 }
 
 export function checkInteractions(){
+  // 👻 Ghost ไม่สามารถโต้ตอบได้
+  if (state.isGhost) {
+    if (refs.interactionHint) refs.interactionHint.textContent = '';
+    return;
+  }
+  
   const role = getRole(); // 'Visitor' | 'Thief'
   const pcx = state.playerX + state.playerW/2;
   const pcy = state.playerY + state.playerH/2;
@@ -463,6 +817,12 @@ const VALID_MINIGAMES = ["align", "mop", "upload", "dodge", "rhythm", "switch", 
 const THIEF_MINIGAMES = ["sabotage_lights", "sabotage_comms", "sabotage_reactor", "sabotage_oxygen", "steal_vault", "steal_data", "steal_artifact", "disable_security"];
 
 export function checkObjectInteractions(){
+  // 👻 Ghost ไม่สามารถทำภารกิจได้
+  if (state.isGhost) {
+    if (refs.interactionHint) refs.interactionHint.textContent = '';
+    return;
+  }
+  
   const pcx = state.playerX + state.playerW/2;
   const pcy = state.playerY + state.playerH/2;
 
@@ -559,6 +919,7 @@ export function checkObjectInteractions(){
             // อัพเดท UI
             setMissionUI();
             try { updateTaskWorldHints?.(); } catch {}
+            try { updateVisitorMissionHUD?.(); } catch {} // 📋 อัปเดต Visitor HUD
             
             if (state.myRole === "Visitor") {
               log('✅ Minigame complete! (+progress)');

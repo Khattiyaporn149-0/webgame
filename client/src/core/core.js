@@ -51,6 +51,9 @@ export const state = {
   // Gem Heist system
   gems: [],                 // populated from server [{id,x,y,difficulty,time,stolenBy}]
   gemCooldownUntil: 0,
+  
+  // 👻 Ghost Mode (เมื่อโดนโหวตออก)
+  isGhost: false,           // true = โดนโหวตออกแล้ว เป็น ghost
 };
 
 export const refs = {
@@ -64,7 +67,6 @@ export const refs = {
   get missionBarFill(){ return document.getElementById('mission-bar-fill'); },
   get missionText(){ return document.getElementById('mission-progress-text'); },
   get meetingModal(){ return document.getElementById('meeting-modal'); },
-  get endMeetingButton(){ return document.getElementById('end-meeting-button'); },
   get voteButtons(){ return document.querySelectorAll('.vote-option'); },
   get voteResultText(){ return document.getElementById('vote-result'); },
   get bgmMusic(){ return document.getElementById('bgm-music'); },
@@ -171,6 +173,8 @@ export function initPlayerTasks() {
 
   // Initial gem HUD/markers (hidden for non-thief)
   try { updateGemMarkers?.(); updateThiefGemHUD?.(); } catch {}
+  // Ensure visitor HUD/objective appears if role/tasks already in storage
+  try { import('./interactions.js').then(m => m.updateVisitorMissionHUD?.()); } catch {}
 }
 
 export function getMyTaskProgress() {
@@ -304,14 +308,6 @@ function installInput(){
   window.addEventListener('resize', () => {
     state.viewportW = window.innerWidth; state.viewportH = window.innerHeight;
     updateCamera(); renderDisplay();
-  });
-
-  refs.endMeetingButton?.addEventListener('click', () => endMeeting());
-  refs.voteButtons?.forEach(btn => {
-    btn.addEventListener('click', () => {
-      refs.voteResultText && (refs.voteResultText.textContent = `โหวต: ${btn.getAttribute('data-target')}`);
-      setTimeout(() => endMeeting(), 3000);
-    });
   });
 
   // DEBUG hotkeys (F3/F4/Backquote)
@@ -495,6 +491,8 @@ export async function initGame(){
 
   // ✅ โหลดข้อมูลภารกิจจาก sessionStorage
   initPlayerTasks();
+  // Ensure Visitor HUD reflects current progress immediately (before socket sync)
+  try { (await import('./interactions.js')).updateVisitorMissionHUD?.(); } catch {}
   // ไม่โหลดตำแหน่งเดิม: ให้เซิร์ฟเวอร์กำหนดจุดเกิดบนพื้นม่วงทุกครั้ง (แก้ปัญหาเกิดนอกแมพ)
   // state.playerX/Y จะใช้ค่า default จาก state declaration (3500, 3900) หรือค่าที่ได้จาก server ตอน state:resume
   // แสดงตัวบอกตำแหน่งภารกิจของ wave ปัจจุบันบนแผนที่และโลก

@@ -425,10 +425,218 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
   socket.on('meeting:start', (data) => {
     // ✅ Accept meeting:start from any room (or if room matches)
     try {
-      console.log('📡 [Meeting] Received meeting:start broadcast:', data);
+      console.log('� [Meeting] Received meeting:start broadcast:', data);
+      // 👻 Ghost เห็น Modal แต่ไม่สามารถโหวตได้
       startMeeting(data?.at || { x: data?.x ?? 4000, y: data?.y ?? 4000, _broadcast: true });
     } catch (e) {
       console.error('meeting:start handler failed', e);
+    }
+  });
+
+  // 🗳️ รับผลโหวตแบบ realtime
+  socket.on('meeting:voteUpdate', (data) => {
+    try {
+      const { votes } = data || {};
+      if (votes) {
+        console.log('📊 [Meeting] Vote update received:', votes);
+        // Dispatch custom event to update UI
+        window.dispatchEvent(new CustomEvent('meeting:voteUpdate', { detail: { votes } }));
+      }
+    } catch (e) {
+      console.error('meeting:voteUpdate handler failed', e);
+    }
+  });
+
+    // ✅ รับสัญญาณว่าทุกคนโหวตครบแล้ว
+  socket.on('meeting:allVoted', (data) => {
+    try {
+      const { votes } = data || {};
+      console.log('✅ [Meeting] All players voted! Finalizing immediately...');
+      // Dispatch custom event to finalize meeting
+      window.dispatchEvent(new CustomEvent('meeting:allVoted', { detail: { votes } }));
+    } catch (e) {
+      console.error('meeting:allVoted handler failed', e);
+    }
+  });
+
+  // 💬 รับแชทในการประชุม
+  socket.on('meeting:chat', (data) => {
+    try {
+      const { uid, name, text, isGhost } = data || {};
+      if (!text || uid === state.uid) return; // ไม่แสดง echo ของตัวเอง
+      
+      // 👻 Ghost เห็นทุกแชท, Alive ไม่เห็นแชท Ghost
+      const iAmGhost = state.isGhost || false;
+      if (!iAmGhost && isGhost) return; // คนปกติไม่เห็นแชท Ghost
+      
+      // เพิ่มข้อความในแชท
+      const chatMessages = document.getElementById('meeting-chat-messages');
+      if (chatMessages) {
+        const msg = document.createElement('div');
+        msg.className = 'meeting-chat-msg' + (isGhost ? ' ghost' : '');
+        msg.innerHTML = `<strong>${isGhost ? '👻 ' : ''}${name}:</strong>${text}`;
+        chatMessages.appendChild(msg);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+    } catch (e) {
+      console.error('meeting:chat handler failed', e);
+    }
+  });
+
+  // 👻 รับสัญญาณว่ามีคนถูกโหวตออก → Ghost Mode
+  socket.on('player:ejected', (data) => {
+    try {
+      const { uid, name, wasThief } = data || {};
+      console.log(`� [Ejection] ${name} was ejected! Was thief: ${wasThief}`);
+      
+      // Show notification
+      const logContainer = document.getElementById('log-container');
+      if (logContainer) {
+        const msg = document.createElement('p');
+        msg.className = 'log-message';
+        msg.style.color = wasThief ? '#ff3333' : '#ffaa00';
+        msg.style.fontWeight = '800';
+        msg.textContent = `� ${name} ถูกโหวตออก! ${wasThief ? '(เป็น Thief!)' : '(ไม่ใช่ Thief)'}`;
+        logContainer.insertBefore(msg, logContainer.firstChild);
+        
+        // Fade out after 8 seconds
+        setTimeout(() => { msg.style.opacity = '0'; }, 8000);
+        setTimeout(() => { msg.remove(); }, 9000);
+      }
+      
+      // If I was ejected → Enter Ghost Mode (แบบ Among Us)
+      if (uid === state.uid) {
+        state.isGhost = true; // 👻 เป็น Ghost แล้ว
+        state.isMeetingActive = false; // ให้เคลื่อนที่ได้
+        
+        // ทำให้ตัวละครโปร่งแสง
+        const player = document.getElementById('player');
+        const nameplate = document.getElementById('nameplate');
+        if (player) player.style.opacity = '0.4';
+        if (nameplate) {
+          nameplate.style.opacity = '0.6';
+          nameplate.style.color = '#888';
+          nameplate.textContent = `👻 ${state.displayName}`;
+        }
+        
+        // Show ghost notification
+        setTimeout(() => {
+          const ghostMsg = document.createElement('div');
+          ghostMsg.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: #fff;
+            padding: 30px 50px;
+            border-radius: 15px;
+            font-size: 24px;
+            font-weight: 800;
+            z-index: 10000;
+            text-align: center;
+            border: 3px solid #888;
+          `;
+          ghostMsg.innerHTML = `
+            👻 คุณกลายเป็น Ghost!<br>
+            <span style="font-size: 18px; color: #aaa;">คุณเห็นทุกคน แต่ไม่สามารถโต้ตอบได้</span>
+          `;
+          document.body.appendChild(ghostMsg);
+          
+          setTimeout(() => {
+            ghostMsg.style.transition = 'opacity 1s';
+            ghostMsg.style.opacity = '0';
+            setTimeout(() => ghostMsg.remove(), 1000);
+          }, 4000);
+        }, 1000);
+        
+        console.log('👻 You are now a ghost. You can see everyone but they cannot see you.');
+        
+        // 👻 เมื่อกลายเป็น Ghost → แสดง Ghost players ทั้งหมดที่ถูกซ่อนไว้
+        setTimeout(() => {
+          for (const [uid, el] of Object.entries(remotePlayers)) {
+            // ถ้า element ถูกซ่อนไว้ → แสดงเป็น Ghost (โปร่งแสง)
+            if (el.style.display === 'none') {
+              el.style.display = 'block';
+              el.style.opacity = '0.4';
+              
+              // แสดง nametag
+              if (el._nametag) {
+                el._nametag.style.display = 'block';
+                el._nametag.style.opacity = '0.6';
+                el._nametag.style.color = '#888';
+              }
+              
+              // แสดง equipment
+              if (remoteEquipLayers.has(uid)) {
+                const layers = remoteEquipLayers.get(uid);
+                for (const slot in layers) {
+                  if (layers[slot]) {
+                    layers[slot].style.display = 'block';
+                    layers[slot].style.opacity = '0.4';
+                  }
+                }
+              }
+            }
+          }
+        }, 100); // รอให้ state.isGhost = true เสร็จก่อน
+      }
+      
+      // ❌ ถ้าคนที่ยังเล่นอยู่ (ไม่ใช่ Ghost) → ซ่อน Ghost player
+      if (!state.isGhost) {
+        // ซ่อนตัวละคร
+        if (remotePlayers[uid]) {
+          remotePlayers[uid].style.display = 'none';
+        }
+        
+        // ซ่อน nametag
+        const nametags = document.querySelectorAll('.nametag');
+        nametags.forEach(tag => {
+          if (tag.textContent.includes(name)) {
+            tag.style.display = 'none';
+          }
+        });
+        
+        // ซ่อน equipment
+        if (remoteEquipLayers.has(uid)) {
+          const layers = remoteEquipLayers.get(uid);
+          for (const slot in layers) {
+            if (layers[slot]) {
+              layers[slot].style.display = 'none';
+            }
+          }
+        }
+      }
+      // ✅ ถ้าเป็น Ghost → ทำ ejected player ให้โปร่งใส
+      else {
+        if (remotePlayers[uid]) {
+          remotePlayers[uid].style.opacity = '0.4';
+          remotePlayers[uid].style.display = 'block';
+        }
+        
+        const nametags = document.querySelectorAll('.nametag');
+        nametags.forEach(tag => {
+          if (tag.textContent.includes(name) && !tag.textContent.includes('👻')) {
+            tag.style.color = '#888';
+            tag.style.opacity = '0.6';
+            tag.textContent = `👻 ${name}`;
+            tag.style.display = 'block';
+          }
+        });
+        
+        if (remoteEquipLayers.has(uid)) {
+          const layers = remoteEquipLayers.get(uid);
+          for (const slot in layers) {
+            if (layers[slot]) {
+              layers[slot].style.opacity = '0.4';
+              layers[slot].style.display = 'block';
+            }
+          }
+        }
+      }
+      
+    } catch (e) {
+      console.error('player:ejected handler failed', e);
     }
   });
 
@@ -456,7 +664,7 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
       } catch {}
       try {
         // refresh world task hints (defined in interactions.js)
-        import('./interactions.js').then(m => m.updateTaskWorldHints?.()).catch(()=>{});
+        import('./interactions.js').then(m => { m.updateTaskWorldHints?.(); m.updateVisitorMissionHUD?.(); }).catch(()=>{});
       } catch {}
 
       if (typeof window.showNotification === 'function') {
@@ -513,7 +721,7 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
 
       // refresh UI hints
       try { import('./minimap.js').then(m=>m.updateMiniMapDisplay?.()); } catch {}
-      try { import('./interactions.js').then(m=>m.updateTaskWorldHints?.()); } catch {}
+      try { import('./interactions.js').then(m=>{ m.updateTaskWorldHints?.(); m.updateVisitorMissionHUD?.(); }); } catch {}
       console.log('📦 tasks:assigned applied in game page', { role, currentWave, waves });
 
       // แสดง role reveal จาก server (กันซ้ำถ้าเคยตั้งบทบาทในหน้านี้แล้ว)
@@ -559,7 +767,7 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
 
   // refresh UI
   try { import('./minimap.js').then(m=>m.updateMiniMapDisplay?.()); } catch {}
-  try { import('./interactions.js').then(m=>{ m.updateTaskWorldHints?.(); m.refreshMissionUI?.(); m.updateGemMarkers?.(); m.updateThiefGemHUD?.(); }); } catch {}
+  try { import('./interactions.js').then(m=>{ m.updateTaskWorldHints?.(); m.refreshMissionUI?.(); m.updateGemMarkers?.(); m.updateThiefGemHUD?.(); m.updateVisitorMissionHUD?.(); }); } catch {}
       console.log('🔁 state:resume applied', { role, currentWave, completedCount: completed.length, x, y });
 
       // เรียก revealRole เมื่อรีเฟรชหน้า เพื่อให้ HUD/mission bar ถูกต้องตามบทบาททันที
@@ -678,7 +886,14 @@ export const sendPlayerPositionThrottled = (() => {
     const now = performance.now();
     if (now - last < INTERVAL) return;
     last = now;
-    socket.emit('player:move', { room: currentRoom, uid, x, y });
+    // 👻 ส่ง ghost status ไปด้วย
+    socket.emit('player:move', { 
+      room: currentRoom, 
+      uid, 
+      x, 
+      y, 
+      isGhost: state.isGhost || false 
+    });
   };
 })();
 
@@ -690,6 +905,26 @@ export function startRemotePlayersRenderLoop(){
 
     for (const p of lastPlayersSnapshot){
       if (!p || p.uid === state?.uid) continue;
+      
+      // 👻 ระบบ Ghost Visibility:
+      // - Ghost เห็นทุกคน (Alive + Ghost)
+      // - Alive ไม่เห็น Ghost
+      const playerIsGhost = p.isGhost || false;
+      const iAmGhost = state.isGhost || false;
+      
+      if (!iAmGhost && playerIsGhost) {
+        // ฉันไม่ใช่ Ghost แต่เขาเป็น Ghost → ไม่เห็น
+        if (remotePlayers[p.uid]) {
+          remotePlayers[p.uid].style.display = 'none';
+          if (remotePlayers[p.uid]._nametag) {
+            remotePlayers[p.uid]._nametag.style.display = 'none';
+          }
+        }
+        continue;
+      }
+      
+      // ✅ Ghost เห็นทุกคน (แสดงปกติ)
+      // ✅ Alive เห็น Alive (แสดงปกติ)
 
       let el = remotePlayers[p.uid];
       if (!el){
@@ -716,6 +951,27 @@ export function startRemotePlayersRenderLoop(){
         el._frameInterval = 80;
         gc.appendChild(el);
         remotePlayers[p.uid] = el;
+      }
+      
+      // 👻 อัปเดต ghost status (ถ้าเป็น ghost ทำให้โปร่งแสง)
+      if (p.isGhost) {
+        el.style.opacity = '0.4';
+        if (el._nametag) {
+          el._nametag.style.opacity = '0.6';
+          el._nametag.style.color = '#888';
+          if (!el._nametag.textContent.includes('👻')) {
+            el._nametag.textContent = `👻 ${p.name || 'Ghost'}`;
+          }
+        }
+      } else {
+        el.style.opacity = '1';
+        if (el._nametag) {
+          el._nametag.style.opacity = '1';
+          el._nametag.style.color = playerColors.get(p.uid) || p.color || '#fff';
+          if (el._nametag.textContent.includes('👻')) {
+            el._nametag.textContent = p.name || 'Player';
+          }
+        }
       }
 
       // อัปเดตรูปตาม char ปัจจุบัน
@@ -823,7 +1079,8 @@ export function getCurrentPlayers(){
           uid: p.uid,
           name: p.name || `Player_${String(p.uid).slice(0,4)}`,
           char: p.char || playerChars.get(p.uid) || 'mini_brown',
-          color: p.color || playerColors.get(p.uid) || '#ffffff'
+          color: p.color || playerColors.get(p.uid) || '#ffffff',
+          isGhost: p.isGhost || false // 👻 เพิ่ม ghost status
         }))
       : [];
   } catch {

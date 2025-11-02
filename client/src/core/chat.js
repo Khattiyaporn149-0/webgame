@@ -76,7 +76,8 @@ export function initChat(stateRef){
                 ts: m.ts || 0,
                 x: m.x, y: m.y,
                 color: (p && p.color) ? p.color : (m.color || null),
-                id: makeMsgId(m.uid || uidK, key, m.ts || 0, m.id)
+                id: makeMsgId(m.uid || uidK, key, m.ts || 0, m.id),
+                isGhost: m.isGhost || false // 👻 เก็บ ghost status
               });
           }
         }
@@ -89,11 +90,23 @@ export function initChat(stateRef){
           messages.innerHTML = '';
           // render list without duplicates (use uid:key)
           const seenList = new Set();
+          const iAmGhost = _state?.isGhost || false; // 👻 เช็คว่าฉันเป็น Ghost ไหม
+          
           recent.forEach(m => {
             const id = `${m.uid}:${m.key || m.ts}`;
             if (seenList.has(id)) return;
+            
+            // 👻 Ghost Chat Filter: Alive ไม่เห็นแชท Ghost
+            const msgIsGhost = m.isGhost || false;
+            if (!iAmGhost && msgIsGhost) return; // ฉันไม่ใช่ Ghost แต่ข้อความนี้จาก Ghost → ข้าม
+            
             seenList.add(id);
-            addChatMessage(m.name || 'Unknown', m.text || '', m.color || null);
+            
+            // 👻 แยกการแสดงผล Ghost
+            const displayName = msgIsGhost ? `👻 ${m.name || 'Ghost'}` : (m.name || 'Unknown');
+            const chatColor = msgIsGhost ? '#888888' : (m.color || null);
+            
+            addChatMessage(displayName, m.text || '', chatColor);
           });
         }
         // Bubble เฉพาะข้อความใหม่หลังโหลดครั้งแรก
@@ -104,7 +117,7 @@ export function initChat(stateRef){
                   const id = m.id || makeMsgId(m.uid, m.key, m.ts);
                   if (renderedMessageIds.has(id)) return;
                   try {
-                    enqueueBubble({ uid: m.uid, text: m.text, x: m.x, y: m.y, color: m.color, ts: m.ts });
+                    enqueueBubble({ uid: m.uid, text: m.text, x: m.x, y: m.y, color: m.color, ts: m.ts, isGhost: m.isGhost }); // 👻 ส่ง isGhost
                     renderedMessageIds.add(id);
                   } catch (e) {}
                 });
@@ -115,7 +128,7 @@ export function initChat(stateRef){
             recent.slice(-20).forEach(m => {
               const id = m.id || makeMsgId(m.uid, m.key, m.ts);
               if (renderedMessageIds.has(id)) return;
-              enqueueBubble({ uid: m.uid, text: m.text, x: m.x, y: m.y, color: m.color, ts: m.ts });
+              enqueueBubble({ uid: m.uid, text: m.text, x: m.x, y: m.y, color: m.color, ts: m.ts, isGhost: m.isGhost }); // 👻 ส่ง isGhost
               renderedMessageIds.add(id);
             });
           } catch (e) {}
@@ -161,12 +174,27 @@ export function initChat(stateRef){
             if (msg.room && msg.room !== room) return;
             // Ignore our own echo; we already rendered locally
             if (_state && msg.uid === _state.uid) return;
+            
+            // 👻 Ghost Chat Filter: Ghost เห็นทุกแชท, Alive ไม่เห็นแชท Ghost
+            const msgIsGhost = msg.isGhost || false;
+            const iAmGhost = _state?.isGhost || false;
+            
+            // ถ้าฉันไม่ใช่ Ghost → ไม่เห็นแชทของ Ghost
+            if (!iAmGhost && msgIsGhost) return;
+            
+            // ถ้าฉันเป็น Ghost → เห็นแชททุกคน (Ghost + Alive)
+            
             const id = msg.id || `${msg.uid}:${msg.ts || ''}`;
             if (renderedMessageIds.has(id)) return; // avoid duplicates with Firebase onValue
-            addChatMessage(msg.name || 'Unknown', String(msg.text), msg.color || null);
+            
+            // 👻 แยกสีแชท Ghost
+            const displayName = msgIsGhost ? `👻 ${msg.name || 'Ghost'}` : (msg.name || 'Unknown');
+            const chatColor = msgIsGhost ? '#888888' : (msg.color || null);
+            
+            addChatMessage(displayName, String(msg.text), chatColor);
             try { if (msg.uid) hideTypingBubble(msg.uid); } catch (e) {}
             // Render immediately for remote messages to minimize visible delay
-            try { renderChatBubbleFor({ uid: msg.uid, text: String(msg.text), color: msg.color || null, ts: msg.ts, id: msg.id }); } catch (e) {}
+            try { renderChatBubbleFor({ uid: msg.uid, text: String(msg.text), color: chatColor, ts: msg.ts, id: msg.id, isGhost: msgIsGhost }); } catch (e) {}
             // nothing to do in chat box; indicator only on head bubble
           } catch (e) {}
         });
@@ -239,6 +267,7 @@ export function initChat(stateRef){
       text,
       room: _state?.currentRoom || 'lobby01',
       ts: Date.now(),
+      isGhost: _state?.isGhost || false, // 👻 เพิ่ม isGhost ก่อน push ไป Firebase
     };
     try { payload.id = `${payload.uid}:${payload.ts}:${Math.random().toString(36).slice(2,6)}`; } catch (e) {}
 
@@ -255,7 +284,7 @@ export function initChat(stateRef){
         } catch (e) {}
       })();
     } catch (e) {}
-
+    
     // Also emit via socket for peers to see immediately
     try { if (window.socket?.emit) window.socket.emit('chat:message', payload); } catch (e) {}
 
@@ -263,7 +292,7 @@ export function initChat(stateRef){
     addChatMessage(_state?.displayName || 'You', text, null);
     // Hide typing and render our own bubble with same id as server echo
     try { hideTypingBubble(_state?.uid); } catch (e) {}
-    try { renderChatBubbleFor({ uid: _state?.uid, x: _state?.playerX, y: _state?.playerY, text, color: null, ts: payload.ts, id: payload.id }); } catch (e) {}
+    try { renderChatBubbleFor({ uid: _state?.uid, x: _state?.playerX, y: _state?.playerY, text, color: null, ts: payload.ts, id: payload.id, isGhost: _state?.isGhost || false }); } catch (e) {}
 
     input.value = '';
     input.blur();
@@ -331,6 +360,15 @@ const BUBBLE_TTL_MS = 10000; // keep bubbles longer for visible stacking
 const BUBBLE_Y_SPACING = 22;
 
 function renderChatBubbleFor(data) {
+  // 👻 Ghost Bubble Filter: Alive players ไม่เห็น bubble ของ Ghost
+  const senderIsGhost = data.isGhost || false;
+  const iAmGhost = _state?.isGhost || false;
+  
+  if (!iAmGhost && senderIsGhost) {
+    // ฉันไม่ใช่ Ghost แต่ผู้ส่งเป็น Ghost → ไม่แสดง bubble
+    return;
+  }
+  
   // Avoid rendering the same message twice (if we have a message id/key)
   const idKey = data.id || `${data.uid}:${data.key || data.ts || 'no-key'}`;
   if (renderedMessageIds.has(idKey)) return;
