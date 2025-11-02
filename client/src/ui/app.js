@@ -37,7 +37,7 @@ const state = {
     name: null,
     id: null,
   },
-  version: "V.beta 2.0.1"
+  version: "V.almostfinish 1.0.1"
 };
 
 // Aliases used throughout this file; keep from becoming undefined
