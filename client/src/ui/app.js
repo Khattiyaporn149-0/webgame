@@ -7,7 +7,7 @@ if (!localStorage.getItem("ggd.uid")) {
   // Ensure guest uid matches RTDB rules: must start with 'uid_'
   const rand = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "").slice(0, 12) : Math.random().toString(36).slice(2, 10);
   const guest = "uid_" + rand;
-  localStorage.setItem("ggd.uid", guest);
+  localStorage.setItem("ggd.uid", null);
   // ระบุสถานะ auth เป็น guest (กันสับสนว่าเป็น Google)
   if (!localStorage.getItem("ggd.auth")) {
     localStorage.setItem("ggd.auth", "guest");
@@ -19,8 +19,7 @@ if (!window.bgm) {
   window.bgm = new Audio("../assets/sounds/galaxy-283941.mp3");
   window.bgm.loop = true;
   window.bgm.volume = 0.5;
-  // Avoid referencing local const before it’s declared; call via window
-  document.addEventListener("click", () => { try { window.bgm?.play().catch(() => {}); } catch {} }, { once: true });
+  document.addEventListener("click", () => bgm.play().catch(() => {}), { once: true });
 }
 if (!window.clickSound) {
   window.clickSound = new Audio("../assets/sounds/click.mp3");
@@ -41,13 +40,14 @@ const state = {
   version: "V.beta 2.0.1"
 };
 
-// Defaults for commonly used flat fields
-if (!state.name) state.name = localStorage.getItem("ggd.name") || "Guest";
-if (!state.uid) state.uid = localStorage.getItem("ggd.uid") || null;
-if (!Number.isFinite(+state.master)) state.master = +(localStorage.getItem("ggd.master") ?? 1);
-if (!Number.isFinite(+state.music))  state.music  = +(localStorage.getItem("ggd.music") ?? 1);
-if (!Number.isFinite(+state.sfx))    state.sfx    = +(localStorage.getItem("ggd.sfx") ?? 1);
-if (!state.region)                   state.region = localStorage.getItem("ggd.region") || "asia";
+// Aliases used throughout this file; keep from becoming undefined
+state.name = localStorage.getItem("ggd.name") || "";
+state.uid  = localStorage.getItem("ggd.uid")  || null;
+// Sanitize bad persisted values
+if (state.name === "undefined" || state.name === "null") {
+  try { localStorage.removeItem("ggd.name"); } catch {}
+  state.name = "";
+}
 
 // If unified GameSettings exists (from common-settings.js), initialize from it
 try {
@@ -120,8 +120,8 @@ if (playerNameInput) {
 }
 showStartScreen(); // เริ่มด้วยการโชว์หน้าตั้งชื่อก่อน
 
-try { const el = document.getElementById("playerNameTop"); if (el) el.textContent = state.name || "Guest"; } catch {}
-try { const elv = document.getElementById("ver"); if (elv) elv.textContent = state.version; } catch {}
+document.getElementById("playerNameTop").textContent = state.name || "Guest";
+document.getElementById("ver").textContent = state.version;
 
 
 // ========= 🧠 START SCREEN =========
