@@ -297,7 +297,8 @@
         <button class="x" id="closeMinigame">✖</button>
       </div>
       <div class="dialog-body" style="display:flex; flex-direction: column; gap:10px; padding:10px; height:100%;">
-        <div class="mg-progress" style="height:8px; background: var(--panel-2, #14182b); border:1px solid var(--stroke, #2b3554); border-radius:6px; overflow:hidden;">
+        <!-- Progress bar removed for consistent UX across minigames -->
+        <div class="mg-progress" style="display:none; height:8px; background: var(--panel-2, #14182b); border:1px solid var(--stroke, #2b3554); border-radius:6px; overflow:hidden;">
           <div id="mgProgressFill" style="height:100%; width:0%; background:#2b64ff;"></div>
         </div>
         <div style="flex:1; min-height:0;">

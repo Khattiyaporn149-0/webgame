@@ -3,7 +3,7 @@
 const REG_PATH = '../src/minigames/registry.json';
 let regCache = null;
 let modal, frame, fill, closing = false;
-let pending = null; // { obj, key, difficulty, onComplete }
+let pending = null; // { obj, key, difficulty, onComplete, openedAt }
 let completedOnce = false; // one-time completion guard per open
 
 async function loadReg(){
@@ -32,17 +32,47 @@ function ensureOverlay(){
   modal.innerHTML = `
     <div style="position:fixed; inset:0; display:flex; flex-direction:column;">
       <button id="mgCloseTop" title="Close" style="position:absolute; top:10px; right:12px; z-index:2; background:#ff4d4d; color:#fff; border:0; width:32px; height:32px; border-radius:50%; font-weight:800; cursor:pointer">✖</button>
-      <div style="height:6px; background:rgba(11,19,36,.9)"><div id="mgFill" style="height:100%; width:0%; background:#2b64ff"></div></div>
       <iframe id="mgFrame" title="Minigame" src="about:blank" style="flex:1; width:100%; border:0; background:#000" allow="autoplay; fullscreen"></iframe>
     </div>`;
   document.body.appendChild(modal);
   frame = modal.querySelector('#mgFrame');
-  fill  = modal.querySelector('#mgFill');
+  fill  = null;
   modal.querySelector('#mgCloseTop')?.addEventListener('click', closeMini);
 
+  // Keyboard guard: prevent Space/Enter from closing via focused close button
+  try {
+    const closeBtn = modal.querySelector('#mgCloseTop');
+    if (closeBtn) closeBtn.setAttribute('tabindex','-1');
+    if (frame) frame.setAttribute('tabindex','-1');
+    modal.addEventListener('keydown', (ev) => {
+      const k = ev.key || ev.code;
+      const isSpace = (k === ' ' || k === 'Space' || k === 'Spacebar');
+      const isEnter = (k === 'Enter');
+      const ae = document.activeElement;
+      const iframeFocused = (ae === frame);
+      if ((isSpace || isEnter) && !iframeFocused) { ev.preventDefault(); ev.stopPropagation(); }
+    }, true);
+    frame?.addEventListener('load', () => { try { frame?.focus?.({ preventScroll:true }); } catch {} });
+  } catch {}
+
   window.addEventListener('message', onMsg);
+
+  // Stronger global guard: while modal is visible, block Space/Enter unless iframe has focus
+  try {
+    document.addEventListener('keydown', (ev) => {
+      if (!modal || modal.style.display !== 'flex') return;
+      const k = ev.key || ev.code;
+      const isSpace = (k === ' ' || k === 'Space' || k === 'Spacebar');
+      const isEnter = (k === 'Enter');
+      if (!(isSpace || isEnter)) return;
+      const ae = document.activeElement;
+      const iframeFocused = (ae === frame);
+      if (!iframeFocused) { ev.preventDefault(); ev.stopPropagation(); }
+    }, true);
+  } catch {}
 }
-function setProgress(p){ if (fill) fill.style.width = `${Math.max(0, Math.min(100, p|0))}%`; }
+// Progress UI removed for consistency across all minigames overlays
+function setProgress(p){ /* no-op */ }
 
 export async function openMinigameForObject(obj, { onComplete } = {}){
   if (!obj?.mg) return;
@@ -51,13 +81,20 @@ export async function openMinigameForObject(obj, { onComplete } = {}){
 
   const key = (obj.mg.key || obj.mg).toLowerCase?.() || String(obj.mg).toLowerCase();
   const difficulty = obj.mg.difficulty || 'normal';
-  pending = { obj, key, difficulty, onComplete };
+  try {
+    const now = (typeof performance!=='undefined' && performance.now) ? performance.now() : Date.now();
+    pending = { obj, key, difficulty, onComplete, openedAt: now };
+  } catch {
+    pending = { obj, key, difficulty, onComplete };
+  }
   completedOnce = false; // reset guard when opening
   closing = false;
 
   try { frame.src = urlFor(key); } catch {}
   modal.style.display = 'flex';
   setProgress(0);
+  try { frame?.focus?.({ preventScroll:true }); } catch {}
+  try { setTimeout(()=>{ try { frame?.focus?.({ preventScroll:true }); } catch {} }, 0); } catch {}
 }
 export function closeMini(){
   if (closing) return; closing = true;
@@ -76,9 +113,16 @@ function onMsg(e){
   if (d.type === 'mg:ready'){ setProgress(0); }
   else if (d.type === 'mg:progress'){
     setProgress(+d.percent||0);
-    if ((+d.percent||0) >= 100 && !closing) setTimeout(()=> closeMini(), 800);
+    // Do not auto-close on progress; wait for explicit mg:complete
   }
   else if (d.type === 'mg:complete'){
+    // Ignore too-fast completes (likely accidental close/keypress)
+    try {
+      const now = (typeof performance!=='undefined' && performance.now) ? performance.now() : Date.now();
+      const openedAt = Number(pending?.openedAt||0);
+      const elapsed = openedAt ? (now - openedAt) : Number.POSITIVE_INFINITY;
+      if (elapsed < 1000) return;
+    } catch {}
     if (completedOnce) return; // prevent duplicate firing
     completedOnce = true;
     try { setProgress(100); } catch {}
