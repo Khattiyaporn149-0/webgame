@@ -2,7 +2,7 @@
 
 import { loadCollisionData, checkCollision } from './collision.js';
 import { toggleFullScreenMap, updateMiniMapDisplay } from './minimap.js';
-import { checkInteractions, checkObjectInteractions, startMeeting, endMeeting, updateTaskWorldHints } from './interactions.js';
+import { checkInteractions, checkObjectInteractions, checkGemInteractions, startMeeting, endMeeting, updateTaskWorldHints, updateGemMarkers, updateThiefGemHUD } from './interactions.js';
 import { initMultiplayer, sendPlayerPositionThrottled, startRemotePlayersRenderLoop } from './multiplayer.js';
 import { initChat, isTyping } from './chat.js';
 import { isRoleRevealed } from './roles.js';
@@ -46,6 +46,10 @@ export const state = {
   myCurrentWave: 0,          // 1, 2, 3
   myUnlockedTasks: [],       // ["align", "mop", ...]
   myCompletedTasks: [],      // ["align", ...]
+
+  // Gem Heist system
+  gems: [],                 // populated from server [{id,x,y,difficulty,time,stolenBy}]
+  gemCooldownUntil: 0,
 };
 
 export const refs = {
@@ -65,6 +69,8 @@ export const refs = {
   get bgmMusic(){ return document.getElementById('bgm-music'); },
   get sfxInteract(){ return document.getElementById('sfx-interact'); },
   get sfxHeist(){ return document.getElementById('sfx-heist'); },
+  get thiefGemHud(){ return document.getElementById('thief-gem-progress'); },
+  get thiefGemText(){ return document.getElementById('thief-gem-text'); },
 };
 
 function applyAudioSettingsToDom(){
@@ -160,6 +166,9 @@ export function initPlayerTasks() {
       if (fill) fill.style.width = `${pct}%`;
     }
   } catch {}
+
+  // Initial gem HUD/markers (hidden for non-thief)
+  try { updateGemMarkers?.(); updateThiefGemHUD?.(); } catch {}
 }
 
 export function getMyTaskProgress() {
@@ -269,6 +278,8 @@ function loop(ts){
   renderDisplay();
   checkInteractions();
   checkObjectInteractions();
+  // New: gem interactions for Thief
+  try { checkGemInteractions?.(); } catch {}
   tickAnimation(ts);
   requestAnimationFrame(loop);
 }

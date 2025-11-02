@@ -700,6 +700,7 @@
             <div id="nameplate" style="position:absolute;left:50%;bottom:100%;transform:translate(-50%,-8px);color:#fff;font-weight:700;text-shadow:0 2px 6px #000;z-index:350;white-space:nowrap;"></div>
         </div>
         <div id="mission-guest" class="mission-spot"></div>
+    <div id="mission-heist" class="mission-spot"></div>
         <div id="mission-meeting" class="mission-spot"></div>
         <div id="mission-cctv" class="mission-spot"
         style="background: transparent; border: none; opacity: 0;"></div>
@@ -719,6 +720,14 @@
             <div id="mission-bar-fill"></div>
         </div>
     </div>
+
+        <!-- Thief gem progress HUD -->
+        <div id="thief-gem-progress" style="position:fixed; top:20px; right:20px; z-index:1200; display:none;">
+            <div style="display:flex; align-items:center; gap:8px; background:rgba(20,20,30,.8); color:#fff; padding:8px 12px; border:1px solid rgba(255,255,255,.2); border-radius:999px; box-shadow:0 6px 16px rgba(0,0,0,.35);">
+                <span style="font-size:16px">💎</span>
+                <span id="thief-gem-text" style="font-weight:800; letter-spacing:.5px">0 / 5</span>
+            </div>
+        </div>
     
     <div id="log-container">
     </div>
