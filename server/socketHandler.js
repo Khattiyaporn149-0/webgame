@@ -121,7 +121,7 @@ function registerSocketHandlers(io) {
 
     // JOIN ROOM
     socket.on("game:join", (data = {}) => {
-      const { room, uid, name, color, char, x, y } = data;
+      const { room, uid, name, color, char, x, y, equip } = data;
       if (!room || !uid) return;
 
       const gr = ensureGameRoom(room);
@@ -142,6 +142,7 @@ function registerSocketHandlers(io) {
         existing.char = char || existing.char;
         existing.x = (typeof x === "number") ? x : existing.x;
         existing.y = (typeof y === "number") ? y : existing.y;
+        if (equip && typeof equip === 'object') existing.equip = equip;
         existing.lastMoveAt = Date.now();
       } else {
         // สร้าง player ใหม่
@@ -152,6 +153,7 @@ function registerSocketHandlers(io) {
           char, 
           x, 
           y,
+          equip: (equip && typeof equip === 'object') ? equip : {},
           socketId: socket.id,
           room,
           lastMoveAt: Date.now(),
@@ -414,6 +416,4 @@ function registerSocketHandlers(io) {
 }
 
 module.exports = registerSocketHandlers;
-
-
 
