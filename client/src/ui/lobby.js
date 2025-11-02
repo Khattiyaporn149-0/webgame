@@ -23,6 +23,8 @@ const savedRoom = JSON.parse(localStorage.getItem('currentRoom') || '{}');
 const displayName = currentDisplayName();
 const uid = currentUid();
 
+console.log("[Lobby Init] displayName:", displayName, "uid:", uid, "roomCode:", roomCode);
+
 $("roomName").textContent = savedRoom.name || "Room";
 $("roomCode").textContent = roomCode || savedRoom.code || "-";
 
@@ -129,9 +131,17 @@ function charToColor(ch){
 }
 
 const __equipInit = (()=>{ try { return JSON.parse(localStorage.getItem('ggd.equip')||'{}'); } catch { return {}; } })();
+
+// ✅ ถ้า displayName ว่าง ให้ generate ชื่อใหม่
+const finalDisplayName = displayName || `Player_${Math.random().toString(36).slice(2,7)}`;
+// ✅ บันทึกชื่อลง localStorage เพื่อให้ไม่มีการเปลี่ยนในครั้งต่อไป
+if (!localStorage.getItem("ggd.name") || localStorage.getItem("ggd.name") === "") {
+  localStorage.setItem("ggd.name", finalDisplayName);
+}
+
 await set(playerRef, {
   uid,
-  name: displayName,
+  name: finalDisplayName,
   isHost: !!savedRoom.isHost,
   ready: false,
   online: true,
