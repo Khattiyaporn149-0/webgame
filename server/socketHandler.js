@@ -189,15 +189,28 @@ function registerSocketHandlers(io) {
       const room = data.room || socket.data.room;
       if (!room) return;
 
+      const now = Date.now();
+      const safeText = String(data.text).slice(0, 500);
+      socket.__msgSeq = socket.__msgSeq || new Map();
+      const keySeq = `${room}:${data.uid}`;
+      const nextSeq = (socket.__msgSeq.get(keySeq) || 0) + 1;
+      socket.__msgSeq.set(keySeq, nextSeq);
+
+      const id = (typeof data.id === "string" && data.id.length <= 128)
+        ? data.id
+        : `${data.uid}:${now}:${nextSeq}`;
+
       const payload = {
         room,
         uid: data.uid,
         name: data.name || "Unknown",
-        text: String(data.text).slice(0, 500),
-        ts: Date.now(),
+        text: safeText,
+        ts: now,
+        id,
+        seq: nextSeq,
       };
       io.to(room).emit("chat:message", payload);
-      console.log(`💬 [${room}] ${payload.name}: ${payload.text}`);
+      console.log(`?? [${room}] ${payload.name}: ${payload.text}`);
     });
 
     // DISCONNECT
@@ -236,3 +249,4 @@ function registerSocketHandlers(io) {
 }
 
 module.exports = registerSocketHandlers;
+
