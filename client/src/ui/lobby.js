@@ -489,7 +489,7 @@ function startCountdownTimer() {
             const tryStart = () => {
               if (started) return;
               console.log(`👀 [HOST] Waiting ready players to join socket: expect ${expected}`);
-              const onSnap = (payload={}) => {
+              const onSnap = async (payload={}) => {
                 try {
                   const arr = Array.isArray(payload.players) ? payload.players : [];
                   const count = arr.length;
@@ -499,6 +499,8 @@ function startCountdownTimer() {
                     socket.off('snapshot', onSnap);
                     started = true;
                     console.log(`🎮 [HOST] All ${count} joined. Starting game...`);
+                    // 🗑 Reset chat before starting game
+                    try { await remove(ref(rtdb, `lobbies/${roomCode}/chat`)); } catch (e) { console.warn("Failed to clear chat:", e); }
                     socket.emit('game:start', { room: roomCode, expectedReady: latestReadyCount });
                     socket.emit('tasks:request', { room: roomCode, uid });
                   }
