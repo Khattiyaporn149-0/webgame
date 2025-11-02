@@ -5,9 +5,13 @@
     { "id": "ghost", "label": "พี่แจ๊คครับ! ผมเห็นผ้าคลุมลอยได้", "y": -25, "scale": 1.4, "origin": "center bottom" }
   ],
   "mask": [],
-  "suit": [{ "id": "A-Jan-Kong", "label": "เสื้ออาจารย์คง คงกระพันไม่มีวันพังมีแต่หาย เห้ย! ขโมย", "y": 35, "scale": 1, "origin": "center" },
-   {"id":"dirty","label": "ที่เปื้อนนั่นเชื้อโรคนะ อย่าเข้ามาใกล้"},
-    { "id": "pumpkin", "label": "ฟักทองสีส้ม", "y": -30, "scale": 1.7, "origin": "center" }],
-  "back": [{"id" : "vampire", "layer": "back","label": "อะไร ก็ผ้าตลุมแวมไพร์ไง"}],
+  "suit": [
+    { "id": "A-Jan-Kong", "label": "เสื้ออาจารย์คง คงกระพันไม่มีวันพังมีแต่หาย เห้ย! ขโมย", "y": 35, "scale": 1, "origin": "center" },
+    { "id": "dirty", "label": "ที่เปื้อนนั่นเชื้อโรคนะ อย่าเข้ามาใกล้", "y": 35, "scale": 1, "origin": "center" },
+    { "id": "pumpkin", "label": "ฟักทองสีส้ม", "y": -30, "scale": 1.7, "origin": "center" }
+  ],
+  "back": [
+    { "id": "vampire", "layer": "back", "label": "อะไร ก็ผ้าตลุมแวมไพร์ไง", "y": 0, "scale": 1, "origin": "center" }
+  ],
   "acc": []
 }

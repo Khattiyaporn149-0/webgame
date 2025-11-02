@@ -49,11 +49,21 @@ export function currentDisplayName() {
     return localName;
   }
   
-  return (
-    auth?.currentUser?.displayName ||
-    localStorage.getItem("playerName") ||
-    `Player_${Math.random().toString(36).slice(2,7)}`
-  );
+  // ✅ Fallback: Google user display name
+  if (auth?.currentUser?.displayName) {
+    return auth.currentUser.displayName;
+  }
+  
+  // ✅ Fallback: stored playerName
+  const playerName = localStorage.getItem("playerName");
+  if (playerName && playerName !== "undefined" && playerName !== "null") {
+    return playerName;
+  }
+  
+  // ✅ Last resort: generate unique name
+  const randomName = `Player_${Math.random().toString(36).slice(2,7)}`;
+  localStorage.setItem("ggd.name", randomName);
+  return randomName;
 }
 
 export function waitAuthReady() {

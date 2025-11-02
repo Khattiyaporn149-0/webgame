@@ -70,7 +70,23 @@ function ensureOverlay(detail = {}) {
   } catch {}
   
   const delayMs = Number.isFinite(+detail?.delayMs) ? +detail.delayMs : 15000;
-  const goExit  = () => { try { location.href = redirectTo; } catch { /* no-op */ } };
+  const goExit  = async () => {
+    try {
+      // 🗑 Reset chat before leaving game
+      const params = new URLSearchParams(location.search);
+      const code = params.get('code');
+      if (code) {
+        try {
+          const { rtdb, ref, remove } = await import('../services/firebase.js');
+          await remove(ref(rtdb, `lobbies/${code}/chat`));
+          console.log('🧹 Chat cleared before exiting');
+        } catch (e) {
+          console.warn('Chat cleanup failed:', e);
+        }
+      }
+    } catch {}
+    try { location.href = redirectTo; } catch { /* no-op */ }
+  };
   const nowBtn  = document.getElementById('eg-now');
   const counter = document.getElementById('eg-count');
   nowBtn?.addEventListener('click', goExit);

@@ -23,6 +23,8 @@ const savedRoom = JSON.parse(localStorage.getItem('currentRoom') || '{}');
 const displayName = currentDisplayName();
 const uid = currentUid();
 
+console.log("[Lobby Init] displayName:", displayName, "uid:", uid, "roomCode:", roomCode);
+
 $("roomName").textContent = savedRoom.name || "Room";
 $("roomCode").textContent = roomCode || savedRoom.code || "-";
 
@@ -129,9 +131,17 @@ function charToColor(ch){
 }
 
 const __equipInit = (()=>{ try { return JSON.parse(localStorage.getItem('ggd.equip')||'{}'); } catch { return {}; } })();
+
+// ✅ ถ้า displayName ว่าง ให้ generate ชื่อใหม่
+const finalDisplayName = displayName || `Player_${Math.random().toString(36).slice(2,7)}`;
+// ✅ บันทึกชื่อลง localStorage เพื่อให้ไม่มีการเปลี่ยนในครั้งต่อไป
+if (!localStorage.getItem("ggd.name") || localStorage.getItem("ggd.name") === "") {
+  localStorage.setItem("ggd.name", finalDisplayName);
+}
+
 await set(playerRef, {
   uid,
-  name: displayName,
+  name: finalDisplayName,
   isHost: !!savedRoom.isHost,
   ready: false,
   online: true,
@@ -479,7 +489,7 @@ function startCountdownTimer() {
             const tryStart = () => {
               if (started) return;
               console.log(`👀 [HOST] Waiting ready players to join socket: expect ${expected}`);
-              const onSnap = (payload={}) => {
+              const onSnap = async (payload={}) => {
                 try {
                   const arr = Array.isArray(payload.players) ? payload.players : [];
                   const count = arr.length;
@@ -489,6 +499,8 @@ function startCountdownTimer() {
                     socket.off('snapshot', onSnap);
                     started = true;
                     console.log(`🎮 [HOST] All ${count} joined. Starting game...`);
+                    // 🗑 Reset chat before starting game
+                    try { await remove(ref(rtdb, `lobbies/${roomCode}/chat`)); } catch (e) { console.warn("Failed to clear chat:", e); }
                     socket.emit('game:start', { room: roomCode, expectedReady: latestReadyCount });
                     socket.emit('tasks:request', { room: roomCode, uid });
                   }

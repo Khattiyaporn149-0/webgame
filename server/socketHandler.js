@@ -411,6 +411,75 @@ function registerSocketHandlers(io) {
       }
     });
 
+    // 📡 Handle snapshot:request - client requests immediate snapshot update
+    socket.on('snapshot:request', (data = {}) => {
+      try {
+        const room = data.room || socket.data.room;
+        if (!room) return;
+        
+        const gr = ensureGameRoom(room);
+        if (!gr) return;
+        
+        // Try gr.players first, fallback to socket connections if empty
+        let players = Array.from(gr.players?.values() || []);
+        
+        // If empty, build from socket room connections
+        if (!players || players.length === 0) {
+          try {
+            const roomSockets = io.sockets.adapter.rooms.get(room);
+            if (roomSockets && roomSockets.size > 0) {
+              players = Array.from(roomSockets)
+                .map(sid => {
+                  const s = io.sockets.sockets.get(sid);
+                  return s?.data ? {
+                    uid: s.data.uid,
+                    name: s.data.name || `Player_${String(s.data.uid).slice(0,4)}`,
+                    x: s.data.x || 0,
+                    y: s.data.y || 0,
+                    char: s.data.char || 'mini_brown',
+                    color: s.data.color || '#ffffff'
+                  } : null;
+                })
+                .filter(p => p);
+              console.log(`📡 Built snapshot from ${players.length} socket connections for ${room}`);
+            }
+          } catch (e) {
+            console.warn('Failed to build from socket room:', e);
+          }
+        }
+        
+        // Send immediate snapshot with current players
+        const payload = {
+          room: room,
+          players: players,
+        };
+        io.to(room).emit("snapshot", payload);
+        console.log(`📡 Sent immediate snapshot to room ${room} (${players.length} players)`);
+      } catch (e) {
+        console.warn('snapshot:request handler failed', e);
+      }
+    });
+
+    // 🔔 Handle meeting:start - broadcast to ALL players in room
+    socket.on('meeting:start', (data = {}) => {
+      try {
+        const room = data.room || socket.data.room;
+        if (!room) return;
+        
+        console.log(`🔔 [${room}] Emergency meeting called by ${socket.data.uid}`);
+        
+        // Broadcast meeting:start to ALL players including caller
+        io.to(room).emit('meeting:start', { 
+          room: room,
+          x: data.x || 4000,
+          y: data.y || 4000
+        });
+        console.log(`📡 [${room}] Broadcasted meeting:start to all players`);
+      } catch (e) {
+        console.warn('meeting:start handler failed', e);
+      }
+    });
+
     // === Gem Heist system ===
     // Expose gem state to a socket
     function emitGemState(toSocket){
@@ -467,4 +536,3 @@ function registerSocketHandlers(io) {
 }
 
 module.exports = registerSocketHandlers;
-

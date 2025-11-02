@@ -276,6 +276,20 @@ export function startMeeting(at = CONST.MEETING_POINT){
   state.playerY = at.y;
   Object.keys(state.keysPressed).forEach(k => state.keysPressed[k] = false);
 
+  // 📡 Broadcast meeting:start to server so ALL players get notified (if not already called via socket)
+  try {
+    if (window.socket && !at._broadcast) {
+      window.socket.emit('meeting:start', { 
+        room: state.gameRoom,
+        x: at.x,
+        y: at.y
+      });
+      console.log('📡 [Meeting] Emitted meeting:start to server');
+    }
+  } catch (e) {
+    console.warn('[Meeting] Failed to emit meeting:start:', e);
+  }
+
   // แสดง Modal
   if (!refs.meetingModal) return;
   refs.meetingModal.style.display = 'flex';
@@ -285,43 +299,64 @@ export function startMeeting(at = CONST.MEETING_POINT){
   const result = refs.voteResultText;
   if (!grid) return;
 
-  grid.innerHTML = ''; // ล้างรายการเก่า
+  grid.innerHTML = '<p style="color:#aaa">🔔 กำลังเรียกทุกคนมาประชุม...</p>'; // loading
 
-  // ✅ ดึงข้อมูลผู้เล่นทั้งหมดในห้อง
-  const players = getCurrentPlayers();
-  if (!players || !players.length) {
-    const emptyMsg = document.createElement('p');
-    emptyMsg.textContent = '(ไม่มีผู้เล่นในห้อง)';
-    emptyMsg.style.color = '#ccc';
-    grid.appendChild(emptyMsg);
-    return;
+  // � Request fresh snapshot from server ALWAYS
+  try {
+    if (window.socket) {
+      window.socket.emit('snapshot:request', { room: state.gameRoom });
+      console.log('📡 [Meeting] Requested fresh snapshot');
+    }
+  } catch (e) {
+    console.warn('[Meeting] Failed to request snapshot:', e);
   }
 
-  // ✅ สร้างการ์ดผู้เล่นแต่ละคน
-  players.forEach(p => {
-    const card = document.createElement('div');
-    card.className = 'player-card';
-    card.dataset.player = p.uid;
+  // ⏱ Wait for snapshot to arrive, then render players
+  setTimeout(() => {
+    try {
+      let players = getCurrentPlayers();
+      console.log(`[Meeting] Rendering ${players?.length || 0} players after snapshot`);
+      
+      grid.innerHTML = ''; // clear loading
+      
+      if (!players || !players.length) {
+        const emptyMsg = document.createElement('p');
+        emptyMsg.textContent = '(ไม่มีผู้เล่นในห้อง)';
+        emptyMsg.style.color = '#ccc';
+        grid.appendChild(emptyMsg);
+        return;
+      }
 
-    const img = document.createElement('img');
-    img.src = `../assets/Characters/${p.char}/idle_1.png`;
-    img.alt = p.name;
+      // ✅ สร้างการ์ดผู้เล่นแต่ละคน
+      players.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'player-card';
+        card.dataset.player = p.uid;
 
-    const name = document.createElement('span');
-    name.className = 'name';
-    name.textContent = p.name;
+        const img = document.createElement('img');
+        img.src = `../assets/Characters/${p.char}/idle_1.png`;
+        img.alt = p.name;
 
-    const btn = document.createElement('button');
-    btn.className = 'vote-btn';
-    btn.textContent = 'Vote';
-    btn.addEventListener('click', () => {
-      if (result) result.textContent = `คุณโหวตให้ ${p.name}`;
-      setTimeout(() => endMeeting(), 2000);
-    });
+        const name = document.createElement('span');
+        name.className = 'name';
+        name.textContent = p.name;
 
-    card.append(img, name, btn);
-    grid.appendChild(card);
-  });
+        const btn = document.createElement('button');
+        btn.className = 'vote-btn';
+        btn.textContent = 'Vote';
+        btn.addEventListener('click', () => {
+          if (result) result.textContent = `คุณโหวตให้ ${p.name}`;
+          setTimeout(() => endMeeting(), 2000);
+        });
+
+        card.append(img, name, btn);
+        grid.appendChild(card);
+      });
+    } catch (e) {
+      console.error('[Meeting] Failed to render players:', e);
+      grid.innerHTML = '<p style="color:#f44">(ข้อผิดพลาด)</p>';
+    }
+  }, 300); // wait for snapshot
 }
 
 export function endMeeting(){
@@ -540,7 +575,7 @@ export function checkObjectInteractions(){
   }
   if (near.type === 'Telephone') {
 if (near.type === 'Telephone') {
-  if (roleNameText === 'Thief') {
+  if (getRole() === 'Thief') {
     import('./endgame.js').then(() => {
       window.showEnd({
         outcome: 'thief_win',
