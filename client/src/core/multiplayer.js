@@ -10,7 +10,6 @@ import { io as ioCdn } from 'https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5
 import { startMeeting } from './interactions.js';
 
 import { state, refs } from './core.js';
-import { startMeeting } from './interactions.js';
 
 // ===== socket handle =====
 export let socket = null;
@@ -299,9 +298,10 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
 
   // สัญญาณเริ่มประชุม (ถ้าใช้)
   socket.on('meeting:start', (data) => {
-    if (data?.room && data.room !== currentRoom) return;
+    // ✅ Accept meeting:start from any room (or if room matches)
     try {
-      startMeeting(data?.at || { x: data?.x ?? 4000, y: data?.y ?? 4000 });
+      console.log('📡 [Meeting] Received meeting:start broadcast:', data);
+      startMeeting(data?.at || { x: data?.x ?? 4000, y: data?.y ?? 4000, _broadcast: true });
     } catch (e) {
       console.error('meeting:start handler failed', e);
     }
