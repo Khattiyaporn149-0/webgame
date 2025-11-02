@@ -461,6 +461,60 @@ function registerSocketHandlers(io) {
         console.warn('snapshot:request handler failed', e);
       }
     });
+
+    // 🗳 Handle vote:cast - player casts a vote
+    socket.on('vote:cast', (data = {}) => {
+      try {
+        const room = data.room || socket.data.room;
+        const votedFor = data.votedFor;
+        const votedForName = data.votedForName || 'Unknown';
+        console.log(`🗳 [${room}] Player voted for ${votedForName}`);
+        // Broadcast vote to all players in room
+        io.to(room).emit('vote:update', { votedForName });
+      } catch (e) {
+        console.warn('vote:cast handler failed', e);
+      }
+    });
+
+    // 📊 Handle vote:complete - voting ended, show elimination result
+    socket.on('vote:complete', (data = {}) => {
+      try {
+        const room = data.room || socket.data.room;
+        const eliminated = data.eliminated;
+        const eliminatedName = data.eliminatedName || 'Unknown';
+        const voteCount = data.voteCount || 0;
+        
+        console.log(`📊 [${room}] Vote complete: ${eliminatedName} eliminated with ${voteCount} votes`);
+        
+        // Get eliminated player's role from playerTaskState
+        const playerKey = `${room}:${eliminated}`;
+        const playerState = playerTaskState.get(playerKey);
+        const elimRole = playerState?.role || 'Unknown';
+        
+        console.log(`📊 [${room}] Eliminated player role: ${elimRole}`);
+        
+        // Check win condition: if Visitor eliminated, Thief wins!
+        if (elimRole === 'Visitor') {
+          console.log(`🎉 [${room}] THIEF WINS! Visitor ${eliminatedName} was eliminated!`);
+          // Tell all players in room
+          io.to(room).emit('game:thiefWins', {
+            reason: 'visitor_eliminated',
+            eliminatedName: eliminatedName,
+            message: `${eliminatedName} (Visitor) ถูก eliminate! หัวขโมยชนะ!`
+          });
+        } else if (elimRole === 'Thief') {
+          console.log(`🎉 [${room}] VISITORS WIN! Thief ${eliminatedName} was eliminated!`);
+          // Tell all players in room
+          io.to(room).emit('game:visitorsWin', {
+            reason: 'thief_eliminated',
+            eliminatedName: eliminatedName,
+            message: `${eliminatedName} (Thief) ถูก eliminate! ผู้เยี่ยมชมชนะ!`
+          });
+        }
+      } catch (e) {
+        console.warn('vote:complete handler failed', e);
+      }
+    });
   });
 }
 
