@@ -475,6 +475,9 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
       // persist and apply
       try { sessionStorage.setItem('myRole', role); } catch {}
       state.myRole = role;
+      // If became Thief, fetch gem state and show markers/HUD
+      try { if (window.socket && window.socket.connected && role === 'Thief') { window.socket.emit('gem:get'); } } catch {}
+      try { import('./interactions.js').then(m=>{ m.updateGemMarkers?.(); m.updateThiefGemHUD?.(); }); } catch {}
       // trigger reveal UI if available
       import('./roles.js').then(m => {
         if (typeof m.getRole === 'function' && m.getRole() === role) return;
@@ -553,9 +556,9 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
       // restore player position
       state.playerX = x; state.playerY = y;
 
-      // refresh UI
-      try { import('./minimap.js').then(m=>m.updateMiniMapDisplay?.()); } catch {}
-      try { import('./interactions.js').then(m=>{ m.updateTaskWorldHints?.(); m.refreshMissionUI?.(); }); } catch {}
+  // refresh UI
+  try { import('./minimap.js').then(m=>m.updateMiniMapDisplay?.()); } catch {}
+  try { import('./interactions.js').then(m=>{ m.updateTaskWorldHints?.(); m.refreshMissionUI?.(); m.updateGemMarkers?.(); m.updateThiefGemHUD?.(); }); } catch {}
       console.log('🔁 state:resume applied', { role, currentWave, completedCount: completed.length, x, y });
 
       // เรียก revealRole เมื่อรีเฟรชหน้า เพื่อให้ HUD/mission bar ถูกต้องตามบทบาททันที
@@ -593,6 +596,50 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
     } catch (e) {
       console.error('game:visitorsWin handler failed', e);
     }
+  });
+
+  // ✅ Thief Wins (gem heist)
+  socket.on('game:thiefWin', (data) => {
+    try {
+      console.log('💎 Thief Win!', data);
+      import('./endgame.js').then(m => {
+        const showEnd = m?.showEnd || m?.default;
+        if (showEnd) {
+          showEnd({
+            outcome: 'thief_win',
+            reason: 'all_gems_stolen',
+            title: 'THIEF WINS!',
+            desc: data?.message || 'All gems have been stolen.'
+          });
+        }
+      }).catch(err => console.error('endgame load failed', err));
+    } catch (e) {
+      console.error('game:thiefWin handler failed', e);
+    }
+  });
+
+  // ✅ Sync gem layout/state
+  socket.on('gem:state', (data={}) => {
+    try {
+      state.gems = Array.isArray(data.gems) ? data.gems : [];
+      // Update simple HUD and markers
+      import('./interactions.js').then(m => {
+        m.updateGemMarkers?.();
+        m.updateThiefGemHUD?.();
+      }).catch(()=>{});
+    } catch (e) {
+      console.error('gem:state handler failed', e);
+    }
+  });
+
+  // ✅ Cooldown feedback for failed lockpicks
+  socket.on('gem:cooldown', (data={}) => {
+    try {
+      const until = Number(data.until||0);
+      state.gemCooldownUntil = until;
+      const remain = Math.max(0, Math.ceil((until - Date.now())/1000));
+      window.showToast && showToast(`⏳ Lockpick cooldown ${remain}s`, 'warning');
+    } catch {}
   });
 
   socket.on('disconnect', (r) => console.log('Socket disconnected:', r));
