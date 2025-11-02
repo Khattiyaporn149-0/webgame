@@ -17,6 +17,13 @@ export const isTyping = () => _isTyping;
 let lastSentAt = 0;
 let lastMsg = '';
 const renderedMessageIds = new Set(); // tracks `${uid}:${msgKey}` already rendered as bubble
+// Typing indicator helpers
+const typingBubbles = new Map(); // uid -> typing bubble DOM
+let _typingLastWrite = 0;        // throttle writes to DB
+let _typingExpiryTimer = null;   // local auto-off timer
+const TYPING_DEBOUNCE_MS = 300;
+const TYPING_EXPIRE_MS = 1800;
+const TYPING_MAX_LEN = 60;
 
 function qs(id){ return document.getElementById(id); }
 
@@ -94,6 +101,17 @@ export function initChat(stateRef){
         }
         lastMaxTs = newMax;
         initialLoaded = true;
+
+        // Show typing bubbles ("...") for players with recent typing flag
+        try {
+          const now = Date.now();
+          for (const [uidK, p] of Object.entries(players)){
+            const typing = p && p.typing;
+            const active = typing && typing.on && (now - (typing.ts || 0) < TYPING_EXPIRE_MS);
+            if (active) showTypingBubble(uidK, p?.color || null, String(typing.text || ''));
+            else hideTypingBubble(uidK);
+          }
+        } catch {}
       });
     })();
   } catch {}
@@ -107,6 +125,20 @@ export function initChat(stateRef){
   // ใช้ capture = true เพื่อให้ตัวนี้รันก่อน target; และเราจะข้ามเมื่อ event มาจาก input อยู่แล้ว
   const openHandler = (e) => tryOpenChatOnEnter(e, input);
   document.addEventListener('keydown', openHandler, true);
+
+  // Broadcast typing state while user is entering text
+  input.addEventListener('input', () => {
+    const raw = input.value || '';
+    const text = raw.slice(0, TYPING_MAX_LEN);
+    const hasText = Boolean(text.trim().length > 0);
+    try {
+      setTyping(hasText, text);
+      // Optimistically show our own typing bubble for responsiveness
+      if (_state?.uid) showTypingBubble(_state.uid, null, text);
+    } catch {}
+  });
+  input.addEventListener('focus', () => { try { setTyping(true); } catch {} });
+  input.addEventListener('blur',  () => { try { setTyping(false); } catch {} });
 
   input.addEventListener('focus', () => {
     _isTyping = true;
@@ -172,6 +204,7 @@ export function initChat(stateRef){
 
     input.value = '';
     input.blur();
+    try { setTyping(false, ''); hideTypingBubble(_state?.uid); } catch {}
   });
 
   // ลูกศรขึ้น = recall ข้อความล่าสุด (ถ้าช่องว่าง)
@@ -199,7 +232,10 @@ function addChatMessage(name, text, color){
 
 import { getRemotePlayerWorldXY } from './multiplayer.js';
 
-const activeBubbles = new Map(); // uid -> array ของ bubble DOM
+const activeBubbles = new Map(); // uid -> array of bubble DOM elements
+const MAX_BUBBLES_PER_PLAYER = 5;
+const BUBBLE_TTL_MS = 10000; // keep bubbles longer for visible stacking
+const BUBBLE_Y_SPACING = 22;
 
 function renderChatBubbleFor(data) {
   // Avoid rendering the same message twice (if we have a message id/key)
@@ -229,7 +265,7 @@ function renderChatBubbleFor(data) {
   stack.push(bubble);
 
   // จำกัดจำนวนฟองสูงสุด (กันรก)
-  if (stack.length > 4) {
+  if (stack.length > MAX_BUBBLES_PER_PLAYER) {
     const old = stack.shift();
     if (old?._raf) cancelAnimationFrame(old._raf);
     old.remove();
@@ -255,7 +291,7 @@ function renderChatBubbleFor(data) {
     const baseY = worldY + cy - 20;
 
     const index = stack.indexOf(bubble);
-    const offsetY = index * 22;
+    const offsetY = index * BUBBLE_Y_SPACING;
 
     bubble.style.left = `${baseX}px`;
     bubble.style.top = `${baseY - offsetY}px`;
@@ -275,5 +311,74 @@ function renderChatBubbleFor(data) {
       const i = stack.indexOf(bubble);
       if (i >= 0) stack.splice(i, 1);
     }, 400);
-  }, 4000);
+  }, BUBBLE_TTL_MS);
 }
+
+// --- Typing indicator helpers ---
+function showTypingBubble(uid, color, text){
+  try {
+    let el = typingBubbles.get(uid);
+    if (!el){
+      el = document.createElement('div');
+      el.className = 'chat-bubble show';
+      el.textContent = (text && String(text).length) ? String(text).slice(0, TYPING_MAX_LEN) : '...';
+      if (color) el.style.color = color;
+      document.body.appendChild(el);
+      typingBubbles.set(uid, el);
+      const update = () => {
+        try {
+          let worldX = 0, worldY = 0;
+          const isLocal = _state && uid === _state.uid;
+          if (isLocal) { worldX = _state.playerX; worldY = _state.playerY; }
+          else {
+            const pos = getRemotePlayerWorldXY(uid);
+            if (pos) { worldX = pos.x; worldY = pos.y; }
+          }
+          const cx = Number(_state?.containerX) || 0;
+          const cy = Number(_state?.containerY) || 0;
+          const halfW = (_state?.playerW ?? 128) / 2;
+          el.style.left = `${worldX + cx + halfW}px`;
+          el.style.top = `${worldY + cy - 24}px`;
+        } catch {}
+        el._raf = requestAnimationFrame(update);
+      };
+      el._raf = requestAnimationFrame(update);
+    }
+    // update content and color on subsequent calls
+    el.textContent = (text && String(text).length) ? String(text).slice(0, TYPING_MAX_LEN) : '...';
+    if (color) el.style.color = color;
+    el.style.opacity = '1';
+  } catch {}
+}
+
+function hideTypingBubble(uid){
+  const el = typingBubbles.get(uid);
+  if (!el) return;
+  try { cancelAnimationFrame(el._raf); } catch {}
+  el.remove();
+  typingBubbles.delete(uid);
+}
+
+function setTyping(on, text){
+  const now = Date.now();
+  if (on && (now - _typingLastWrite) < TYPING_DEBOUNCE_MS) return;
+  _typingLastWrite = now;
+  try {
+    (async () => {
+      const fb = await import('../services/firebase.js');
+      const { rtdb, ref, update } = fb;
+      const uid = _state?.uid;
+      const room = _state?.currentRoom || roomCode;
+      if (!uid || !room) return;
+      const payload = { on: !!on, ts: now };
+      if (on && typeof text === 'string') payload.text = text.slice(0, TYPING_MAX_LEN);
+      await update(ref(rtdb, `lobbies/${room}/players/${uid}`), { typing: payload });
+    })();
+  } catch {}
+  if (_typingExpiryTimer) clearTimeout(_typingExpiryTimer);
+  if (on) _typingExpiryTimer = setTimeout(() => setTyping(false, ''), TYPING_EXPIRE_MS);
+}
+
+
+
+

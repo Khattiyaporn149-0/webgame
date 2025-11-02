@@ -633,6 +633,10 @@
             padding: 6px 10px;
             border-radius: 12px;
             font-size: 14px;
+            max-width: 260px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             transform: translate(-50%, -100%);
             opacity: 0;
             transition: opacity 0.2s ease, transform 0.2s ease;
@@ -661,6 +665,15 @@
 
 
 
+        /* Settings button + modal (lightweight styles) */
+        .settings-btn{position:fixed;top:16px;left:16px;right:auto;z-index:1201;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:10px;padding:8px 10px;cursor:pointer;backdrop-filter:blur(6px)}
+        .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);z-index:1300}
+        #settingsModal[aria-hidden="false"]{display:flex}
+        .dialog{background:rgba(20,28,48,.96);border:1px solid rgba(255,255,255,.15);border-radius:14px;min-width:280px;max-width:90vw;padding:16px;color:#e6e6fa;box-shadow:0 10px 30px #0008}
+        .dialog-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+        .dialog .row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}
+        .dialog input[type=range]{width:180px}
+        .dialog select{background:#0b1324;color:#e6e6fa;border:1px solid #394867;border-radius:8px;padding:6px}
     </style>
 </head>
 <body>
@@ -760,12 +773,63 @@
     <audio id="sfx-heist" src="../assets/sounds/click.mp3"></audio>
     <audio id="bgm-music" src="../assets/sounds/galaxy-283941.mp3" loop></audio>
 
+    <!-- Settings button -->
+    <button class="settings-btn" id="btnSettingsTop" title="Settings">⚙️</button>
+
 <!-- โหลด socket.io (ให้ตัวแปร window.io ใช้ใน multiplayer.js) -->
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" crossorigin="anonymous"></script>
+<script type="module" src="../src/services/common-settings.js"></script>
 
 <!-- โหลด entry ของเกมแบบ ES module: ให้ core.js import ไฟล์อื่นทั้งหมดเอง -->
 <script type="module" src="../src/core/core.js"></script>
 <script src="./minigame-iframe.js"></script>
+
+<!-- Settings Modal -->
+<div class="modal" id="settingsModal" aria-hidden="true" role="dialog">
+  <div class="dialog">
+    <div class="dialog-head">
+      <h3 style="margin:0">Settings</h3>
+      <button class="settings-btn" id="closeSettings" style="position:static;padding:4px 8px">✖</button>
+    </div>
+    <div class="dialog-body">
+      <label class="row"><span>Master Volume</span><input id="rangeMaster" type="range" min="0" max="1" step="0.01"></label>
+      <label class="row"><span>Music</span><input id="rangeMusic" type="range" min="0" max="1" step="0.01"></label>
+      <label class="row"><span>SFX</span><input id="rangeSfx" type="range" min="0" max="1" step="0.01"></label>
+      <label class="row"><span>Region</span>
+        <select id="regionSel">
+          <option value="asia">Asia</option>
+          <option value="na">North America</option>
+          <option value="eu">Europe</option>
+        </select>
+      </label>
+    </div>
+  </div>
+  <script>
+    // Open/close modal
+    (function(){
+      const modal = document.getElementById('settingsModal');
+      const btn   = document.getElementById('btnSettingsTop');
+      const x     = document.getElementById('closeSettings');
+      btn?.addEventListener('click', ()=> modal?.setAttribute('aria-hidden','false'));
+      x  ?.addEventListener('click', ()=> modal?.setAttribute('aria-hidden','true'));
+      modal?.addEventListener('click', (e)=>{ if (e.target===modal) modal.setAttribute('aria-hidden','true'); });
+    })();
+    // Bind sliders to GameSettings
+    window.addEventListener('DOMContentLoaded', ()=>{
+      if (!window.GameSettings) return;
+      const s = window.GameSettings.get();
+      const rM=document.getElementById('rangeMaster');
+      const rMu=document.getElementById('rangeMusic');
+      const rS=document.getElementById('rangeSfx');
+      const reg=document.getElementById('regionSel');
+      if (rM) rM.value=s.master; if (rMu) rMu.value=s.music; if (rS) rS.value=s.sfx; if (reg) reg.value=s.region;
+      rM ?.addEventListener('input', e=> window.GameSettings.set({ master:+e.target.value }));
+      rMu?.addEventListener('input', e=> window.GameSettings.set({ music :+e.target.value }));
+      rS ?.addEventListener('input', e=> window.GameSettings.set({ sfx   :+e.target.value }));
+      reg?.addEventListener('change', e=> window.GameSettings.set({ region:e.target.value }));
+    });
+  </script>
+</div>
 
 </body>
 </html>

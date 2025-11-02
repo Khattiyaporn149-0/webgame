@@ -67,6 +67,19 @@ export const refs = {
   get sfxHeist(){ return document.getElementById('sfx-heist'); },
 };
 
+function applyAudioSettingsToDom(){
+  try {
+    const gs = window.GameSettings && typeof window.GameSettings.get === 'function' ? window.GameSettings.get() : null;
+    const master = gs ? +gs.master : 1;
+    const music  = gs ? +gs.music  : 0.5;
+    const sfx    = gs ? +gs.sfx    : 0.5;
+    const clamp = (v)=> Math.max(0, Math.min(1, v));
+    if (refs.bgmMusic) refs.bgmMusic.volume   = clamp(master * music);
+    if (refs.sfxInteract) refs.sfxInteract.volume = clamp(master * sfx);
+    if (refs.sfxHeist) refs.sfxHeist.volume   = clamp(master * sfx);
+  } catch {}
+}
+
 let idleFrames = ['../assets/Characters/mini_brown/idle_1.png'];
 let walkFrames = Array.from({length:8},(_,i)=>`../assets/Characters/mini_brown/walk_${i+1}.png`);
 function setCharacterFolder(folder){
@@ -404,7 +417,11 @@ export async function initGame(){
 
   // Role reveal: จะถูกเรียกโดย multiplayer เมื่อได้รับ role จาก server
 
-  if (refs.bgmMusic){ refs.bgmMusic.volume = 0.4; refs.bgmMusic.play().catch(()=>{}); }
+  if (refs.bgmMusic){
+    applyAudioSettingsToDom();
+    refs.bgmMusic.play().catch(()=>{});
+  }
+  try { window.GameSettings?.onChange?.(() => applyAudioSettingsToDom()); } catch {}
 
   updateCamera(); renderDisplay();
   requestAnimationFrame(loop);
