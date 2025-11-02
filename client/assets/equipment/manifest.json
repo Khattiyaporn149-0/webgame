@@ -2,7 +2,7 @@
   "hat": [
     { "id": "baimai", "label": "ใบไม้น้อยนี้ล่วงหล่นมาจากไหนกันนะ โถ่เอ้ย", "y": -130, "scale": 0.2, "origin": "center" },
     { "id": "Crown", "label": "เห้ย แกเห็นเราเป็นตัวตลกหรอ ละขำป้ะ", "y": -80, "scale": 1, "origin": "center" },
-    { "id": "ghost", "label": "พี่แจ๊คครับ! ผมเห็นผ้าคลุมลอยได้", "y": -20, "scale": 1.3, "origin": "center bottom" }
+    { "id": "ghost", "label": "พี่แจ๊คครับ! ผมเห็นผ้าคลุมลอยได้", "y": -25, "scale": 1.4, "origin": "center bottom" }
   ],
   "mask": [],
   "suit": [

@@ -2,7 +2,7 @@
 
 import { loadCollisionData, checkCollision } from './collision.js';
 import { toggleFullScreenMap, updateMiniMapDisplay } from './minimap.js';
-import { checkInteractions, checkObjectInteractions, startMeeting, endMeeting, updateTaskWorldHints } from './interactions.js';
+import { checkInteractions, checkObjectInteractions, checkGemInteractions, startMeeting, endMeeting, updateTaskWorldHints, updateGemMarkers, updateThiefGemHUD } from './interactions.js';
 import { initMultiplayer, sendPlayerPositionThrottled, startRemotePlayersRenderLoop } from './multiplayer.js';
 import { initChat, isTyping } from './chat.js';
 import { isRoleRevealed } from './roles.js';
@@ -47,6 +47,10 @@ export const state = {
   myCurrentWave: 0,          // 1, 2, 3
   myUnlockedTasks: [],       // ["align", "mop", ...]
   myCompletedTasks: [],      // ["align", ...]
+
+  // Gem Heist system
+  gems: [],                 // populated from server [{id,x,y,difficulty,time,stolenBy}]
+  gemCooldownUntil: 0,
 };
 
 export const refs = {
@@ -66,6 +70,8 @@ export const refs = {
   get bgmMusic(){ return document.getElementById('bgm-music'); },
   get sfxInteract(){ return document.getElementById('sfx-interact'); },
   get sfxHeist(){ return document.getElementById('sfx-heist'); },
+  get thiefGemHud(){ return document.getElementById('thief-gem-progress'); },
+  get thiefGemText(){ return document.getElementById('thief-gem-text'); },
 };
 
 function applyAudioSettingsToDom(){
@@ -161,6 +167,9 @@ export function initPlayerTasks() {
       if (fill) fill.style.width = `${pct}%`;
     }
   } catch {}
+
+  // Initial gem HUD/markers (hidden for non-thief)
+  try { updateGemMarkers?.(); updateThiefGemHUD?.(); } catch {}
 }
 
 export function getMyTaskProgress() {
@@ -270,6 +279,8 @@ function loop(ts){
   renderDisplay();
   checkInteractions();
   checkObjectInteractions();
+  // New: gem interactions for Thief
+  try { checkGemInteractions?.(); } catch {}
   tickAnimation(ts);
   requestAnimationFrame(loop);
 }
@@ -333,14 +344,19 @@ function ensureEquipLayer(slot){
     el.decoding = 'async';
     Object.assign(el.style, {
       position: 'absolute',
-      left: '0px',
-      top: '0px',
-      width: '200px',
-      height: '220px',
+      left: '50%',
+      top: '50%',
+      width: 'auto',
+      height: 'auto',
+      maxWidth: '100%',
+      maxHeight: '100%',
       imageRendering: 'pixelated',
       pointerEvents: 'none',
     });
-    const z = { back: 295, suit: 305, hat: 310, mask: 315, acc: 320 }[slot] || 305;
+    // Default z-index based on slot (will be updated when equipment loads based on manifest layer)
+    // Player z-index is 300, back should be behind (290), others in front (310-340)
+    const zIndexMap = { back: 290, suit: 310, hat: 320, mask: 330, acc: 340 };
+    const z = zIndexMap[slot] || 310;
     el.style.zIndex = String(z);
     wrap.appendChild(el);
   }
@@ -359,18 +375,73 @@ function setEquipLayer(slot, name){
   if (!el) return;
   if (!name){ el.src = ''; el.style.display = 'none'; return; }
   el.style.display = 'block';
-  el.src = `../assets/equipment/${slot}/${name}.png`;
-  try {
-    const meta = findManifestEntry(slot, name) || {};
-    const scale = Number(meta.scale) || 1;
-    const y = Number(meta.y) || 0;
-    const origin = (meta.origin || 'center');
-    el.style.transformOrigin = origin;
-    el.style.transform = `translate(0px, ${y}px) scale(${scale})`;
-  } catch {
-    el.style.transformOrigin = 'center';
-    el.style.transform = 'translate(0px, 0px) scale(1)';
+  
+  // Base box size for character sprite
+  const BASE_BOX = { w: 200, h: 220 };
+  const SLOT_BASE_SCALE = { hat: 0.85, mask: 0.9, suit: 0.65, back: 0.8, acc: 0.9 };
+  
+  // Helper function to get CSS variable (like lobby.html)
+  function cssVar(name, fallback = '0px'){
+    try {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return v || fallback;
+    } catch {
+      return fallback;
+    }
   }
+  
+  // Helper to get numeric CSS variable (for scale)
+  function cssVarNum(name, fallback = 1){
+    try {
+      const v = cssVar(name, String(fallback));
+      const num = parseFloat(v);
+      return isNaN(num) ? fallback : num;
+    } catch {
+      return fallback;
+    }
+  }
+  
+  // Setup onload handler to calculate size based on actual image dimensions
+  el.onload = () => {
+    try {
+      const meta = findManifestEntry(slot, name) || {};
+      // Update z-index based on layer from manifest (back should be behind player)
+      const layer = meta.layer || slot;
+      const zIndexMap = { back: 290, suit: 310, hat: 320, mask: 330, acc: 340 };
+      const z = zIndexMap[layer] || zIndexMap[slot] || 310;
+      el.style.zIndex = String(z);
+      
+      // Get actual image dimensions (same as lobby.html)
+      const nw = el.naturalWidth || BASE_BOX.w;
+      const nh = el.naturalHeight || BASE_BOX.h;
+      // Calculate auto scale to fit base box (same as lobby.html - uses BASE_BOX directly)
+      const sAuto = Math.min(BASE_BOX.w / nw, BASE_BOX.h / nh);
+      // Apply base scale for slot (same as lobby.html fitLayer function)
+      const baseScale = SLOT_BASE_SCALE[slot] || 1;
+      const manifestScale = meta.scale || 1;  // Use same as lobby: ov.scale || 1
+      // Use same calculation as lobby: sAuto * SLOT_BASE_SCALE * manifestScale
+      const finalScale = sAuto * baseScale * manifestScale;
+      
+      // Get x, y from manifest or use CSS variable fallback (same as lobby.html)
+      const tx = meta.x != null ? (meta.x + 'px') : cssVar(`--equip-${slot}-x`, '0px');
+      const ty = meta.y != null ? (meta.y + 'px') : cssVar(`--equip-${slot}-y`, '0px');
+      // Transform origin (same as lobby: ov.origin || null, only set if origin exists)
+      const origin = meta.origin || null;
+      
+      if (origin) el.style.transformOrigin = origin;
+      // Use same transform pattern as lobby.html: translate(-50%, -50%) translate(tx, ty) scale(s)
+      el.style.transform = `translate(-50%, -50%) translate(${tx}, ${ty}) scale(${finalScale})`;
+    } catch {
+      el.style.transformOrigin = 'center';
+      el.style.transform = 'translate(-50%, -50%) scale(1)';
+    }
+  };
+  
+  el.onerror = () => {
+    el.style.display = 'none';
+  };
+  
+  el.src = `../assets/equipment/${slot}/${name}.png`;
 }
 
 async function applyLocalEquip(equip){

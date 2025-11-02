@@ -3,17 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Heist - เดโม (ประชุมแบบโต้ตอบได้)</title>
+    <title>The Heist</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;1,200;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
-
+  <link rel="icon" href="../assets/logo/Logo.jpg" />
     <style>
        .bai-jamjuree-medium {
         font-family: "Bai Jamjuree", sans-serif;
         font-weight: 500;
         font-style: normal;
         }
+    /* Equipment sizing variables (same as lobby.html) */
+    :root {
+      --equip-hat-scale: .78;   --equip-hat-x: 0px;   --equip-hat-y: -2px;
+      --equip-mask-scale: .88;  --equip-mask-x: 0px;  --equip-mask-y: 0px;
+      --equip-suit-scale: .72;  --equip-suit-x: 0px;  --equip-suit-y: -4px;
+      --equip-back-scale: .80;  --equip-back-x: 0px;  --equip-back-y: -2px;
+      --equip-acc-scale: .86;   --equip-acc-x: 0px;   --equip-acc-y: 0px;
+    }
     /* ตั้งค่าพื้นฐาน */
         body {
             margin: 0;
@@ -700,6 +708,7 @@
             <div id="nameplate" style="position:absolute;left:50%;bottom:100%;transform:translate(-50%,-8px);color:#fff;font-weight:700;text-shadow:0 2px 6px #000;z-index:350;white-space:nowrap;"></div>
         </div>
         <div id="mission-guest" class="mission-spot"></div>
+    <div id="mission-heist" class="mission-spot"></div>
         <div id="mission-meeting" class="mission-spot"></div>
         <div id="mission-cctv" class="mission-spot"
         style="background: transparent; border: none; opacity: 0;"></div>
@@ -719,6 +728,14 @@
             <div id="mission-bar-fill"></div>
         </div>
     </div>
+
+        <!-- Thief gem progress HUD -->
+        <div id="thief-gem-progress" style="position:fixed; top:20px; right:20px; z-index:1200; display:none;">
+            <div style="display:flex; align-items:center; gap:8px; background:rgba(20,20,30,.8); color:#fff; padding:8px 12px; border:1px solid rgba(255,255,255,.2); border-radius:999px; box-shadow:0 6px 16px rgba(0,0,0,.35);">
+                <span style="font-size:16px">💎</span>
+                <span id="thief-gem-text" style="font-weight:800; letter-spacing:.5px">0 / 5</span>
+            </div>
+        </div>
     
     <div id="log-container">
     </div>

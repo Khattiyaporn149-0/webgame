@@ -66,9 +66,42 @@ function findEntry(slot, id){
   } catch { return null; }
 }
 
-function ensureRemoteEquipLayer(uid, slot){
+function ensureRemotePlayerEquipWrapper(uid){
   const gc = refs?.gameContainer || document.getElementById('gameContainer');
   if (!gc) return null;
+  const playerEl = remotePlayers[uid];
+  if (!playerEl) return null;
+  
+  // Create wrapper if not exists (similar to player-wrap for local player)
+  if (!playerEl._equipWrapper){
+    const wrapper = document.createElement('div');
+    wrapper.className = 'remote-player-equip-wrapper';
+    Object.assign(wrapper.style, {
+      position: 'absolute',
+      left: '0px',
+      top: '0px',
+      width: '200px',
+      height: '220px',
+      pointerEvents: 'none',
+      willChange: 'transform',
+    });
+    // Position wrapper at player location
+    const playerTransform = playerEl.style.transform || '';
+    const match = playerTransform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+    if (match){
+      const px = parseFloat(match[1]) || 0;
+      const py = parseFloat(match[2]) || 0;
+      wrapper.style.transform = `translate(${px}px, ${py}px)`;
+    }
+    gc.appendChild(wrapper);
+    playerEl._equipWrapper = wrapper;
+  }
+  return playerEl._equipWrapper;
+}
+
+function ensureRemoteEquipLayer(uid, slot){
+  const wrapper = ensureRemotePlayerEquipWrapper(uid);
+  if (!wrapper) return null;
   if (!remoteEquipLayers.has(uid)) remoteEquipLayers.set(uid, {});
   const store = remoteEquipLayers.get(uid);
   if (store[slot]) return store[slot];
@@ -77,16 +110,85 @@ function ensureRemoteEquipLayer(uid, slot){
   el.alt = slot;
   Object.assign(el.style, {
     position: 'absolute',
-    left: '0px', top: '0px',
-    width: '200px', height: '220px',
+    left: '50%',
+    top: '50%',
+    width: 'auto',
+    height: 'auto',
+    maxWidth: '100%',
+    maxHeight: '100%',
     imageRendering: 'pixelated',
     pointerEvents: 'none',
+    willChange: 'transform',
   });
-  const z = { back: 295, suit: 305, hat: 310, mask: 315, acc: 320 }[slot] || 305;
-  el.style.zIndex = String(z);
-  gc.appendChild(el);
+  // z-index will be updated based on manifest layer in updateRemoteEquipTransform
+  // Default z-index (will be overridden when equipment loads)
+  el.style.zIndex = '310';
+  wrapper.appendChild(el);
   store[slot] = el;
   return el;
+}
+
+// Helper to calculate and apply equipment transform (called every render frame)
+function updateRemoteEquipTransform(el, slot, name, tx, ty){
+  try {
+    const BASE_BOX = { w: 200, h: 220 };
+    const SLOT_BASE_SCALE = { hat: 0.85, mask: 0.9, suit: 0.65, back: 0.8, acc: 0.9 };
+    
+    function cssVar(name, fallback = '0px'){
+      try {
+        const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        return v || fallback;
+      } catch {
+        return fallback;
+      }
+    }
+    
+    const meta = findEntry(slot, name) || {};
+    
+    // Wait for image to load before calculating size (use natural dimensions only when loaded)
+    if (!el.complete || el.naturalWidth === 0 || el.naturalHeight === 0){
+      // Image not loaded yet, just set position without scale
+      const mx = meta.x != null ? (meta.x + 'px') : cssVar(`--equip-${slot}-x`, '0px');
+      const my = meta.y != null ? (meta.y + 'px') : cssVar(`--equip-${slot}-y`, '0px');
+      const defaultOrigins = { hat: 'center bottom', mask: 'center center', suit: 'center bottom', back: 'center bottom', acc: 'center center' };
+      const origin = meta.origin || defaultOrigins[slot] || 'center';
+      el.style.transformOrigin = origin;
+      el.style.transform = `translate(-50%, -50%) translate(${mx}, ${my}) scale(1)`;
+      return; // Wait for image to load
+    }
+    
+    // Image is loaded, calculate actual size (same as lobby.html)
+    const nw = el.naturalWidth;
+    const nh = el.naturalHeight;
+    // Calculate auto scale to fit base box (same as lobby.html - uses BASE_BOX directly)
+    const sAuto = Math.min(BASE_BOX.w / nw, BASE_BOX.h / nh);
+    // Apply base scale for slot (same as lobby.html fitLayer function)
+    const baseScale = SLOT_BASE_SCALE[slot] || 1;
+    const manifestScale = meta.scale || 1;  // Use same as lobby: ov.scale || 1
+    // Use same calculation as lobby: sAuto * SLOT_BASE_SCALE * manifestScale
+    const finalScale = sAuto * baseScale * manifestScale;
+    
+    // Update z-index based on layer from manifest (back should be behind player)
+    const layer = meta.layer || slot;
+    const zIndexMap = { back: 290, suit: 310, hat: 320, mask: 330, acc: 340 };
+    const z = zIndexMap[layer] || zIndexMap[slot] || 310;
+    el.style.zIndex = String(z);
+    
+    // Get x, y from manifest or use CSS variable fallback (same as lobby.html)
+    const mx = meta.x != null ? (meta.x + 'px') : cssVar(`--equip-${slot}-x`, '0px');
+    const my = meta.y != null ? (meta.y + 'px') : cssVar(`--equip-${slot}-y`, '0px');
+    // Transform origin (same as lobby: ov.origin || null, only set if origin exists)
+    const origin = meta.origin || null;
+    
+    if (origin) el.style.transformOrigin = origin;
+    // Use same transform pattern as lobby.html: translate(-50%, -50%) translate(offset) scale
+    // Wrapper handles player position, so equipment only needs relative transform
+    el.style.transform = `translate(-50%, -50%) translate(${mx}, ${my}) scale(${finalScale})`;
+  } catch (e) {
+    // Fallback: just position it at player location
+    el.style.transformOrigin = 'center';
+    el.style.transform = `translate(-50%, -50%) scale(1)`;
+  }
 }
 
 async function renderRemoteEquipFor(p, tx, ty){
@@ -94,24 +196,47 @@ async function renderRemoteEquipFor(p, tx, ty){
   const uid = p.uid;
   const equip = (playerEquips.get(uid) || p.equip || {});
   const slots = ['back','suit','mask','hat','acc'];
+  
+  // Debug: log equipment data (only first time per uid)
+  if (equip && Object.keys(equip).length > 0 && !remoteEquipLayers.has(uid + '_logged')){
+    try { console.debug('[equip] Remote player', uid, 'has equipment:', equip); } catch {}
+    remoteEquipLayers.set(uid + '_logged', true);
+  }
+  
   for (const slot of slots){
     const name = equip?.[slot];
     const el = ensureRemoteEquipLayer(uid, slot);
     if (!el) continue;
-    if (!name){ el.style.display = 'none'; el.src = ''; continue; }
-    el.style.display = 'block';
-    el.src = `../assets/equipment/${slot}/${name}.png`;
-    try {
-      const meta = findEntry(slot, name) || {};
-      const scale = Number(meta.scale) || 1;
-      const y = Number(meta.y) || 0;
-      const origin = (meta.origin || 'center');
-      el.style.transformOrigin = origin;
-      el.style.transform = `translate(${tx}px, ${ty}px) translate(0px, ${y}px) scale(${scale})`;
-    } catch {
-      el.style.transformOrigin = 'center';
-      el.style.transform = `translate(${tx}px, ${ty}px)`;
+    if (!name){ 
+      el.style.display = 'none'; 
+      el.src = ''; 
+      continue; 
     }
+    el.style.display = 'block';
+    el.style.visibility = 'visible';
+    el.style.opacity = '1';
+    
+    // Setup onload handler to calculate size when image first loads
+    if (!el.dataset.equipLoaded || el.dataset.equipLoaded !== name){
+      el.onload = () => {
+        el.dataset.equipLoaded = name;
+        // Force update transform when image loads
+        updateRemoteEquipTransform(el, slot, name, tx, ty);
+      };
+      
+      el.onerror = () => {
+        el.style.display = 'none';
+      };
+      
+      // Only set src if it's different to avoid reloading
+      if (el.src !== `../assets/equipment/${slot}/${name}.png`){
+        el.src = `../assets/equipment/${slot}/${name}.png`;
+        el.dataset.equipLoaded = ''; // Reset to trigger onload
+      }
+    }
+    
+    // Update transform every frame - this ensures equipment follows player and uses correct size
+    updateRemoteEquipTransform(el, slot, name, tx, ty);
   }
 }
 
@@ -351,6 +476,9 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
       // persist and apply
       try { sessionStorage.setItem('myRole', role); } catch {}
       state.myRole = role;
+      // If became Thief, fetch gem state and show markers/HUD
+      try { if (window.socket && window.socket.connected && role === 'Thief') { window.socket.emit('gem:get'); } } catch {}
+      try { import('./interactions.js').then(m=>{ m.updateGemMarkers?.(); m.updateThiefGemHUD?.(); }); } catch {}
       // trigger reveal UI if available
       import('./roles.js').then(m => {
         if (typeof m.getRole === 'function' && m.getRole() === role) return;
@@ -429,9 +557,9 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
       // restore player position
       state.playerX = x; state.playerY = y;
 
-      // refresh UI
-      try { import('./minimap.js').then(m=>m.updateMiniMapDisplay?.()); } catch {}
-      try { import('./interactions.js').then(m=>{ m.updateTaskWorldHints?.(); m.refreshMissionUI?.(); }); } catch {}
+  // refresh UI
+  try { import('./minimap.js').then(m=>m.updateMiniMapDisplay?.()); } catch {}
+  try { import('./interactions.js').then(m=>{ m.updateTaskWorldHints?.(); m.refreshMissionUI?.(); m.updateGemMarkers?.(); m.updateThiefGemHUD?.(); }); } catch {}
       console.log('🔁 state:resume applied', { role, currentWave, completedCount: completed.length, x, y });
 
       // เรียก revealRole เมื่อรีเฟรชหน้า เพื่อให้ HUD/mission bar ถูกต้องตามบทบาททันที
@@ -469,6 +597,50 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
     } catch (e) {
       console.error('game:visitorsWin handler failed', e);
     }
+  });
+
+  // ✅ Thief Wins (gem heist)
+  socket.on('game:thiefWin', (data) => {
+    try {
+      console.log('💎 Thief Win!', data);
+      import('./endgame.js').then(m => {
+        const showEnd = m?.showEnd || m?.default;
+        if (showEnd) {
+          showEnd({
+            outcome: 'thief_win',
+            reason: 'all_gems_stolen',
+            title: 'THIEF WINS!',
+            desc: data?.message || 'All gems have been stolen.'
+          });
+        }
+      }).catch(err => console.error('endgame load failed', err));
+    } catch (e) {
+      console.error('game:thiefWin handler failed', e);
+    }
+  });
+
+  // ✅ Sync gem layout/state
+  socket.on('gem:state', (data={}) => {
+    try {
+      state.gems = Array.isArray(data.gems) ? data.gems : [];
+      // Update simple HUD and markers
+      import('./interactions.js').then(m => {
+        m.updateGemMarkers?.();
+        m.updateThiefGemHUD?.();
+      }).catch(()=>{});
+    } catch (e) {
+      console.error('gem:state handler failed', e);
+    }
+  });
+
+  // ✅ Cooldown feedback for failed lockpicks
+  socket.on('gem:cooldown', (data={}) => {
+    try {
+      const until = Number(data.until||0);
+      state.gemCooldownUntil = until;
+      const remain = Math.max(0, Math.ceil((until - Date.now())/1000));
+      window.showToast && showToast(`⏳ Lockpick cooldown ${remain}s`, 'warning');
+    } catch {}
   });
 
   socket.on('disconnect', (r) => console.log('Socket disconnected:', r));
@@ -575,11 +747,15 @@ export function startRemotePlayersRenderLoop(){
       const tx = Math.round(nx), ty = Math.round(ny);
       if (tx !== +el.dataset.tx || ty !== +el.dataset.ty){
         el.style.transform = `translate(${tx}px, ${ty}px)`;
+        // Update equipment wrapper position to match player
+        if (el._equipWrapper){
+          el._equipWrapper.style.transform = `translate(${tx}px, ${ty}px)`;
+        }
         el.dataset.tx = tx; el.dataset.ty = ty;
       }
       el.dataset.x = nx; el.dataset.y = ny;
 
-      // Render equipment overlays for this remote player
+      // Render equipment overlays for this remote player (wrapper handles position)
       try {
         renderRemoteEquipFor(p, tx, ty);
       } catch {}

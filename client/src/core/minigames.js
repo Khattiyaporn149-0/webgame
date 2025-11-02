@@ -3,7 +3,7 @@
 const REG_PATH = '../src/minigames/registry.json';
 let regCache = null;
 let modal, frame, fill, closing = false;
-let pending = null; // { obj, key, difficulty, onComplete, openedAt }
+let pending = null; // { obj, key, difficulty, onComplete, onCancel, openedAt }
 let completedOnce = false; // one-time completion guard per open
 
 async function loadReg(){
@@ -74,7 +74,7 @@ function ensureOverlay(){
 // Progress UI removed for consistency across all minigames overlays
 function setProgress(p){ /* no-op */ }
 
-export async function openMinigameForObject(obj, { onComplete } = {}){
+export async function openMinigameForObject(obj, { onComplete, onCancel } = {}){
   if (!obj?.mg) return;
   ensureOverlay();
   await loadReg();
@@ -83,7 +83,7 @@ export async function openMinigameForObject(obj, { onComplete } = {}){
   const difficulty = obj.mg.difficulty || 'normal';
   try {
     const now = (typeof performance!=='undefined' && performance.now) ? performance.now() : Date.now();
-    pending = { obj, key, difficulty, onComplete, openedAt: now };
+  pending = { obj, key, difficulty, onComplete, onCancel, openedAt: now };
   } catch {
     pending = { obj, key, difficulty, onComplete };
   }
@@ -129,5 +129,8 @@ function onMsg(e){
     try { pending?.onComplete?.(pending.obj); } catch {}
     setTimeout(()=> closeMini(), 300);
   }
-  else if (d.type === 'mg:cancel'){ closeMini(); }
+  else if (d.type === 'mg:cancel'){
+    try { pending?.onCancel?.(pending.obj); } catch {}
+    closeMini();
+  }
 }
