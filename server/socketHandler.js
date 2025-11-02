@@ -422,41 +422,13 @@ function registerSocketHandlers(io) {
         const gr = ensureGameRoom(room);
         if (!gr) return;
         
-        // Try gr.players first, fallback to socket connections if empty
-        let players = Array.from(gr.players?.values() || []);
-        
-        // If empty, build from socket room connections
-        if (!players || players.length === 0) {
-          try {
-            const roomSockets = io.sockets.adapter.rooms.get(room);
-            if (roomSockets && roomSockets.size > 0) {
-              players = Array.from(roomSockets)
-                .map(sid => {
-                  const s = io.sockets.sockets.get(sid);
-                  return s?.data ? {
-                    uid: s.data.uid,
-                    name: s.data.name || `Player_${String(s.data.uid).slice(0,4)}`,
-                    x: s.data.x || 0,
-                    y: s.data.y || 0,
-                    char: s.data.char || 'mini_brown',
-                    color: s.data.color || '#ffffff'
-                  } : null;
-                })
-                .filter(p => p);
-              console.log(`📡 Built snapshot from ${players.length} socket connections for ${room}`);
-            }
-          } catch (e) {
-            console.warn('Failed to build from socket room:', e);
-          }
-        }
-        
         // Send immediate snapshot with current players
         const payload = {
           room: room,
-          players: players,
+          players: Array.from(gr.players.values()),
         };
         io.to(room).emit("snapshot", payload);
-        console.log(`📡 Sent immediate snapshot to room ${room} (${players.length} players)`);
+        console.log(`📡 Sent immediate snapshot to room ${room}`);
       } catch (e) {
         console.warn('snapshot:request handler failed', e);
       }

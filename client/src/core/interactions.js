@@ -166,64 +166,59 @@ export function startMeeting(at = CONST.MEETING_POINT){
   const result = refs.voteResultText;
   if (!grid) return;
 
-  grid.innerHTML = '<p style="color:#aaa">🔔 กำลังเรียกทุกคนมาประชุม...</p>'; // loading message
+  grid.innerHTML = ''; // ล้างรายการเก่า
 
-  // � Request fresh snapshot from server ALWAYS
-  try {
-    if (window.socket) {
-      window.socket.emit('snapshot:request', { room: state.gameRoom });
-      console.log('📡 [Meeting] Requested fresh snapshot');
+  // ✅ ดึงข้อมูลผู้เล่นทั้งหมดในห้อง
+  let players = getCurrentPlayers();
+  
+  // 🔄 ถ้าไม่มีข้อมูลหรือข้อมูลจาก snapshot ช้า ให้ request snapshot ใหม่จาก server
+  if (!players || players.length === 0) {
+    try {
+      if (window.socket) {
+        window.socket.emit('snapshot:request', { room: state.gameRoom });
+        console.log('📡 Requested fresh snapshot for meeting');
+      }
+    } catch (e) {
+      console.warn('Failed to request snapshot:', e);
     }
-  } catch (e) {
-    console.warn('[Meeting] Failed to request snapshot:', e);
+    
+    // ใช้ข้อมูลปัจจุบัน (อาจจะช้า แต่ดีกว่าไม่มี)
+    players = getCurrentPlayers();
+  }
+  
+  if (!players || !players.length) {
+    const emptyMsg = document.createElement('p');
+    emptyMsg.textContent = '(ไม่มีผู้เล่นในห้อง)';
+    emptyMsg.style.color = '#ccc';
+    grid.appendChild(emptyMsg);
+    return;
   }
 
-  // ⏱ Wait for snapshot to arrive, then render players
-  setTimeout(() => {
-    try {
-      let players = getCurrentPlayers();
-      console.log(`[Meeting] Rendering ${players?.length || 0} players after snapshot`);
-      
-      grid.innerHTML = ''; // clear loading message
-      
-      if (!players || !players.length) {
-        const emptyMsg = document.createElement('p');
-        emptyMsg.textContent = '(ไม่มีผู้เล่นในห้อง)';
-        emptyMsg.style.color = '#ccc';
-        grid.appendChild(emptyMsg);
-        return;
-      }
+  // ✅ สร้างการ์ดผู้เล่นแต่ละคน
+  players.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'player-card';
+    card.dataset.player = p.uid;
 
-      // ✅ สร้างการ์ดผู้เล่นแต่ละคน
-      players.forEach(p => {
-        const card = document.createElement('div');
-        card.className = 'player-card';
-        card.dataset.player = p.uid;
+    const img = document.createElement('img');
+    img.src = `../assets/Characters/${p.char}/idle_1.png`;
+    img.alt = p.name;
 
-        const img = document.createElement('img');
-        img.src = `../assets/Characters/${p.char}/idle_1.png`;
-        img.alt = p.name;
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = p.name;
 
-        const name = document.createElement('span');
-        name.className = 'name';
-        name.textContent = p.name;
+    const btn = document.createElement('button');
+    btn.className = 'vote-btn';
+    btn.textContent = 'Vote';
+    btn.addEventListener('click', () => {
+      if (result) result.textContent = `คุณโหวตให้ ${p.name}`;
+      setTimeout(() => endMeeting(), 2000);
+    });
 
-        const btn = document.createElement('button');
-        btn.className = 'vote-btn';
-        btn.textContent = 'Vote';
-        btn.addEventListener('click', () => {
-          if (result) result.textContent = `คุณโหวตให้ ${p.name}`;
-          setTimeout(() => endMeeting(), 2000);
-        });
-
-        card.append(img, name, btn);
-        grid.appendChild(card);
-      });
-    } catch (e) {
-      console.error('[Meeting] Failed to render players:', e);
-      grid.innerHTML = '<p style="color:#f44">(ข้อผิดพลาด)</p>';
-    }
-  }, 300); // wait 300ms for snapshot to arrive
+    card.append(img, name, btn);
+    grid.appendChild(card);
+  });
 }
 
 export function endMeeting(){
@@ -441,7 +436,7 @@ export function checkObjectInteractions(){
     return;
   }if (near.type === 'Telephone') {
 if (near.type === 'Telephone') {
-  if (roleNameText === 'Thief') {
+  if (getRole() === 'Thief') {
     import('./endgame.js').then(() => {
       window.showEnd({
         outcome: 'thief_win',
