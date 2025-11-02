@@ -412,6 +412,27 @@ function registerSocketHandlers(io) {
         console.warn('task:complete handler failed', e);
       }
     });
+
+    // 📡 Handle snapshot:request - client requests immediate snapshot update
+    socket.on('snapshot:request', (data = {}) => {
+      try {
+        const room = data.room || socket.data.room;
+        if (!room) return;
+        
+        const gr = ensureGameRoom(room);
+        if (!gr) return;
+        
+        // Send immediate snapshot with current players
+        const payload = {
+          room: room,
+          players: Array.from(gr.players.values()),
+        };
+        io.to(room).emit("snapshot", payload);
+        console.log(`📡 Sent immediate snapshot to room ${room}`);
+      } catch (e) {
+        console.warn('snapshot:request handler failed', e);
+      }
+    });
   });
 }
 

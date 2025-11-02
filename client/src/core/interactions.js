@@ -169,7 +169,23 @@ export function startMeeting(at = CONST.MEETING_POINT){
   grid.innerHTML = ''; // ล้างรายการเก่า
 
   // ✅ ดึงข้อมูลผู้เล่นทั้งหมดในห้อง
-  const players = getCurrentPlayers();
+  let players = getCurrentPlayers();
+  
+  // 🔄 ถ้าไม่มีข้อมูลหรือข้อมูลจาก snapshot ช้า ให้ request snapshot ใหม่จาก server
+  if (!players || players.length === 0) {
+    try {
+      if (window.socket) {
+        window.socket.emit('snapshot:request', { room: state.gameRoom });
+        console.log('📡 Requested fresh snapshot for meeting');
+      }
+    } catch (e) {
+      console.warn('Failed to request snapshot:', e);
+    }
+    
+    // ใช้ข้อมูลปัจจุบัน (อาจจะช้า แต่ดีกว่าไม่มี)
+    players = getCurrentPlayers();
+  }
+  
   if (!players || !players.length) {
     const emptyMsg = document.createElement('p');
     emptyMsg.textContent = '(ไม่มีผู้เล่นในห้อง)';
