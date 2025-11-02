@@ -1,0 +1,13 @@
+{
+  "hat": [
+    { "id": "baimai", "label": "ใบไม้น้อยนี้ล่วงหล่นมาจากไหนกันนะ โถ่เอ้ย", "y": -130, "scale": 0.2, "origin": "center" },
+    { "id": "Crown", "label": "เห้ย แกเห็นเราเป็นตัวตลกหรอ ละขำป้ะ", "y": -80, "scale": 1, "origin": "center" },
+    { "id": "ghost", "label": "พี่แจ๊คครับ! ผมเห็นผ้าคลุมลอยได้", "y": -20, "scale": 1.3, "origin": "center bottom" }
+  ],
+  "mask": [],
+  "suit": [{ "id": "A-Jan-Kong", "label": "เสื้ออาจารย์คง คงกระพันไม่มีวันพังมีแต่หาย เห้ย! ขโมย", "y": 35, "scale": 1, "origin": "center" },
+   {"id":"dirty","label": "ที่เปื้อนนั่นเชื้อโรคนะ อย่าเข้ามาใกล้"},
+    { "id": "pumpkin", "label": "ฟักทองสีส้ม", "y": -30, "scale": 1.7, "origin": "center" }],
+  "back": [{"id" : "vampire", "layer": "back","label": "อะไร ก็ผ้าตลุมแวมไพร์ไง"}],
+  "acc": []
+}

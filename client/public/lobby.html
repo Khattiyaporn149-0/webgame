@@ -6,6 +6,29 @@
   <title>Lobby</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://www.gstatic.com; connect-src 'self' https://*.firebasedatabase.app wss://*.firebasedatabase.app https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://www.gstatic.com ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:* https://webgame-25n5.onrender.com wss://webgame-25n5.onrender.com; frame-src 'self' https://*.firebasedatabase.app https://www.gstatic.com https://*.firebaseapp.com https://apis.google.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com https://*.firebasedatabase.app; img-src 'self' data: blob: https://www.gstatic.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:;">
   <style>
+    /* Theme variables to match other pages */
+    :root{
+      --fg: #f5f7ff;
+      --muted: #b6c3de;
+      --panel: #101827cc;
+      --panel-2: #0b1424cc;
+      --stroke: #2a3347;
+      --white-15: rgba(255,255,255,.15);
+      --green: #54f4a8;
+      --yellow: #ffd866;
+    }
+    /* Cursor: unify with other pages */
+    :root{
+      --cursor-normal: url("../assets/Normal%20Select.cur"), auto;
+      --cursor-pointer: url("../assets/Alternate%20Select.cur") 8 8, pointer;
+    }
+    html, body, * { cursor: var(--cursor-normal) !important; }
+    a, button, [role="button"], label, select,
+    .back-btn, .char-btn, .ready-btn, .settings-btn,
+    .chat-input button { cursor: var(--cursor-pointer) !important; }
+    input[type="text"], input[type="search"], input[type="email"], input[type="password"],
+    textarea, [contenteditable="true"] { cursor: var(--cursor-normal) !important; }
+
     body{
       margin:0;background:#0b1324;color:#E6E6FA;font-family:'Segoe UI',system-ui,sans-serif;
       overflow:hidden;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -32,7 +55,7 @@
       position:fixed;inset:0;display:flex;justify-content:center;align-items:center;
       background:rgba(0,0,0,.6);backdrop-filter:blur(8px);color:#fff;
       font-size:72px;font-weight:900;letter-spacing:2px;text-shadow:0 0 40px #00ffcc;
-      opacity:0;transition:opacity .3s;z-index:10;pointer-events:none
+      opacity:0;transition:opacity .3s;z-index:1203;pointer-events:none
     }
     .countdown-overlay.show{opacity:1;pointer-events:auto}
 
@@ -72,21 +95,88 @@
     /* Settings button + modal (lightweight styles) */
     .settings-btn{position:fixed;top:16px;right:16px;z-index:20;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:10px;padding:8px 10px;cursor:pointer;backdrop-filter:blur(6px)}
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);z-index:50}
-    #settingsModal[aria-hidden="false"]{display:flex}
-    .dialog{background:rgba(20,28,48,.96);border:1px solid rgba(255,255,255,.15);border-radius:14px;min-width:280px;max-width:90vw;padding:16px;color:#e6e6fa;box-shadow:0 10px 30px #0008}
+    #settingsModal[aria-hidden="false"],
+    #equipModal[aria-hidden="false"]{display:flex}
+    .dialog{background:var(--panel);border:1px solid var(--stroke);border-radius:14px;min-width:280px;max-width:90vw;padding:16px;color:var(--fg);box-shadow:0 20px 60px #000a}
     .dialog-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
     .dialog .row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}
     .dialog input[type=range]{width:180px}
     .dialog select{background:#0b1324;color:#e6e6fa;border:1px solid #394867;border-radius:8px;padding:6px}
+    /* Equipment sizing variables (tweak as needed) */
+    :root{
+      --equip-hat-scale: .78;   --equip-hat-x: 0px;   --equip-hat-y: -2px;
+      --equip-mask-scale:.88;   --equip-mask-x:0px;   --equip-mask-y: 0px;
+      --equip-suit-scale:.72;   --equip-suit-x:0px;   --equip-suit-y: -4px;
+      --equip-back-scale:.80;   --equip-back-x:0px;   --equip-back-y: -2px;
+      --equip-acc-scale: .86;   --equip-acc-x: 0px;   --equip-acc-y: 0px;
+    }
+    /* Equipment overlays (back under base image, front above) */
+    .char-img-wrap{ position:relative; display:inline-block }
+    .char-img{ position:relative; z-index:10 }
+    #equipOverlayBack{ position:absolute; inset:0; pointer-events:none; z-index: 5; animation:bob 2.8s ease-in-out infinite }
+    #equipOverlayFront{ position:absolute; inset:0; pointer-events:none; z-index: 15; animation:bob 2.8s ease-in-out infinite }
+    #equipOverlayBack img, #equipOverlayFront img{ position:absolute; left:50%; top:50%; width:auto; height:auto; max-width:100%; max-height:100%; image-rendering: pixelated; display:none; will-change: transform }
+    /* Per-slot scale/offset to fit character frame */
+    #equip_hat  { transform-origin:center bottom; transform: translate(var(--equip-hat-x),  var(--equip-hat-y))  scale(var(--equip-hat-scale)); }
+    #equip_mask { transform-origin:center center; transform: translate(var(--equip-mask-x), var(--equip-mask-y)) scale(var(--equip-mask-scale)); }
+    #equip_suit { transform-origin:center bottom; transform: translate(var(--equip-suit-x), var(--equip-suit-y)) scale(var(--equip-suit-scale)); }
+    #equip_back { transform-origin:center bottom; transform: translate(var(--equip-back-x), var(--equip-back-y)) scale(var(--equip-back-scale)); }
+    #equip_acc  { transform-origin:center center; transform: translate(var(--equip-acc-x),  var(--equip-acc-y))  scale(var(--equip-acc-scale)); }
+    /* Equipment UI */
+    .equip-fab{ position:fixed; top:16px; right:68px; z-index:1201 }
+    .equip-btn{ background:linear-gradient(135deg,#76f7b1,#54f4a8); border:0; padding:10px 14px; border-radius:10px; color:#0b1324; font-weight:800; cursor:pointer; box-shadow:0 8px 20px #0007 }
+    .equip-ui{ display:grid; grid-template-columns: 140px 1fr 260px; gap:12px }
+    .equip-slots{ display:grid; gap:8px }
+    .equip-slots .slot-btn{ padding:8px 10px; border-radius:10px; border:1px solid var(--stroke); background:var(--panel-2); color:var(--fg); font-weight:700; cursor:pointer }
+    .equip-slots .slot-btn.active{ outline:2px solid #76f7b1; background:rgba(255,255,255,.06) }
+    .equip-grid{ display:grid; grid-template-columns: repeat(auto-fill,minmax(120px,1fr)); gap:12px }
+    .equip-item{ position:relative; display:grid; gap:8px; padding:10px; border-radius:12px; border:1px solid var(--stroke); background:var(--panel-2); color:var(--fg); cursor:pointer; transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease }
+    .equip-item:hover{ transform: translateY(-2px); box-shadow:0 10px 20px #0008; border-color:rgba(255,255,255,.2) }
+    .equip-item .thumb{ height:88px; background: var(--white-15); border-radius:10px; border:1px dashed rgba(255,255,255,.2); background-position:center; background-repeat:no-repeat; background-size:contain; display:grid; place-items:center }
+    .equip-item .label{ font-weight:800; font-size:13px; opacity:.95; text-align:center }
+    .equip-item .badge{ position:absolute; top:8px; right:8px; background:#2fe09333; color:#54f4a8; border:1px solid #54f4a8aa; font-size:11px; padding:2px 6px; border-radius:999px; display:none }
+    .equip-item.selected{ outline:2px solid #76f7b1 }
+    .equip-item.selected .badge{ display:inline-block }
+    .equip-item.none .thumb{ background:linear-gradient(135deg,#1b2647,#0b1324); color:#ffd866; font-weight:900; border-style:solid; border-color:#ffffff22; font-size:28px }
+    .equip-actions{ display:flex; align-items:center; justify-content:space-between; margin-top:8px }
+    .equip-actions .sec{ background:var(--panel-2); border:1px solid var(--stroke); color:var(--fg); padding:8px 12px; border-radius:10px; cursor:pointer }
+    .equip-detail{ background: rgba(255,255,255,.06); border:1px solid var(--stroke); border-radius:12px; padding:12px; display:grid; gap:10px; align-content:start }
+    .equip-detail .head{ display:flex; justify-content:space-between; align-items:center }
+    .equip-detail .big{ width:100%; aspect-ratio:1/1; background:#0b1324; border:1px dashed rgba(255,255,255,.2); border-radius:10px; display:grid; place-items:center }
+    #equipDetailImg{ max-width:100%; max-height:100%; image-rendering: pixelated }
+    .equip-detail .actions{ display:flex; gap:8px; justify-content:space-between }
+    .equip-detail .actions .btn{ background:#2b64ff33; border:1px solid #2b64ff88; color:#fff; padding:8px 12px; border-radius:10px; cursor:pointer }
+    .equip-detail .actions .btn.remove{ background:#ff4d4d33; border-color:#ff4d4d88 }
+
+    /* Left tools bar (Back + Equip) */
+    .left-tools{ position:fixed; top:16px; left:16px; display:flex; gap:10px; align-items:center; z-index:20 }
+    .left-tools .back-btn{ position:static; top:auto; left:auto; margin:0 }
+    .equip-left{ background:linear-gradient(135deg,#ffe995,#ffc34a); color:#0b1324; border:0; padding:10px 16px; border-radius:50px; font-weight:800; box-shadow:0 4px 10px #0007; cursor:pointer; transition:.2s }
+    .equip-left:hover{ transform: translateY(-2px) }
+
+    /* Equip modal as anchored popover (left side under buttons) */
+    #equipModal.as-popover{ background: transparent; backdrop-filter:none; align-items:flex-start; justify-content:flex-start; z-index:1202 }
+    #equipModal.as-popover .dialog{ position:fixed; left:16px; top:68px; width:min(30vw,200px); max-height: calc(100vh - 84px); overflow:auto }
+    #equipModal.as-popover .equip-ui{ grid-template-columns: 1fr }
+    #equipModal.as-popover .equip-detail{ display:none }
   </style>
 </head>
 <body>
+  <script>
+    // Silence console output in production lobby
+    (function(){
+      try{
+        const noop = function(){};
+        console.log = noop; console.debug = noop; console.info = noop; console.warn = noop; console.error = noop;
+      }catch{}
+    })();
+  </script>
   <canvas id="bgCanvas"></canvas>
 
   <div class="warning-box" id="warningBox">⚠️ ต้องมีผู้เล่นอย่างน้อย 3 คน และทุกคนต้องกด Ready เพื่อเริ่มเกม</div>
   <div class="warning-box" id="minPlayerWarning" style="display:none;background:rgba(255,100,100,.2);border-color:rgba(255,80,80,.5);color:#ffcccc"></div>
   <div class="countdown-overlay" id="countdownOverlay">3</div>
-  <button class="back-btn" id="btnBack">⬅ Home</button>
+  <div class="left-tools"><button class="back-btn" id="btnBack">⬅ Home</button> <button class="equip-left" id="btnEquip" title="เครื่องกาย">🎒 เครื่องกาย</button></div>
 
   <div class="player-list">
     <h3>👥 Players</h3>
@@ -100,7 +190,7 @@
 
     <div class="char-box">
       <button class="char-btn" id="prevChar">⬅</button>
-      <img id="charImage" class="char-img" src="../assets/Characters/mini_brown/idle_1.png" alt="Character">
+      <div class="char-img-wrap" style="position:relative;display:inline-block"><img id="charImage" class="char-img" src="../assets/Characters/mini_brown/idle_1.png" alt="Character"></div>
       <button class="char-btn" id="nextChar">➡</button>
     </div>
     <div class="shadow"></div>
@@ -181,5 +271,279 @@
       reg?.addEventListener('change', e=> window.GameSettings.set({ region:e.target.value }));
     });
   </script>
+  <!-- Equipment Button (floating) -->
+  
+
+  <!-- Equipment Modal -->
+  <div class="modal" id="equipModal" aria-hidden="true" role="dialog">
+    <div class="dialog" style="max-width:720px; width:min(92vw,720px)">
+      <div class="dialog-head">
+        <h3 style="margin:0">เครื่องกาย (Equipment)</h3>
+        <button class="settings-btn" id="closeEquip" style="position:static;padding:4px 8px">✕</button>
+      </div>
+      <div class="dialog-body">
+        <div class="equip-ui">
+          <div class="equip-slots">
+            <button class="slot-btn" data-slot="hat">หมวก</button>
+            <button class="slot-btn" data-slot="mask">หน้ากาก</button>
+            <button class="slot-btn" data-slot="suit">ชุด</button>
+            <button class="slot-btn" data-slot="back">หลัง</button>
+            <button class="slot-btn" data-slot="acc">ไอเท็ม</button>
+          </div>
+          <div class="equip-grid" id="equipGrid"></div>
+          <div class="equip-detail" id="equipDetail">
+            <div class="head">
+              <div>
+                <div style="opacity:.8; font-size:12px">หมวดหมู่: <b id="equipDetailSlot">-</b></div>
+                <div style="font-weight:800" id="equipDetailName">—</div>
+              </div>
+            </div>
+            <div class="big">
+              <img id="equipDetailImg" alt="preview" />
+            </div>
+            <div class="actions">
+              <button class="btn" id="equipEquip">ใส่</button>
+              <button class="btn remove" id="equipRemove">ถอด</button>
+            </div>
+          </div>
+        </div>
+        <div class="equip-actions">
+          <button id="equipClear" class="sec">ล้างทั้งหมด</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const LS_KEY = 'ggd.equip';
+      const slots = ['hat','mask','suit','back','acc'];
+      const grid = document.getElementById('equipGrid');
+      const openBtn = document.getElementById('btnEquip');
+      const modal = document.getElementById('equipModal');
+      const closeBtn = document.getElementById('closeEquip');
+      const clearBtn = document.getElementById('equipClear');
+      const detailBox = document.getElementById('equipDetail');
+      const detailSlot = document.getElementById('equipDetailSlot');
+      const detailName = document.getElementById('equipDetailName');
+      const detailImg  = document.getElementById('equipDetailImg');
+      const btnEquipDo = document.getElementById('equipEquip');
+      const btnRemoveDo= document.getElementById('equipRemove');
+      const slotLabel = { hat:'หมวก', mask:'หน้ากาก', suit:'ชุด', back:'หลัง', acc:'ไอเท็ม' };
+
+      // Create overlay containers near character (back + front)
+      const overlayBack  = document.createElement('div');
+      const overlayFront = document.createElement('div');
+      overlayBack.id  = 'equipOverlayBack';
+      overlayFront.id = 'equipOverlayFront';
+      const layerIdsFront = { hat:'equip_hat', mask:'equip_mask', suit:'equip_suit', acc:'equip_acc' };
+      const layerIdsBack  = { back:'equip_back' };
+      for (const s in layerIdsBack){ const img=document.createElement('img'); img.id=layerIdsBack[s];  img.alt=s; overlayBack.appendChild(img); }
+      for (const s in layerIdsFront){ const img=document.createElement('img'); img.id=layerIdsFront[s]; img.alt=s; overlayFront.appendChild(img); }
+      const imgWrap = document.querySelector('.char-img-wrap');
+      if (imgWrap) { imgWrap.appendChild(overlayBack); imgWrap.appendChild(overlayFront); } else { document.body.appendChild(overlayBack); document.body.appendChild(overlayFront); }
+
+      const layers = {
+        hat:  document.getElementById('equip_hat'),
+        mask: document.getElementById('equip_mask'),
+        suit: document.getElementById('equip_suit'),
+        back: document.getElementById('equip_back'),
+        acc:  document.getElementById('equip_acc'),
+      };
+
+      function loadEquip(){ try{ return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); }catch{ return {}; } }
+      function saveEquip(state){ localStorage.setItem(LS_KEY, JSON.stringify(state||{})); try { window.dispatchEvent(new CustomEvent('equip:changed', { detail: state })); } catch {} }
+      function assetPath(slot, name){
+        if (!name || name==='none') return '';
+        try{
+          const arr = Array.isArray(__equipManifest?.[slot]) ? __equipManifest[slot] : [];
+          const it = arr.find(x => (typeof x==='string' ? x===name : x && x.id===name));
+          let fileName = (it && typeof it==='object' && it.file) ? it.file : `${name}.png`;
+          if (/^https?:\/\//i.test(fileName)) return fileName;
+          return `../assets/equipment/${slot}/${fileName}`;
+        }catch{
+          return `../assets/equipment/${slot}/${name}.png`;
+        }
+      }
+      const BASE_BOX = { w:200, h:220 }; // character sprite base size
+      const SLOT_BASE_SCALE = { hat:0.85, mask:0.9, suit:0.65, back:0.8, acc:0.9 };
+      function cssVar(name, fallback='0px'){
+        const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        return v || fallback;
+      }
+      function getOverride(slot, id){
+        try{
+          if (!__equipManifest) return null;
+          const arr = Array.isArray(__equipManifest[slot]) ? __equipManifest[slot] : [];
+          for (const it of arr){
+            if (typeof it === 'string') continue;
+            if (it && it.id === id) return it;
+          }
+          return null;
+        }catch{ return null; }
+      }
+
+      function fitLayer(slot, id, el){
+        const nw = el.naturalWidth || BASE_BOX.w;
+        const nh = el.naturalHeight || BASE_BOX.h;
+        const sAuto = Math.min(BASE_BOX.w / nw, BASE_BOX.h / nh);
+        const ov = getOverride(slot, id) || {};
+        const s = sAuto * (SLOT_BASE_SCALE[slot] || 1) * (ov.scale || 1);
+        const tx = ov.x != null ? (ov.x + 'px') : cssVar(`--equip-${slot}-x`, '0px');
+        const ty = ov.y != null ? (ov.y + 'px') : cssVar(`--equip-${slot}-y`, '0px');
+        const origin = ov.origin || null;
+        if (origin) el.style.transformOrigin = origin;
+        el.style.transform = `translate(-50%, -50%) translate(${tx}, ${ty}) scale(${s})`;
+        el.style.display = 'block';
+      }
+      function applyLayers(){
+        const st = loadEquip();
+        for(const s of slots){
+          const el = layers[s]; if(!el) continue;
+          const id = st[s];
+          const p = assetPath(s, id);
+          if(!p){ el.style.display='none'; el.removeAttribute('src'); continue; }
+          el.onerror = () => { el.style.display='none'; };
+          el.onload = () => { fitLayer(s, id, el); };
+          el.src = p;
+        }
+      }
+      let __equipManifest = null;
+      async function getManifest(){
+        if (__equipManifest) return __equipManifest;
+        try{
+          const res = await fetch('../assets/equipment/manifest.json', { cache: 'no-cache' });
+          if (!res.ok) throw new Error('manifest fetch fail');
+          __equipManifest = await res.json();
+        }catch(e){
+          __equipManifest = { hat:[], mask:[], suit:[], back:[], acc:[] };
+        }
+        return __equipManifest;
+      }
+
+            let currentDetail = { slot:null, id:null };
+      function showDetail(slot, id){
+        currentDetail = { slot, id };
+        if (detailSlot) detailSlot.textContent = slotLabel[slot] || slot;
+        if (detailName) detailName.textContent = id || '—';
+        let p = assetPath(slot, id);
+        try{
+          const arr = Array.isArray(__equipManifest?.[slot]) ? __equipManifest[slot] : [];
+          const it = arr.find(x => (typeof x==='string' ? x===id : x && x.id===id));
+          if (it && typeof it==='object' && it.preview) p = it.preview;
+        }catch{}
+        if (detailImg){
+          if (p){ detailImg.src = p; detailImg.style.display='block'; }
+          else { detailImg.removeAttribute('src'); detailImg.style.display='none'; }
+        }
+      }
+      async function renderGrid(slot){
+        const st = loadEquip();
+        grid.innerHTML = '';
+        const mf = await getManifest();
+        const names = Array.isArray(mf[slot]) ? mf[slot] : [];
+        const items = [{ id:'none', label:'None' }, ...names.map(n => (typeof n === 'string' ? { id:n, label:n } : { id:n.id, label:(n.label||n.id) }))];
+        items.forEach(it=>{
+          const b = document.createElement('button');
+          b.className = 'equip-item' + (st[slot]===it.id ? ' selected' : '');
+          b.setAttribute('title', it.label || it.id);
+          b.innerHTML = `<div class="thumb" data-id="${it.id}"></div><div class="label">${it.label}</div>`;
+          if (it.id==='none') b.classList.add('none');
+          const thumb = b.querySelector('.thumb');
+          const manifestArr = Array.isArray(mf[slot]) ? mf[slot] : [];
+          const manifestItem = manifestArr.find(x => (typeof x === 'string' ? x === it.id : x && x.id === it.id));
+          const preview = (manifestItem && typeof manifestItem==='object' && manifestItem.preview) ? manifestItem.preview : null;
+          const p = preview ? preview : assetPath(slot, it.id);
+          if (p) thumb.style.backgroundImage = `url('${p}')`;
+          if (it.id==='none') thumb.textContent = '∅';
+          if (st[slot]===it.id) {
+            const bd=document.createElement('span'); bd.className='badge'; bd.textContent='ใส่อยู่'; b.appendChild(bd);
+          }
+          b.onclick = () => { const s=loadEquip(); s[slot]=it.id; saveEquip(s); applyLayers(); renderGrid(slot); if (typeof showDetail==='function') showDetail(slot, it.id); };
+          grid.appendChild(b);
+        });
+      }
+      function setActiveSlot(slot){
+        document.querySelectorAll('.slot-btn').forEach(b=> b.classList.toggle('active', b.getAttribute('data-slot')===slot));
+        renderGrid(slot);
+        const st = loadEquip();
+        showDetail(slot, st[slot] || 'none');
+      }
+
+      // Modal wiring
+      function positionEquipPopover(){
+        try {
+          const dlg = modal?.querySelector('.dialog');
+          if (!dlg) return;
+          const r = openBtn?.getBoundingClientRect();
+          // Anchor under the left tools row (btnEquip). If not found, fallback to CSS defaults
+          if (r) {
+            dlg.style.left = '16px';
+            dlg.style.right = 'auto';
+            dlg.style.top = (r.bottom + window.scrollY + 8) + 'px';
+          } else {
+            dlg.style.left = '16px';
+            dlg.style.right = 'auto';
+            dlg.style.top = '68px';
+          }
+        } catch(e) {}
+      }
+
+      openBtn?.addEventListener('click', ()=>{
+        modal?.classList.add('as-popover');
+        modal?.setAttribute('aria-hidden','false');
+        setActiveSlot('hat');
+        requestAnimationFrame(()=>{
+          positionEquipPopover();
+          const dlg = modal?.querySelector('.dialog');
+          if (dlg) { dlg.style.width = '420px'; dlg.style.maxWidth = '420px'; }
+          const grid = document.getElementById('equipGrid');
+          if (grid) grid.style.gridTemplateColumns = 'repeat(3, minmax(120px,1fr))';
+        });
+      });
+      closeBtn?.addEventListener('click', ()=> modal?.setAttribute('aria-hidden','true'));
+      modal?.addEventListener('click', (e)=>{ if (e.target===modal) modal.setAttribute('aria-hidden','true'); });
+      clearBtn?.addEventListener('click', ()=>{ saveEquip({}); applyLayers(); renderGrid('hat'); showDetail('hat','none'); });
+      window.addEventListener('resize', ()=>{ if(modal?.getAttribute('aria-hidden')==='false') positionEquipPopover(); });
+      window.addEventListener('scroll', ()=>{ if(modal?.getAttribute('aria-hidden')==='false') positionEquipPopover(); }, { passive:true });
+      document.querySelectorAll('.slot-btn').forEach(b=> b.addEventListener('click', ()=> setActiveSlot(b.getAttribute('data-slot'))));
+
+      btnEquipDo?.addEventListener('click', ()=>{ if (!currentDetail.slot) return; const s=loadEquip(); s[currentDetail.slot]=currentDetail.id; saveEquip(s); applyLayers(); renderGrid(currentDetail.slot); });
+      btnRemoveDo?.addEventListener('click', ()=>{ if (!currentDetail.slot) return; const s=loadEquip(); delete s[currentDetail.slot]; saveEquip(s); applyLayers(); renderGrid(currentDetail.slot); showDetail(currentDetail.slot,'none'); });
+
+      // Position overlays relative to character image
+      const baseImg = document.getElementById('charImage');
+      const positionOverlay = () => {
+        if (imgWrap){
+          [overlayBack, overlayFront].forEach((ov)=>{
+            ov.style.left = '0px'; ov.style.top  = '0px';
+            ov.style.width  = baseImg.clientWidth + 'px';
+            ov.style.height = baseImg.clientHeight + 'px';
+          });
+          imgWrap.style.width = baseImg.clientWidth + 'px';
+          imgWrap.style.height= baseImg.clientHeight + 'px';
+        } else {
+          const r = baseImg.getBoundingClientRect();
+          [overlayBack, overlayFront].forEach((ov)=>{
+            ov.style.left = (r.left + window.scrollX) + 'px';
+            ov.style.top  = (r.top  + window.scrollY) + 'px';
+            ov.style.width  = r.width + 'px';
+            ov.style.height = r.height + 'px';
+          });
+        }
+      };
+      if (window.ResizeObserver) new ResizeObserver(positionOverlay).observe(baseImg);
+      baseImg?.addEventListener('load', positionOverlay);
+      window.addEventListener('load', ()=>{ getManifest().finally(()=>{ positionOverlay(); applyLayers(); }); });
+      window.addEventListener('resize', positionOverlay);
+    })();
+  </script>
+
 </body>
 </html>
+
+
+<style id='equip-extra-css'>#equipModal.as-popover .equip-slots{ display:flex; gap:8px; flex-wrap:wrap } #equipModal.as-popover .equip-slots .slot-btn{ flex:0 0 auto; padding:8px 12px }</style>
+
+<style id='equip-grid-3col'>#equipModal.as-popover .equip-grid{ grid-template-columns: repeat(3, minmax(120px,1fr)); gap:12px }</style>
+

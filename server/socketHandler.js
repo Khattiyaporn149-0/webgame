@@ -209,8 +209,6 @@ function registerSocketHandlers(io) {
         id,
         seq: nextSeq,
       };
-      io.to(room).emit("chat:message", payload);
-      console.log(`?? [${room}] ${payload.name}: ${payload.text}`);
     });
 
     // DISCONNECT
@@ -249,4 +247,6 @@ function registerSocketHandlers(io) {
 }
 
 module.exports = registerSocketHandlers;
+
+
 
