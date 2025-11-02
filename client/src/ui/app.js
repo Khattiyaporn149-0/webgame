@@ -172,6 +172,8 @@ startBtn?.addEventListener("click", () => {
   clickSound.pause(); clickSound.currentTime = 0; clickSound.play();
   state.name = name;
   saveState();
+  // ✅ ตั้ง flag ว่าผู้เล่นเปลี่ยนชื่อแล้ว (ตั้งครั้งแรก)
+  localStorage.setItem("ggd.name_customized", "true");
   try { localStorage.setItem("ggd.onboarded", "1"); } catch {}
   document.getElementById("playerNameTop").textContent = state.name;
   hideStartScreen();
@@ -205,8 +207,15 @@ async function handleGoogleLogin(trigger = "start") {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
 
-    // ✅ บันทึกสถานะใน localStorage / state
-    state.name = user.displayName || "Unknown";
+    // ✅ ตรวจสอบว่าผู้เล่นเปลี่ยนชื่อมาแล้วหรือไม่
+    const isNameCustomized = localStorage.getItem("ggd.name_customized") === "true";
+    const currentStoredName = localStorage.getItem("ggd.name") || "";
+    const googleName = user.displayName || "Unknown";
+    
+    // ✅ ถ้าผู้เล่นเปลี่ยนชื่อมาแล้ว ให้ใช้ชื่อนั้น มิฉะนั้นใช้ชื่อ Google
+    const finalName = isNameCustomized ? currentStoredName : googleName;
+    
+    state.name = finalName;
     state.uid = user.uid;
     localStorage.setItem("ggd.name", state.name);
     localStorage.setItem("ggd.uid", state.uid);
@@ -236,14 +245,27 @@ async function handleGoogleLogin(trigger = "start") {
 
 // เปิดโปรไฟล์
 btnProfile?.addEventListener("click", () => {
+  // ✅ ตรวจสอบว่า Google login มีผล
+  if (isGoogleLoggedIn() && auth?.currentUser?.displayName) {
+    state.name = auth.currentUser.displayName;
+    saveState();
+  }
   updateProfileUI();
   profileModal.classList.add("show");
 });
 
 // ปิดโปรไฟล์
-closeProfile?.addEventListener("click", () => profileModal.classList.remove("show"));
+closeProfile?.addEventListener("click", () => {
+  profileModal.classList.remove("show");
+  // ✅ อัปเดตชื่อด้านบนสุดหลังจากปิด modal
+  document.getElementById("playerNameTop").textContent = state.name || "Guest";
+});
 profileModal?.addEventListener("click", (e) => {
-  if (e.target === profileModal) profileModal.classList.remove("show");
+  if (e.target === profileModal) {
+    profileModal.classList.remove("show");
+    // ✅ อัปเดตชื่อด้านบนสุดหลังจากปิด modal
+    document.getElementById("playerNameTop").textContent = state.name || "Guest";
+  }
 });
 
 // 🎯 อัปเดตข้อมูลในโปรไฟล์
@@ -251,7 +273,7 @@ function updateProfileUI() {
   // ✅ ป้องกันกรณี modal ยังไม่ render ตอนเรียก
   if (!googleLoginBtn || !displayNameEl) return;
 
-  // ✅ อัปเดตชื่อในโปรไฟล์
+  // ✅ แสดงชื่อปัจจุบัน (ใช้ชื่อที่ผู้เล่นเปลี่ยนไปแล้ว หรือชื่อ Google ถ้ายังไม่เปลี่ยน)
   displayNameEl.textContent = state.name || "Not set";
 
   // ✅ อัปเดตปุ่ม Google Login ตามสถานะ (ดูจาก flag ไม่ใช่แค่มี guest uid)
@@ -314,11 +336,29 @@ editNameBtn?.addEventListener("click", () => {
 });
 
 // 💾 บันทึกชื่อใหม่
-saveNameBtn?.addEventListener("click", () => {
+saveNameBtn?.addEventListener("click", async () => {
   const newName = editNameInput.value.trim();
   if (nameOk(newName)) {
     state.name = newName;
     saveState();
+    // ✅ ตั้ง flag ว่าผู้เล่นเปลี่ยนชื่อแล้ว
+    localStorage.setItem("ggd.name_customized", "true");
+    
+    // ✅ บันทึกชื่อใหม่ลง Firebase ด้วย
+    try {
+      if (auth?.currentUser) {
+        const uid = auth.currentUser.uid;
+        await set(ref(rtdb, `users_safe/${uid}`), {
+          name: newName,
+          email: auth.currentUser.email || null,
+          photo: auth.currentUser.photoURL || null,
+          lastLogin: new Date().toISOString(),
+        });
+      }
+    } catch (e) {
+      console.warn("[SaveName] Firebase update failed:", e?.message);
+    }
+    
     updateProfileUI();
     document.getElementById("playerNameTop").textContent = state.name;
     showToast("✅ Name updated successfully!", "success");
@@ -596,7 +636,10 @@ document.addEventListener("DOMContentLoaded", () => {
     watchAuthState((user) => {
       const top = document.getElementById('playerNameTop');
       if (user) {
-        if (top) top.textContent = user.displayName || 'Unknown';
+        // ✅ ใช้ชื่อจาก localStorage (ซึ่งได้อัปเดตจาก watchAuthState แล้ว)
+        const displayName = localStorage.getItem("ggd.name") || user.displayName || 'Unknown';
+        if (top) top.textContent = displayName;
+        state.name = displayName;
         try { hideStartScreen(); } catch {}
       }
       try { updateProfileUI(); } catch {}
