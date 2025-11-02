@@ -25,17 +25,9 @@ const TASK_POOL = [
   'math',
 ];
 
-// Thief tasks (sabotage minigames) - 8 tasks total
-const THIEF_TASK_POOL = [
-  'sabotage_lights',
-  'sabotage_comms',
-  'sabotage_reactor',
-  'sabotage_oxygen',
-  'steal_vault',
-  'steal_data',
-  'steal_artifact',
-  'disable_security',
-];
+// Thief now uses the Gem Heist system instead of 8 tasks
+// Keep a minimal fallback list to avoid crashes if referenced, but do not assign to thieves.
+const THIEF_TASK_POOL = [];
 
 function sanitizeWaves(waves, role='Visitor'){
   try {
@@ -80,7 +72,13 @@ function assignTasksFor(room, uid){
   const role = (rr && rr.started && rr.thieves && rr.thieves.has(uid)) ? 'Thief' : 'Visitor';
 
   // Use different task pool based on role
-  const pool = role === 'Thief' ? THIEF_TASK_POOL : TASK_POOL;
+  if (role === 'Thief'){
+    // No waves for Thief (gem system replaces tasks)
+    const state = { role, waves: [], currentWave: 0, completedTasks: [] };
+    playerTaskState.set(key, state);
+    return state;
+  }
+  const pool = TASK_POOL;
   const shuffled = [...pool].sort(() => (hashToInt(uid+room+Math.random()) % 3) - 1);
   const w1 = shuffled.slice(0, 3);
   const w2 = shuffled.slice(3, 6);
@@ -384,7 +382,7 @@ function registerSocketHandlers(io) {
         const taskName = String(taskNameRaw).toLowerCase();
         
         // accept only allowed tasks based on role
-        const allowedPool = st.role === 'Thief' ? THIEF_TASK_POOL : TASK_POOL;
+  const allowedPool = st.role === 'Thief' ? THIEF_TASK_POOL : TASK_POOL;
         if (!allowedPool.includes(taskName)) return;
         
         // add to completed if part of any wave and not already recorded
@@ -410,6 +408,59 @@ function registerSocketHandlers(io) {
         }
       } catch (e) {
         console.warn('task:complete handler failed', e);
+      }
+    });
+
+    // === Gem Heist system ===
+    // Expose gem state to a socket
+    function emitGemState(toSocket){
+      try {
+        const room = toSocket?.data?.room;
+        if (!room) return;
+        const gr = gameRooms[room];
+        if (!gr || !Array.isArray(gr.gems)) return;
+        const payload = { room, gems: gr.gems };
+        toSocket.emit('gem:state', payload);
+      } catch {}
+    }
+
+    // Send gems upon join resume if possible
+    try { emitGemState(socket); } catch {}
+
+    socket.on('gem:get', () => emitGemState(socket));
+
+    // Client reports a failed attempt -> no cooldown, can retry immediately
+    socket.on('gem:fail', () => {
+      // Do nothing - removed cooldown system
+    });
+
+    // Attempt to mark gem stolen after successful lockpick
+    socket.on('gem:steal', (data={}) => {
+      try {
+        const room = socket.data.room; const uid = socket.data.uid;
+        const gemId = String(data.gemId||'');
+        if (!room || !uid || !gemId) return;
+        const rr = roomRoles.get(room);
+        const isThief = !!(rr && rr.thieves && rr.thieves.has(uid));
+        if (!isThief) return;
+        const gr = gameRooms[room]; if (!gr) return;
+
+        // No cooldown - removed cooldown system
+
+        const gem = Array.isArray(gr.gems) ? gr.gems.find(g => g.id === gemId) : null;
+        if (!gem || gem.stolenBy) return;
+        gem.stolenBy = uid;
+
+        // broadcast updated gem state
+        try { io.to(room).emit('gem:state', { room, gems: gr.gems }); } catch {}
+
+        // if all gems stolen -> Thief wins
+        const allStolen = gr.gems.every(g => !!g.stolenBy);
+        if (allStolen){
+          try { io.to(room).emit('game:thiefWin', { room, message: 'All gems stolen!' }); } catch {}
+        }
+      } catch (e) {
+        console.warn('gem:steal failed', e);
       }
     });
   });

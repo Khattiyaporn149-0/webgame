@@ -148,6 +148,120 @@ export function updateTaskWorldHints(){
     }
   } catch (e) { /* noop */ }
 }
+
+// ===============================
+// Gem Heist (Thief) — client-side markers and HUD
+// ===============================
+let _gemEls = new Map(); // id -> HTMLElement
+let _gemStyleInjected = false;
+function ensureGemStyle(){
+  if (_gemStyleInjected) return; _gemStyleInjected = true;
+  try {
+    const css = `
+    .gem-marker{ position:absolute; width:60px; height:60px; border-radius:50%; background:transparent; box-shadow:0 0 20px rgba(255,50,50,1), 0 0 35px rgba(255,50,50,.8); pointer-events:none; z-index:500; border:4px solid #ff0000; transform: translate(-50%, -100%); animation: gemPulse 1.2s infinite; }
+    .gem-marker::after{ content:'💎'; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:36px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+    @keyframes gemPulse{ 0%{ transform: translate(-50%, -100%) scale(1); box-shadow:0 0 20px rgba(255,50,50,1), 0 0 35px rgba(255,50,50,.8); } 50%{ transform: translate(-50%, -100%) scale(1.15); box-shadow:0 0 30px rgba(255,50,50,1), 0 0 50px rgba(255,50,50,1); } 100%{ transform: translate(-50%, -100%) scale(1); box-shadow:0 0 20px rgba(255,50,50,1), 0 0 35px rgba(255,50,50,.8); } }
+    `;
+    const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s);
+  } catch {}
+}
+
+export function updateThiefGemHUD(){
+  try {
+    if (state.myRole !== 'Thief') { if (refs.thiefGemHud) refs.thiefGemHud.style.display = 'none'; return; }
+    const gems = Array.isArray(state.gems) ? state.gems : [];
+    const total = gems.length || 5;
+    const stolen = gems.filter(g => !!g.stolenBy).length;
+    if (refs.thiefGemHud){ refs.thiefGemHud.style.display = 'block'; }
+    if (refs.thiefGemText){ refs.thiefGemText.textContent = `${stolen} / ${total}`; }
+  } catch {}
+}
+
+export function updateGemMarkers(){
+  try {
+    if (state.myRole !== 'Thief') { for (const [,el] of _gemEls) el.style.display='none'; return; }
+    ensureGemStyle();
+    const gc = document.getElementById('game-container'); if (!gc) return;
+    const list = Array.isArray(state.gems) && state.gems.length ? state.gems : [
+      // Fallback local positions match server defaults
+      { id:'gem1', x:4300, y:7100, stolenBy:null },
+      { id:'gem2', x:7120, y:4260, stolenBy:null },
+      { id:'gem3', x:4980, y:7500, stolenBy:null },
+      { id:'gem4', x:3570, y:1500, stolenBy:null },
+      { id:'gem5', x:6500, y:5000, stolenBy:null },
+    ];
+    const need = new Set();
+    for (const g of list){
+      // Skip gems that have been stolen
+      if (g.stolenBy) continue;
+      need.add(g.id);
+      let el = _gemEls.get(g.id);
+      if (!el){ el = document.createElement('div'); el.className='gem-marker'; gc.appendChild(el); _gemEls.set(g.id, el); }
+      el.style.left = `${g.x}px`; el.style.top = `${g.y}px`;
+      el.style.display = 'block';
+      el.title = `Gem: ${g.id}`;
+    }
+    // Hide gems that are stolen or not in current list
+    for (const [id, el] of _gemEls.entries()){
+      if (!need.has(id)) el.style.display='none';
+    }
+    updateThiefGemHUD();
+  } catch {}
+}
+
+export function checkGemInteractions(){
+  try {
+    if (state.myRole !== 'Thief') return;
+    const gems = Array.isArray(state.gems) && state.gems.length ? state.gems : [
+      { id:'gem1', x:4300, y:7100, difficulty:'easy', time:10, stolenBy:null },
+      { id:'gem2', x:7120, y:4260, difficulty:'hard', time:20, stolenBy:null },
+      { id:'gem3', x:4980, y:7500, difficulty:'easy', time:10, stolenBy:null },
+      { id:'gem4', x:3570, y:1500, difficulty:'easy', time:10, stolenBy:null },
+      { id:'gem5', x:6500, y:5000, difficulty:'hard', time:20, stolenBy:null },
+    ];
+    const pcx = state.playerX + state.playerW/2; const pcy = state.playerY + state.playerH/2;
+    let target = null;
+    for (const g of gems){
+      if (g.stolenBy) continue;
+      const d = dist(pcx,pcy,g.x,g.y);
+      if (d <= CONST.INTERACTION_RADIUS){ target = g; break; }
+    }
+    if (!refs.interactionHint) return; // no hint label
+    if (!target){ return; }
+    // Show hint (no cooldown check anymore)
+    refs.interactionHint.textContent = '🔓 กด [T] เพื่อเริ่ม Lockpick';
+    refs.interactionHint.style.display = 'block';
+    if (!state.keysPressed['KeyT']) return;
+    state.keysPressed['KeyT'] = false;
+
+    const key = (target.difficulty === 'hard') ? 'lockpick_hard' : 'lockpick_easy';
+    openMiniggameForGem(target, key);
+  } catch {}
+}
+
+function openMiniggameForGem(gem, key){
+  try {
+    openMinigameForObject({ id: gem.id, mg: key }, {
+      onComplete: () => {
+        try {
+          if (window.socket && window.socket.connected){
+            window.socket.emit('gem:steal', { gemId: gem.id });
+          }
+        } catch {}
+        // optimistic UI: hide marker until server sync
+        const el = _gemEls.get(gem.id); if (el) el.style.display='none';
+        updateThiefGemHUD();
+      },
+      onCancel: () => {
+        try {
+          if (window.socket && window.socket.connected){
+            window.socket.emit('gem:fail');
+          }
+        } catch {}
+      }
+    });
+  } catch {}
+}
 export function startMeeting(at = CONST.MEETING_POINT){
   if (state.isMeetingActive) return;
   state.isMeetingActive = true;
@@ -245,9 +359,9 @@ export function checkInteractions(){
           log('🛠️ ซ่อมแซมสำเร็จ (+1%)');
           refs.sfxInteract?.play().catch(()=>{});
         } else if (spot.type === 'heist' && role === 'Thief'){
-          log('🚨 พบการขโมย!', 'heist'); refs.sfxHeist?.play().catch(()=>{});
-          // เพิ่มใหม่: ทริกเกอร์โจรชนะเมื่อทำ Heist สำเร็จ — 2025-10-13 21:55:00 +07:00
-          try { endGame({ outcome: 'thief_win', reason: 'heist_success' }); } catch {}
+          // Heist spot no longer auto-wins. Thief must steal 5 gems scattered around the map.
+          log('💎 เป้าหมาย: ขโมยอัญมณีให้ครบ 5 ชิ้น!', 'heist');
+          try { refs.sfxHeist?.play?.(); } catch {}
         } else if (spot.type === 'meeting'){
           startMeeting(CONST.MEETING_POINT); refs.sfxInteract?.play().catch(()=>{});
         } else if (spot.type === 'Open_CCTV'){
@@ -418,7 +532,8 @@ export function checkObjectInteractions(){
       }
     });
     return;
-  }if (near.type === 'Telephone') {
+  }
+  if (near.type === 'Telephone') {
 if (near.type === 'Telephone') {
   if (roleNameText === 'Thief') {
     import('./endgame.js').then(() => {

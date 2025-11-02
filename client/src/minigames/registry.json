@@ -21,5 +21,7 @@
   "whack": "minigames/dodge-square/world.html?game=mole&skin=overlay",
   "slider": "minigames/dodge-square/world.html?game=slider&skin=overlay",
   "mop": "minigames/mop/index.html",
-  "broom": "minigames/mop/index.html"
+  "broom": "minigames/mop/index.html",
+  "lockpick_easy": "minigames/lockpick/index.html?difficulty=easy&time=30",
+  "lockpick_hard": "minigames/lockpick/index.html?difficulty=hard&time=45"
 }
