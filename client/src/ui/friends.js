@@ -4,7 +4,7 @@
 // - userCodes/{code}: uid
 // - friends/{uid}/{friendUid}: true  (mutual on add)
 
-import { rtdb, ref, set, update, onValue, get, auth, provider, signInWithPopup } from "../services/firebase.js";
+import { rtdb, ref, set, update, onValue, get, auth } from "../services/firebase.js";
 
 (function(){
   const MODAL_ID = 'friendsModal';
@@ -53,8 +53,8 @@ import { rtdb, ref, set, update, onValue, get, auth, provider, signInWithPopup }
         } catch {}
       }
 
-      if (!code) {
-        // Find an unused code (few attempts)
+      const loggedIn = !!(auth && auth.currentUser);
+      if (!code && loggedIn) { // Find an unused code (few attempts)
         for (let i=0;i<5;i++) {
           const candidate = generateCode();
           const mapSnap = await get(ref(rtdb, `userCodes/${candidate}`));
@@ -166,6 +166,7 @@ import { rtdb, ref, set, update, onValue, get, auth, provider, signInWithPopup }
       console.warn('loginToGenerate failed', e);
       window.showToast && showToast('Login failed', 'error');
     }
+    const loggedIn = !!(auth && auth.currentUser); el.textContent = state.code || (loggedIn ? '(creating...)' : 'Login required');
   }
 
   async function copyCode(){
@@ -192,7 +193,7 @@ import { rtdb, ref, set, update, onValue, get, auth, provider, signInWithPopup }
 
   async function addFriendByCode(explicit){
     if (!state.uid) { window.showToast && showToast('Please start the game first', 'warning'); return; }
-    if (!auth || !auth.currentUser) { window.showToast && showToast('Please login with Google first', 'warning'); return; }
+    if (!(auth && auth.currentUser)) { window.showToast && showToast('Login with Google required', 'warning'); return; }
     await ensureUserProfile();
     const input = document.getElementById('friendCodeInput');
     const raw = explicit || input?.value || '';
@@ -208,6 +209,7 @@ import { rtdb, ref, set, update, onValue, get, auth, provider, signInWithPopup }
       if (otherUid === state.uid) { window.showToast && showToast('You cannot add yourself', 'warning'); return; }
       if (state.friends && state.friends[otherUid]) { window.showToast && showToast('Already friends', 'info'); return; }
 
+      // Send friend request to other user
       await update(ref(rtdb), {
         [`friends/${state.uid}/${otherUid}`]: true,
         [`friends/${otherUid}/${state.uid}`]: true,
@@ -215,13 +217,12 @@ import { rtdb, ref, set, update, onValue, get, auth, provider, signInWithPopup }
       window.showToast && showToast('Friend added!', 'success');
       if (input) input.value = '';
     } catch (e) {
-      console.warn('addFriendByCode failed', e);
+      console.warn('addFriendByCode failed', e?.code || e);
       window.showToast && showToast('Failed to add friend', 'error');
     } finally {
       setAddBusy(false);
     }
   }
-
   function renderFriends(){
     const list = document.getElementById('friendsList');
     if (!list) return;
@@ -236,6 +237,32 @@ import { rtdb, ref, set, update, onValue, get, auth, provider, signInWithPopup }
     `).join('');
     entries.forEach(async (uid)=>{
       try {
+    // fetch presence and fill join button
+    entries.forEach(async (uid)=>{
+      try {
+        const snap = await get(ref(rtdb, `users/${uid}`));
+        const name = (snap.exists() && snap.val()?.name) || uid.slice(0,6);
+        const el = document.querySelector(`[data-fuid="${uid}"]`);
+        if (el) el.textContent = name;
+        // presence
+        try {
+          const pres = await get(ref(rtdb, `users_safe/${uid}/presence`));
+          const code = pres.exists() ? (pres.val()?.roomCode||"") : "";
+          if (code) {
+            // add join button
+            const row = el?.closest(".row");
+            if (row && !row.querySelector(`[data-join="${uid}"]`)) {
+              const jb = document.createElement("button");
+              jb.className = "sec-btn";
+              jb.textContent = "Join";
+              jb.setAttribute("data-join", uid);
+              jb.onclick = ()=> { location.href = `lobby.html?code=${encodeURIComponent(code)}`; };
+              row.appendChild(jb);
+            }
+          }
+        } catch {}
+      } catch {}
+    });
         const snap = await get(ref(rtdb, `users/${uid}`));
         const v = snap.exists() ? (snap.val()||{}) : {};
         const name = v.name || uid.slice(0,6);
