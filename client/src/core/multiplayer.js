@@ -7,6 +7,7 @@
  */
 
 import { io as ioCdn } from 'https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/dist/socket.io.esm.min.js';
+import { startMeeting } from './interactions.js';
 
 import { state, refs } from './core.js';
 import { startMeeting } from './interactions.js';
@@ -467,26 +468,6 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
       }).catch(err => console.error('endgame load failed', err));
     } catch (e) {
       console.error('game:visitorsWin handler failed', e);
-    }
-  });
-
-  // 🔔 Meeting started - all players see voting modal
-  socket.on('meeting:start', (data = {}) => {
-    try {
-      console.log('🔔 [Meeting] All players called to vote!');
-      // Import interactions to call startMeeting 
-      import('./interactions.js').then(m => {
-        if (m.startMeeting) {
-          // Use the broadcast version to show UI only (don't broadcast again)
-          if (m._displayMeetingUI) {
-            m._displayMeetingUI();
-          } else {
-            console.warn('_displayMeetingUI not available');
-          }
-        }
-      }).catch(err => console.error('interactions load failed', err));
-    } catch (e) {
-      console.error('meeting:start handler failed', e);
     }
   });
 

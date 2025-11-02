@@ -462,18 +462,19 @@ function registerSocketHandlers(io) {
       }
     });
 
-    // 🔔 Handle meeting:start - one player initiates, broadcast to all
+    // 🔔 Handle meeting:start - broadcast to ALL players in room
     socket.on('meeting:start', (data = {}) => {
       try {
         const room = data.room || socket.data.room;
         if (!room) return;
         
-        console.log(`🔔 [${room}] Emergency meeting called!`);
+        console.log(`🔔 [${room}] Emergency meeting called by ${socket.data.uid}`);
         
-        // Broadcast to ALL players in room (including caller)
+        // Broadcast meeting:start to ALL players including caller
         io.to(room).emit('meeting:start', { 
           room: room,
-          initiator: socket.data.uid
+          x: data.x || 4000,
+          y: data.y || 4000
         });
         console.log(`📡 [${room}] Broadcasted meeting:start to all players`);
       } catch (e) {

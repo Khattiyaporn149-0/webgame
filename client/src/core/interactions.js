@@ -157,22 +157,6 @@ export function startMeeting(at = CONST.MEETING_POINT){
   state.playerY = at.y;
   Object.keys(state.keysPressed).forEach(k => state.keysPressed[k] = false);
 
-  // 📡 Broadcast meeting:start to server so ALL players get notified
-  try {
-    if (window.socket) {
-      window.socket.emit('meeting:start', { room: state.gameRoom });
-      console.log('📡 [Meeting] Broadcasted meeting:start to server');
-    }
-  } catch (e) {
-    console.warn('[Meeting] Failed to broadcast:', e);
-  }
-
-  // Display meeting modal for this player
-  _displayMeetingUI();
-}
-
-// Helper function to display meeting UI
-export function _displayMeetingUI(){
   // แสดง Modal
   if (!refs.meetingModal) return;
   refs.meetingModal.style.display = 'flex';
