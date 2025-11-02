@@ -17,13 +17,22 @@ export const isTyping = () => _isTyping;
 let lastSentAt = 0;
 let lastMsg = '';
 const renderedMessageIds = new Set(); // tracks `${uid}:${msgKey}` already rendered as bubble
+function makeMsgId(uid, key, ts, explicitId){
+  if (explicitId && typeof explicitId === 'string') return explicitId;
+  if (key) return `${uid}:${key}`;
+  return `${uid}:${ts || ''}`;
+}
 // Typing indicator helpers
 const typingBubbles = new Map(); // uid -> typing bubble DOM
 let _typingLastWrite = 0;        // throttle writes to DB
 let _typingExpiryTimer = null;   // local auto-off timer
-const TYPING_DEBOUNCE_MS = 300;
+const TYPING_DEBOUNCE_MS = 600; // reduce RTDB spam while typing
 const TYPING_EXPIRE_MS = 1800;
 const TYPING_MAX_LEN = 60;
+// Send throttling
+const SEND_MIN_INTERVAL_MS = 300;   // min interval between sends (lower to reduce perceived delay)
+const SAME_TEXT_SUPPRESS_MS = 1200; // suppress identical text re-sends quickly
+const _lastTextSentAt = new Map();  // text -> ts
 
 function qs(id){ return document.getElementById(id); }
 
@@ -67,6 +76,7 @@ export function initChat(stateRef){
                 ts: m.ts || 0,
                 x: m.x, y: m.y,
                 color: (p && p.color) ? p.color : (m.color || null),
+                id: makeMsgId(m.uid || uidK, key, m.ts || 0, m.id)
               });
           }
         }
@@ -91,13 +101,24 @@ export function initChat(stateRef){
         if (initialLoaded){
           recent.filter(m => (m.ts || 0) > lastMaxTs)
                 .forEach(m => {
-                  const id = `${m.uid}:${m.key || m.ts}`;
+                  const id = m.id || makeMsgId(m.uid, m.key, m.ts);
                   if (renderedMessageIds.has(id)) return;
                   try {
-                    renderChatBubbleFor({ uid: m.uid, text: m.text, x: m.x, y: m.y, color: m.color });
+                    enqueueBubble({ uid: m.uid, text: m.text, x: m.x, y: m.y, color: m.color, ts: m.ts });
                     renderedMessageIds.add(id);
                   } catch (e) {}
                 });
+        }
+        // Backfill last 20 unseen to cover timing gaps
+        if (initialLoaded){
+          try {
+            recent.slice(-20).forEach(m => {
+              const id = m.id || makeMsgId(m.uid, m.key, m.ts);
+              if (renderedMessageIds.has(id)) return;
+              enqueueBubble({ uid: m.uid, text: m.text, x: m.x, y: m.y, color: m.color, ts: m.ts });
+              renderedMessageIds.add(id);
+            });
+          } catch (e) {}
         }
         lastMaxTs = newMax;
         initialLoaded = true;
@@ -108,13 +129,14 @@ export function initChat(stateRef){
           for (const [uidK, p] of Object.entries(players)){
             const typing = p && p.typing;
             const active = typing && typing.on && (now - (typing.ts || 0) < TYPING_EXPIRE_MS);
-            if (active) showTypingBubble(uidK, p?.color || null, String(typing.text || ''));
+            if (active) showTypingBubble(uidK, (p && p.color) ? p.color : null);
             else hideTypingBubble(uidK);
           }
-        } catch {}
+          // no chat-box typing indicator; we only show head bubbles
+        } catch (e) {}
       });
     })();
-  } catch {}
+  } catch (e) {}
   const input = qs('chat-input');
   const messages = qs('chat-messages');
   const hint = qs('chat-hint');
@@ -125,6 +147,38 @@ export function initChat(stateRef){
   // ใช้ capture = true เพื่อให้ตัวนี้รันก่อน target; และเราจะข้ามเมื่อ event มาจาก input อยู่แล้ว
   const openHandler = (e) => tryOpenChatOnEnter(e, input);
   document.addEventListener('keydown', openHandler, true);
+  
+
+  // Low-latency socket echo so other players instantly see chat bubbles
+  (function ensureSocketChatBinding(){
+    function bind(sock){
+      if (!sock || sock._chatBound) return false;
+      try {
+        sock.on('chat:message', (msg={}) => {
+          try {
+            if (!msg || !msg.text) return;
+            const room = _state?.currentRoom || roomCode;
+            if (msg.room && msg.room !== room) return;
+            // Ignore our own echo; we already rendered locally
+            if (_state && msg.uid === _state.uid) return;
+            const id = msg.id || `${msg.uid}:${msg.ts || ''}`;
+            if (renderedMessageIds.has(id)) return; // avoid duplicates with Firebase onValue
+            addChatMessage(msg.name || 'Unknown', String(msg.text), msg.color || null);
+            try { if (msg.uid) hideTypingBubble(msg.uid); } catch (e) {}
+            // Render immediately for remote messages to minimize visible delay
+            try { renderChatBubbleFor({ uid: msg.uid, text: String(msg.text), color: msg.color || null, ts: msg.ts, id: msg.id }); } catch (e) {}
+            // nothing to do in chat box; indicator only on head bubble
+          } catch (e) {}
+        });
+        sock._chatBound = true;
+        return true;
+      } catch (e) { return false; }
+    }
+    try { if (bind(window.socket)) return; } catch (e) {}
+    const iv = setInterval(() => {
+      try { if (bind(window.socket)) clearInterval(iv); } catch (e) {}
+    }, 500);
+  })();
 
   // Broadcast typing state while user is entering text
   input.addEventListener('input', () => {
@@ -132,13 +186,13 @@ export function initChat(stateRef){
     const text = raw.slice(0, TYPING_MAX_LEN);
     const hasText = Boolean(text.trim().length > 0);
     try {
-      setTyping(hasText, text);
+      setTyping(hasText);
       // Optimistically show our own typing bubble for responsiveness
-      if (_state?.uid) showTypingBubble(_state.uid, null, text);
-    } catch {}
+      if (_state?.uid) showTypingBubble(_state.uid, (_state?.playerColor || null));
+    } catch (e) {}
   });
-  input.addEventListener('focus', () => { try { setTyping(true); } catch {} });
-  input.addEventListener('blur',  () => { try { setTyping(false); } catch {} });
+  input.addEventListener('focus', () => { try { setTyping(true); } catch (e) {} });
+  input.addEventListener('blur',  () => { try { setTyping(false); } catch (e) {} });
 
   input.addEventListener('focus', () => {
     _isTyping = true;
@@ -172,7 +226,10 @@ export function initChat(stateRef){
 
     // กันส่งรัวๆ
     const now = performance.now();
-    if (now - lastSentAt < 250) return;
+    if (now - lastSentAt < SEND_MIN_INTERVAL_MS) return;
+    const prevSame = _lastTextSentAt.get(text) || 0;
+    if (now - prevSame < SAME_TEXT_SUPPRESS_MS) return;
+    _lastTextSentAt.set(text, now);
     lastSentAt = now;
 
     lastMsg = text;
@@ -183,6 +240,7 @@ export function initChat(stateRef){
       room: _state?.currentRoom || 'lobby01',
       ts: Date.now(),
     };
+    try { payload.id = `${payload.uid}:${payload.ts}:${Math.random().toString(36).slice(2,6)}`; } catch (e) {}
 
     // บันทึกลง Firebase (source of truth) แยกเป็นต่อผู้เล่นในห้อง
     try {
@@ -191,20 +249,25 @@ export function initChat(stateRef){
         const { rtdb, ref, push } = fb;
         const newRef = await push(ref(rtdb, `lobbies/${payload.room}/players/${payload.uid}/chat`), payload);
         // mark as rendered by id to avoid onValue rendering the same bubble again
-        try { const msgKey = newRef?.key || null; if (msgKey) renderedMessageIds.add(`${payload.uid}:${msgKey}`); } catch {}
+        try {
+          const id = payload.id || `${payload.uid}:${newRef?.key || payload.ts}`;
+          renderedMessageIds.add(id);
+        } catch (e) {}
       })();
-    } catch {}
+    } catch (e) {}
+
+    // Also emit via socket for peers to see immediately
+    try { if (window.socket?.emit) window.socket.emit('chat:message', payload); } catch (e) {}
 
     // Show immediately for responsiveness
     addChatMessage(_state?.displayName || 'You', text, null);
-    // Mark a short-lived placeholder id so we don't double render if onValue fires fast
-    try {
-      renderChatBubbleFor({ uid: _state?.uid, x: _state?.playerX, y: _state?.playerY, text, color: null });
-    } catch (e) {}
+    // Hide typing and render our own bubble with same id as server echo
+    try { hideTypingBubble(_state?.uid); } catch (e) {}
+    try { renderChatBubbleFor({ uid: _state?.uid, x: _state?.playerX, y: _state?.playerY, text, color: null, ts: payload.ts, id: payload.id }); } catch (e) {}
 
     input.value = '';
     input.blur();
-    try { setTyping(false, ''); hideTypingBubble(_state?.uid); } catch {}
+    try { setTyping(false); hideTypingBubble(_state?.uid); } catch (e) {}
   });
 
   // ลูกศรขึ้น = recall ข้อความล่าสุด (ถ้าช่องว่าง)
@@ -232,6 +295,36 @@ function addChatMessage(name, text, color){
 
 import { getRemotePlayerWorldXY } from './multiplayer.js';
 
+// Queue new bubbles per user and render via rAF to avoid burst/reflow
+const pendingBubbles = new Map(); // uid -> Array<data>
+let _bubbleRaf = 0;
+function enqueueBubble(data){
+  try {
+    const uid = data?.uid;
+    if (!uid) return;
+    const arr = pendingBubbles.get(uid) || [];
+    arr.push(data);
+    pendingBubbles.set(uid, arr);
+    if (!_bubbleRaf) _bubbleRaf = requestAnimationFrame(drainBubbleQueues);
+  } catch (e) {}
+}
+function drainBubbleQueues(){
+  _bubbleRaf = 0;
+  let more = false;
+  try {
+    for (const [uid, arr] of pendingBubbles.entries()){
+      if (!arr || !arr.length) continue;
+      // sort by ts to keep stable order
+      arr.sort((a,b)=> (a.ts||0) - (b.ts||0));
+      const next = arr.shift();
+      try { renderChatBubbleFor(next); } catch (e) {}
+      if (arr.length) more = true;
+      pendingBubbles.set(uid, arr);
+    }
+  } catch (e) {}
+  if (more) _bubbleRaf = requestAnimationFrame(drainBubbleQueues);
+}
+
 const activeBubbles = new Map(); // uid -> array of bubble DOM elements
 const MAX_BUBBLES_PER_PLAYER = 5;
 const BUBBLE_TTL_MS = 10000; // keep bubbles longer for visible stacking
@@ -239,7 +332,7 @@ const BUBBLE_Y_SPACING = 22;
 
 function renderChatBubbleFor(data) {
   // Avoid rendering the same message twice (if we have a message id/key)
-  const idKey = `${data.uid}:${data.key || data.ts || 'no-key'}`;
+  const idKey = data.id || `${data.uid}:${data.key || data.ts || 'no-key'}`;
   if (renderedMessageIds.has(idKey)) return;
   renderedMessageIds.add(idKey);
   const isLocal = _state ? (data.uid === _state.uid) : false;
@@ -262,11 +355,13 @@ function renderChatBubbleFor(data) {
   // ✅ เก็บ stack ของแต่ละผู้เล่น
   if (!activeBubbles.has(data.uid)) activeBubbles.set(data.uid, []);
   const stack = activeBubbles.get(data.uid);
-  stack.push(bubble);
+  // newest bubble should be at the bottom ⇒ keep it at index 0
+  stack.unshift(bubble);
 
   // จำกัดจำนวนฟองสูงสุด (กันรก)
   if (stack.length > MAX_BUBBLES_PER_PLAYER) {
-    const old = stack.shift();
+    // remove the oldest (now at the end)
+    const old = stack.pop();
     if (old?._raf) cancelAnimationFrame(old._raf);
     old.remove();
   }
@@ -291,7 +386,8 @@ function renderChatBubbleFor(data) {
     const baseY = worldY + cy - 20;
 
     const index = stack.indexOf(bubble);
-    const offsetY = index * BUBBLE_Y_SPACING;
+    const typingBelow = typingBubbles && typingBubbles.has && typingBubbles.has(data.uid) ? 1 : 0;
+    const offsetY = (index + typingBelow) * BUBBLE_Y_SPACING;
 
     bubble.style.left = `${baseX}px`;
     bubble.style.top = `${baseY - offsetY}px`;
@@ -315,13 +411,13 @@ function renderChatBubbleFor(data) {
 }
 
 // --- Typing indicator helpers ---
-function showTypingBubble(uid, color, text){
+function showTypingBubble(uid, color){
   try {
     let el = typingBubbles.get(uid);
     if (!el){
       el = document.createElement('div');
       el.className = 'chat-bubble show';
-      el.textContent = (text && String(text).length) ? String(text).slice(0, TYPING_MAX_LEN) : '...';
+      el.innerHTML = '<span class="typing-dots"><span></span><span></span><span></span></span>';
       if (color) el.style.color = color;
       document.body.appendChild(el);
       typingBubbles.set(uid, el);
@@ -339,27 +435,27 @@ function showTypingBubble(uid, color, text){
           const halfW = (_state?.playerW ?? 128) / 2;
           el.style.left = `${worldX + cx + halfW}px`;
           el.style.top = `${worldY + cy - 24}px`;
-        } catch {}
+        } catch (e) {}
         el._raf = requestAnimationFrame(update);
       };
       el._raf = requestAnimationFrame(update);
     }
     // update content and color on subsequent calls
-    el.textContent = (text && String(text).length) ? String(text).slice(0, TYPING_MAX_LEN) : '...';
+    el.innerHTML = '<span class="typing-dots"><span></span><span></span><span></span></span>';
     if (color) el.style.color = color;
     el.style.opacity = '1';
-  } catch {}
+  } catch (e) {}
 }
 
 function hideTypingBubble(uid){
   const el = typingBubbles.get(uid);
   if (!el) return;
-  try { cancelAnimationFrame(el._raf); } catch {}
+  try { cancelAnimationFrame(el._raf); } catch (e) {}
   el.remove();
   typingBubbles.delete(uid);
 }
 
-function setTyping(on, text){
+function setTyping(on){
   const now = Date.now();
   if (on && (now - _typingLastWrite) < TYPING_DEBOUNCE_MS) return;
   _typingLastWrite = now;
@@ -371,13 +467,18 @@ function setTyping(on, text){
       const room = _state?.currentRoom || roomCode;
       if (!uid || !room) return;
       const payload = { on: !!on, ts: now };
-      if (on && typeof text === 'string') payload.text = text.slice(0, TYPING_MAX_LEN);
-      await update(ref(rtdb, `lobbies/${room}/players/${uid}`), { typing: payload });
+            await update(ref(rtdb, `lobbies/${room}/players/${uid}`), { typing: payload });
     })();
-  } catch {}
+  } catch (e) {}
   if (_typingExpiryTimer) clearTimeout(_typingExpiryTimer);
-  if (on) _typingExpiryTimer = setTimeout(() => setTyping(false, ''), TYPING_EXPIRE_MS);
+  if (on) _typingExpiryTimer = setTimeout(() => setTyping(false), TYPING_EXPIRE_MS);
 }
+
+
+
+
+
+
 
 
 

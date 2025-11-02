@@ -38,6 +38,22 @@
   // Auto ready
   U.onReady(() => Bridge.ready());
 
+  // Global hard block for Spacebar inside minigames to avoid accidental completes
+  // This prevents Space from triggering focused buttons or any game action.
+  // If a specific minigame needs Space in the future, we can add a per-game opt-in flag.
+  try {
+    const blockSpace = (ev) => {
+      const k = ev.key || ev.code;
+      if (k === ' ' || k === 'Space' || k === 'Spacebar') {
+        ev.preventDefault(); ev.stopPropagation();
+        return false;
+      }
+    };
+    // Capture phase to preempt handlers inside the game
+    document.addEventListener('keydown', blockSpace, true);
+    document.addEventListener('keyup', blockSpace, true);
+  } catch {}
+
   // Listen parent messages
   window.addEventListener('message', (e) => {
     const d = e && e.data || {}; if (!d || typeof d !== 'object') return;
@@ -71,13 +87,8 @@
           Bridge.setActive(key);
           Bridge.progress(0);
         } else if (prev === false && hidden === true){ // became hidden
-          // Default: complete on close, EXCEPT some games that must signal success explicitly
+          // New policy: never auto-complete on close. All minigames must signal mg:complete explicitly.
           if (Bridge.activeKey === key) {
-            const requireSelfComplete = { mop:1, wires:1 };
-            if (!requireSelfComplete[key]) { // these games must signal success explicitly
-              Bridge.progress(100);
-              Bridge.complete({ key });
-            }
             Bridge.setActive(null);
           }
         }

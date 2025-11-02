@@ -353,10 +353,12 @@ export async function initGame(){
   // เปิดใช้ local ws เฉพาะเมื่อใส่ `?ws=local` หรือ localStorage.setItem('ws.local','1')
   let serverUrl = 'https://webgame-25n5.onrender.com';
   try {
-    const useLocal = /(?:^|[?&])ws=local(?:=1)?(?:&|$)/.test(location.search) || localStorage.getItem('ws.local') === '1';
+    const isLocalHost = /^(localhost|127\.0\.0\.1)$/i.test(location.hostname || '');
+    const useLocal = isLocalHost || /(?:^|[?&])ws=local(?:=1)?(?:&|$)/.test(location.search) || localStorage.getItem('ws.local') === '1';
     if (useLocal) {
       const host = location.hostname || '127.0.0.1';
       serverUrl = `${location.protocol}//${host}:3000`;
+      try { localStorage.setItem('ws.local','1'); } catch {}
     }
   } catch {}
   try {
@@ -429,3 +431,4 @@ export async function initGame(){
 
 window.addEventListener('load', initGame);
 export { startMeeting, endMeeting };
+
