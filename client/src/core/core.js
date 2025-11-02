@@ -18,7 +18,7 @@ export const CONST = {
   CONTAINER_WIDTH: 8192,
   CONTAINER_HEIGHT: 8192,
   MINIMAP_SIZE_PIXELS: 150,
-  FOCUSED_MAP_SCALE: 0.5,
+  FOCUSED_MAP_SCALE: 0.12,  // zoom in นิดหน่อย เห็นรายละเอียดชัดขึ้น
   MEETING_POINT: { x: 3500, y: 3900 }, // กลับมาใช้กลางแมพตามโค้ดเดิม
   MAX_MISSION_PROGRESS: 10,
   MISSION_INCREASE_AMOUNT: 1,
@@ -70,6 +70,7 @@ export const refs = {
   get bgmMusic(){ return document.getElementById('bgm-music'); },
   get sfxInteract(){ return document.getElementById('sfx-interact'); },
   get sfxHeist(){ return document.getElementById('sfx-heist'); },
+  get thiefMissionObjective(){ return document.getElementById('thief-mission-objective'); },
   get thiefGemHud(){ return document.getElementById('thief-gem-progress'); },
   get thiefGemText(){ return document.getElementById('thief-gem-text'); },
 };
@@ -277,6 +278,7 @@ function stepMovement(){
 function loop(ts){
   stepMovement();
   renderDisplay();
+  updateMiniMapDisplay(); // อัปเดตมินิแมพทุกเฟรมเพื่อ track ตัวละคร
   checkInteractions();
   checkObjectInteractions();
   // New: gem interactions for Thief

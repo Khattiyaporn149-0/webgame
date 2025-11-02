@@ -47,7 +47,9 @@ export function updateMiniMapDisplay(){
 
   if (isFull){
     overlaySize = Math.floor(window.innerHeight * 0.8);
-    scale = overlaySize / CONST.CONTAINER_WIDTH;
+    // ทำให้แมพเล็กลงเพื่อให้พอดีในวงกลม (ลด padding/border)
+    const maxDimension = Math.max(CONST.CONTAINER_WIDTH, CONST.CONTAINER_HEIGHT);
+    scale = (overlaySize * 0.75) / maxDimension; // ลด 25% เพื่อ padding
   } else {
     overlaySize = CONST.MINIMAP_SIZE_PIXELS;
     scale = CONST.FOCUSED_MAP_SCALE;
@@ -55,16 +57,26 @@ export function updateMiniMapDisplay(){
 
   const scaledPlayerX = playerCenterX * scale;
   const scaledPlayerY = playerCenterY * scale;
-  offsetX = overlaySize/2 - scaledPlayerX;
-  offsetY = overlaySize/2 - scaledPlayerY;
-
-  // clamp map so it doesn't move out of circle container
-  const mapW = CONST.CONTAINER_WIDTH * scale;
-  const mapH = CONST.CONTAINER_HEIGHT * scale;
-  const maxOffsetLeft = overlaySize - mapW;
-  offsetX = Math.min(0, Math.max(maxOffsetLeft, offsetX));
-  const maxOffsetTop = overlaySize - mapH;
-  offsetY = Math.min(0, Math.max(maxOffsetTop, offsetY));
+  
+  if (isFull){
+    // สำหรับโหมดเต็มจอ: center แมพให้อยู่กึ่งกลางวงกลม
+    const mapW = CONST.CONTAINER_WIDTH * scale;
+    const mapH = CONST.CONTAINER_HEIGHT * scale;
+    offsetX = (overlaySize - mapW) / 2;
+    offsetY = (overlaySize - mapH) / 2 - 20; // เลื่อนขึ้นด้านบนนิดหน่อย
+  } else {
+    // สำหรับโหมดปกติ: track ตามผู้เล่น
+    offsetX = overlaySize/2 - scaledPlayerX;
+    offsetY = overlaySize/2 - scaledPlayerY;
+    
+    // clamp map so it doesn't move out of circle container
+    const mapW = CONST.CONTAINER_WIDTH * scale;
+    const mapH = CONST.CONTAINER_HEIGHT * scale;
+    const maxOffsetLeft = overlaySize - mapW;
+    offsetX = Math.min(0, Math.max(maxOffsetLeft, offsetX));
+    const maxOffsetTop = overlaySize - mapH;
+    offsetY = Math.min(0, Math.max(maxOffsetTop, offsetY));
+  }
 
   content.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
 

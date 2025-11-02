@@ -28,11 +28,11 @@ function urlFor(key){
 function ensureOverlay(){
   if (modal) return;
   modal = document.createElement('div');
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:9999';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:9999';
   modal.innerHTML = `
     <div style="position:fixed; inset:0; display:flex; flex-direction:column;">
-      <button id="mgCloseTop" title="Close" style="position:absolute; top:10px; right:12px; z-index:2; background:#ff4d4d; color:#fff; border:0; width:32px; height:32px; border-radius:50%; font-weight:800; cursor:pointer">✖</button>
-      <iframe id="mgFrame" title="Minigame" src="about:blank" style="flex:1; width:100%; border:0; background:#000" allow="autoplay; fullscreen"></iframe>
+      <button id="mgCloseTop" title="Close" style="position:absolute; top:10px; right:12px; z-index:10002; background:#ff4d4d; color:#fff; border:0; width:40px; height:40px; border-radius:50%; font-size:20px; font-weight:800; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,.5); transition:all .2s ease">✖</button>
+      <iframe id="mgFrame" title="Minigame" src="about:blank" style="flex:1; width:100%; border:0; background:transparent" allow="autoplay; fullscreen"></iframe>
     </div>`;
   document.body.appendChild(modal);
   frame = modal.querySelector('#mgFrame');

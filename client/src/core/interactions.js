@@ -168,12 +168,17 @@ function ensureGemStyle(){
 
 export function updateThiefGemHUD(){
   try {
-    if (state.myRole !== 'Thief') { if (refs.thiefGemHud) refs.thiefGemHud.style.display = 'none'; return; }
+    if (state.myRole !== 'Thief') {
+      if (refs.thiefGemHud) refs.thiefGemHud.style.display = 'none';
+      if (refs.thiefMissionObjective) refs.thiefMissionObjective.style.display = 'none';
+      return;
+    }
     const gems = Array.isArray(state.gems) ? state.gems : [];
     const total = gems.length || 5;
     const stolen = gems.filter(g => !!g.stolenBy).length;
     if (refs.thiefGemHud){ refs.thiefGemHud.style.display = 'block'; }
     if (refs.thiefGemText){ refs.thiefGemText.textContent = `${stolen} / ${total}`; }
+    if (refs.thiefMissionObjective){ refs.thiefMissionObjective.style.display = 'block'; }
   } catch {}
 }
 
