@@ -39,6 +39,7 @@ export const state = {
   displayName: null,
   charFolder: 'mini_brown',
   playerColor: '#00ffcc',
+  equip: {},
   
   // ✅ Task System
   myRole: null,              // "Visitor" | "Thief"
@@ -304,6 +305,84 @@ function installInput(){
   installDebugHotkeys();
 }
 
+// Equipment overlay (local player)
+const EQUIP_SLOTS = ['back','suit','mask','hat','acc'];
+let equipManifest = null;
+
+async function loadEquipManifest(){
+  if (equipManifest) return equipManifest;
+  try {
+    const res = await fetch('../assets/equipment/manifest.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error('manifest fetch failed');
+    equipManifest = await res.json();
+  } catch {
+    equipManifest = { hat: [], mask: [], suit: [], back: [], acc: [] };
+  }
+  return equipManifest;
+}
+
+function ensureEquipLayer(slot){
+  const wrap = refs.playerWrap;
+  if (!wrap) return null;
+  const id = `equip-${slot}`;
+  let el = document.getElementById(id);
+  if (!el){
+    el = document.createElement('img');
+    el.id = id;
+    el.alt = slot;
+    el.decoding = 'async';
+    Object.assign(el.style, {
+      position: 'absolute',
+      left: '0px',
+      top: '0px',
+      width: '200px',
+      height: '220px',
+      imageRendering: 'pixelated',
+      pointerEvents: 'none',
+    });
+    const z = { back: 295, suit: 305, hat: 310, mask: 315, acc: 320 }[slot] || 305;
+    el.style.zIndex = String(z);
+    wrap.appendChild(el);
+  }
+  return el;
+}
+
+function findManifestEntry(slot, id){
+  try {
+    const list = Array.isArray(equipManifest?.[slot]) ? equipManifest[slot] : [];
+    return list.find(x => String(x.id) === String(id)) || null;
+  } catch { return null; }
+}
+
+function setEquipLayer(slot, name){
+  const el = ensureEquipLayer(slot);
+  if (!el) return;
+  if (!name){ el.src = ''; el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.src = `../assets/equipment/${slot}/${name}.png`;
+  try {
+    const meta = findManifestEntry(slot, name) || {};
+    const scale = Number(meta.scale) || 1;
+    const y = Number(meta.y) || 0;
+    const origin = (meta.origin || 'center');
+    el.style.transformOrigin = origin;
+    el.style.transform = `translate(0px, ${y}px) scale(${scale})`;
+  } catch {
+    el.style.transformOrigin = 'center';
+    el.style.transform = 'translate(0px, 0px) scale(1)';
+  }
+}
+
+async function applyLocalEquip(equip){
+  try { await loadEquipManifest(); } catch {}
+  const next = equip && typeof equip === 'object' ? equip : {};
+  state.equip = next;
+  for (const slot of EQUIP_SLOTS){
+    const name = next?.[slot] || '';
+    setEquipLayer(slot, name);
+  }
+}
+
 export async function initGame(){
   // ใช้ UID เดียวกับ Lobby: ggd.uid (fallback เป็น session uid หากไม่มี)
   try {
@@ -331,6 +410,11 @@ export async function initGame(){
     state.playerColor = localColor;
     if (refs.nameplate) refs.nameplate.style.color = localColor;
   } catch { setCharacterFolder('mini_brown'); }
+  // Apply equipment chosen in lobby
+  try {
+    const eq = JSON.parse(localStorage.getItem('ggd.equip') || '{}');
+    await applyLocalEquip(eq);
+  } catch { await applyLocalEquip({}); }
   // ตั้งชื่อของเราเองบน nameplate (ถ้ามีใน DOM)
   try { if (refs.nameplate) refs.nameplate.textContent = state.displayName; } catch {}
 
@@ -431,4 +515,3 @@ export async function initGame(){
 
 window.addEventListener('load', initGame);
 export { startMeeting, endMeeting };
-

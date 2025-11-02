@@ -1,0 +1,130 @@
+// core.js — loop, initGame, renderDisplay
+
+import { loadCollisionData, checkCollision } from './collision.js';
+import { toggleFullScreenMap, updateMiniMapDisplay } from './minimap.js';
+import { checkInteractions, checkObjectInteractions, startMeeting, endMeeting, updateTaskWorldHints } from './interactions.js';
+import { initMultiplayer, sendPlayerPositionThrottled, startRemotePlayersRenderLoop } from './multiplayer.js';
+import { initChat, isTyping } from './chat.js';
+import { isRoleRevealed } from './roles.js';
+import { installDebugHotkeys, renderDebugOverlayIfNeeded } from './debug.js';
+
+export const CONST = {
+  PLAYER_SPEED: 20,                   // ตาม config เดิม
+  VISION_RADIUS: 300,
+  FOG_COLOR: 'rgba(0, 0, 0, 0.95)',
+  ANIMATION_FRAME_MS: 80,
+  INTERACTION_RADIUS: 200,
+  INTERACTION_KEY: 'KeyE',
+  CONTAINER_WIDTH: 8192,
+  CONTAINER_HEIGHT: 8192,
+  MINIMAP_SIZE_PIXELS: 150,
+  FOCUSED_MAP_SCALE: 0.5,
+  MEETING_POINT: { x: 3500, y: 3900 }, // กลับมาใช้กลางแมพตามโค้ดเดิม
+  MAX_MISSION_PROGRESS: 10,
+  MISSION_INCREASE_AMOUNT: 1,
+  MAX_TELEPHONE_CALLS: 2,
+  TELEPHONE_COOLDOWN_MS: 30000,
+};
+
+export const state = {
+  playerX: 3500, playerY: 3900, playerW: 200, playerH: 220,
+  containerX: 0, containerY: 0,
+  viewportW: window.innerWidth, viewportH: window.innerHeight,
+  isMoving: false,
+  isMeetingActive: false,
+  keysPressed: Object.create(null),
+  collisionObjects: [],
+  missionProgress: 0,
+  uid: null,
+  displayName: null,
+  charFolder: 'mini_brown',
+  playerColor: '#00ffcc',
+  
+  // ✅ Task System
+  myRole: null,              // "Visitor" | "Thief"
+  myWaves: [],               // [[task1, task2], [task3, task4, task5], [task6, task7, task8]]
+  myCurrentWave: 0,          // 1, 2, 3
+  myUnlockedTasks: [],       // ["align", "mop", ...]
+  myCompletedTasks: [],      // ["align", ...]
+};
+
+export const refs = {
+  get gameContainer(){ return document.getElementById('game-container'); },
+  get playerWrap(){ return document.getElementById('player-wrap'); },
+  get player(){ return document.getElementById('player'); },
+  get nameplate(){ return document.getElementById('nameplate'); },
+  get visionOverlay(){ return document.getElementById('vision-overlay'); },
+  get interactionHint(){ return document.getElementById('interaction-hint'); },
+  get logContainer(){ return document.getElementById('log-container'); },
+  get missionBarFill(){ return document.getElementById('mission-bar-fill'); },
+  get missionText(){ return document.getElementById('mission-progress-text'); },
+  get meetingModal(){ return document.getElementById('meeting-modal'); },
+  get endMeetingButton(){ return document.getElementById('end-meeting-button'); },
+  get voteButtons(){ return document.querySelectorAll('.vote-option'); },
+  get voteResultText(){ return document.getElementById('vote-result'); },
+  get bgmMusic(){ return document.getElementById('bgm-music'); },
+  get sfxInteract(){ return document.getElementById('sfx-interact'); },
+  get sfxHeist(){ return document.getElementById('sfx-heist'); },
+};
+
+function applyAudioSettingsToDom(){
+  try {
+    const gs = window.GameSettings && typeof window.GameSettings.get === 'function' ? window.GameSettings.get() : null;
+    const master = gs ? +gs.master : 1;
+    const music  = gs ? +gs.music  : 0.5;
+    const sfx    = gs ? +gs.sfx    : 0.5;
+    const clamp = (v)=> Math.max(0, Math.min(1, v));
+    if (refs.bgmMusic) refs.bgmMusic.volume   = clamp(master * music);
+    if (refs.sfxInteract) refs.sfxInteract.volume = clamp(master * sfx);
+    if (refs.sfxHeist) refs.sfxHeist.volume   = clamp(master * sfx);
+  } catch {}
+}
+
+let idleFrames = ['../assets/Characters/mini_brown/idle_1.png'];
+let walkFrames = Array.from({length:8},(_,i)=>`../assets/Characters/mini_brown/walk_${i+1}.png`);
+function setCharacterFolder(folder){
+  try {
+    if (typeof folder !== 'string' || !folder) return;
+    state.charFolder = folder;
+    idleFrames = [`../assets/Characters/${folder}/idle_1.png`];
+    walkFrames = Array.from({length:8},(_,i)=>`../assets/Characters/${folder}/walk_${i+1}.png`);
+    if (refs.player) refs.player.src = idleFrames[0];
+    // ปรับขนาดกล่อง player-wrap ให้ตรงกับรูป (เพื่อให้ nameplate อยู่กึ่งกลางจริง)
+    try {
+      if (refs.playerWrap) {
+        refs.playerWrap.style.width = '200px';
+        refs.playerWrap.style.height = '220px';
+      }
+    } catch {}
+  } catch {}
+}
+
+function charToColor(ch){
+  const map = {
+    mini_brown:    '#8B4513',
+    mini_coral:    '#FF7F50',
+    mini_gray:     '#808080',
+    mini_lavender: '#B57EDC',
+    mini_mint:     '#3EB489',
+    mini_pink:     '#FFC0CB',
+    mini_sky_blue: '#87CEEB',
+    mini_yellow:   '#FFD54F',
+  };
+  return map[ch] || '#FFFFFF';
+}
+
+// ===============================
+// Task System Functions
+// ===============================
+export function initPlayerTasks() {
+  try {
+    state.myRole = sessionStorage.getItem("myRole") || null;
+    const wavesStr = sessionStorage.getItem("myWaves");
+    state.myWaves = wavesStr ? JSON.parse(wavesStr) : [];
+    state.myCurrentWave = parseInt(sessionStorage.getItem("myCurrentWave") || "0", 10);
+    const completedStr = sessionStorage.getItem('myCompletedTasks');
+    state.myCompletedTasks = completedStr ? JSON.parse(completedStr) : [];
+    
+    // ตั้งค่า unlocked tasks = wave แรก (ถ้ามี)
+    if (state.myCurrentWave > 0 && state.myWaves[state.myCurrentWave - 1]) {
+      state.myUnlockedTasks = [...state.myWaves[state.myCurrentWave - 1]];

@@ -128,6 +128,7 @@ function charToColor(ch){
   return map[ch] || '#FFFFFF';
 }
 
+const __equipInit = (()=>{ try { return JSON.parse(localStorage.getItem('ggd.equip')||'{}'); } catch { return {}; } })();
 await set(playerRef, {
   uid,
   name: displayName,
@@ -136,6 +137,7 @@ await set(playerRef, {
   online: true,
   char: savedChar,
   color: charToColor(savedChar),
+  equip: __equipInit,
   joinTime: Date.now(), // ใช้ timestamp จริงเพื่อจัดลำดับโฮส
 });
 onDisconnect(playerRef).remove();
@@ -149,6 +151,14 @@ try {
   await set(presRef, { roomCode: roomCode, at: serverTimestamp() });
   onDisconnect(presRef).remove();
 } catch {}
+
+// Listen for equipment changes from popup and sync to RTDB
+try {
+  window.addEventListener('equip:changed', (e)=>{
+    try { update(playerRef, { equip: e?.detail || {} }); } catch {}
+  });
+} catch {}
+
 
 /* ---------- Character selection (no-duplicate) ---------- */
 const characters = [
@@ -448,6 +458,7 @@ function startCountdownTimer() {
           name: displayName,
           color: playerColor,
           char: playerChar,
+          equip: (()=>{ try { return JSON.parse(localStorage.getItem('ggd.equip')||'{}'); } catch { return {}; } })(),
           x: 3500,
           y: 3900
         });
@@ -554,3 +565,4 @@ chatInput.addEventListener("keydown", (e) => {
     sendBtn.click();
   }
 });
+

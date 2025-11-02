@@ -19,6 +19,8 @@ let lastPlayersSnapshot = [];          // snapshot ล่าสุดจาก s
 const remotePlayers = {};              // uid -> <img> element
 const playerChars = new Map();         // uid -> charFolder (จาก Firebase)
 const playerColors = new Map();        // uid -> color (จาก Firebase)
+const playerEquips = new Map();        // uid -> equip object (จาก Firebase/snapshot)
+const remoteEquipLayers = new Map();   // uid -> { slot: HTMLImageElement }
 const _placeholderCreated = new Set(); // ป้องกันสร้าง placeholder ซ้ำ
 let rafRemote = null;                  // render loop handle
 let currentRoom = 'lobby01';
@@ -41,6 +43,76 @@ function createNametag(name, color){
   tag.textContent = name;
   document.body.appendChild(tag);
   return tag;
+}
+
+// ---- Equipment helpers (remote) ----
+let equipManifest = null;
+async function loadEquipManifest(){
+  if (equipManifest) return equipManifest;
+  try {
+    const res = await fetch('../assets/equipment/manifest.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error('manifest fetch failed');
+    equipManifest = await res.json();
+  } catch {
+    equipManifest = { hat: [], mask: [], suit: [], back: [], acc: [] };
+  }
+  return equipManifest;
+}
+
+function findEntry(slot, id){
+  try {
+    const list = Array.isArray(equipManifest?.[slot]) ? equipManifest[slot] : [];
+    return list.find(x => String(x.id) === String(id)) || null;
+  } catch { return null; }
+}
+
+function ensureRemoteEquipLayer(uid, slot){
+  const gc = refs?.gameContainer || document.getElementById('gameContainer');
+  if (!gc) return null;
+  if (!remoteEquipLayers.has(uid)) remoteEquipLayers.set(uid, {});
+  const store = remoteEquipLayers.get(uid);
+  if (store[slot]) return store[slot];
+  const el = document.createElement('img');
+  el.className = 'remote-equip';
+  el.alt = slot;
+  Object.assign(el.style, {
+    position: 'absolute',
+    left: '0px', top: '0px',
+    width: '200px', height: '220px',
+    imageRendering: 'pixelated',
+    pointerEvents: 'none',
+  });
+  const z = { back: 295, suit: 305, hat: 310, mask: 315, acc: 320 }[slot] || 305;
+  el.style.zIndex = String(z);
+  gc.appendChild(el);
+  store[slot] = el;
+  return el;
+}
+
+async function renderRemoteEquipFor(p, tx, ty){
+  try { await loadEquipManifest(); } catch {}
+  const uid = p.uid;
+  const equip = (playerEquips.get(uid) || p.equip || {});
+  const slots = ['back','suit','mask','hat','acc'];
+  for (const slot of slots){
+    const name = equip?.[slot];
+    const el = ensureRemoteEquipLayer(uid, slot);
+    if (!el) continue;
+    if (!name){ el.style.display = 'none'; el.src = ''; continue; }
+    el.style.display = 'block';
+    el.src = `../assets/equipment/${slot}/${name}.png`;
+    try {
+      const meta = findEntry(slot, name) || {};
+      const scale = Number(meta.scale) || 1;
+      const y = Number(meta.y) || 0;
+      const origin = (meta.origin || 'center');
+      el.style.transformOrigin = origin;
+      el.style.transform = `translate(${tx}px, ${ty}px) translate(0px, ${y}px) scale(${scale})`;
+    } catch {
+      el.style.transformOrigin = 'center';
+      el.style.transform = `translate(${tx}px, ${ty}px)`;
+    }
+  }
 }
 
 // ===== init / teardown =====
@@ -78,8 +150,10 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
         for (const [uid, v] of Object.entries(data)){
           const ch  = (v && v.char)  ? String(v.char)  : '';
           const col = (v && v.color) ? String(v.color) : '';
+          const eq  = (v && v.equip && typeof v.equip === 'object') ? v.equip : null;
           if (ch)  playerChars.set(uid, ch);
           if (col) playerColors.set(uid, col);
+          if (eq)  playerEquips.set(uid, eq);
         }
       });
     })();
@@ -114,6 +188,7 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
         color: finalColor,
         x: finalX,
         y: finalY,
+        equip: (()=>{ try { return JSON.parse(localStorage.getItem('ggd.equip')||'{}'); } catch { return playerEquips.get(finalUid) || {}; } })(),
       });
 
       socket.emit('game:join', {
@@ -124,6 +199,7 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
         char: finalChar,
         x: finalX,
         y: finalY,
+        equip: (()=>{ try { return JSON.parse(localStorage.getItem('ggd.equip')||'{}'); } catch { return playerEquips.get(finalUid) || {}; } })(),
       });
       // ขอ tasks และ state (resume) อีกครั้งในหน้าเกม เผื่อหลุดจาก lobby redirect
       try {
@@ -162,6 +238,7 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
         if (p && p.uid) {
           if (p.color) playerColors.set(p.uid, String(p.color));
           if (p.char)  playerChars.set(p.uid, String(p.char));
+          if (p.equip && typeof p.equip === 'object') playerEquips.set(p.uid, p.equip);
         }
       }
     } catch {}
@@ -207,6 +284,14 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
         remotePlayers[id]._nametag?.remove();
         remotePlayers[id].remove();
         delete remotePlayers[id];
+        // remove equip overlays for this uid
+        try {
+          const layers = remoteEquipLayers.get(id);
+          if (layers){
+            for (const slot of Object.keys(layers)) layers[slot]?.remove?.();
+          }
+          remoteEquipLayers.delete(id);
+        } catch {}
       }
     }
   });
@@ -396,6 +481,12 @@ export function cleanupMultiplayer(){
     remotePlayers[id].remove();
     delete remotePlayers[id];
   }
+  try {
+    for (const [uid, layers] of Array.from(remoteEquipLayers.entries())){
+      for (const slot of Object.keys(layers || {})) layers[slot]?.remove?.();
+      remoteEquipLayers.delete(uid);
+    }
+  } catch {}
   lastPlayersSnapshot = [];
   if (socket) {
     try {
@@ -486,6 +577,11 @@ export function startRemotePlayersRenderLoop(){
         el.dataset.tx = tx; el.dataset.ty = ty;
       }
       el.dataset.x = nx; el.dataset.y = ny;
+
+      // Render equipment overlays for this remote player
+      try {
+        renderRemoteEquipFor(p, tx, ty);
+      } catch {}
 
       // ตำแหน่งป้ายชื่อ
       const containerX = Number(state?.containerX) || 0;
