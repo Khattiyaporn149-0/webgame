@@ -1,5 +1,6 @@
 // socketHandler.js
 // รวม event handlers ของ socket.io
+const crypto = require('crypto');
 
 const { gameRooms, ensureGameRoom, tickRoom } = require("./game/gameRoom");
 const { GRACE_DISCONNECT_MS } = require("./constants");
@@ -7,10 +8,56 @@ const { GRACE_DISCONNECT_MS } = require("./constants");
 // Minimal in-memory role/tasks store to satisfy client sync
 // key: `${room}:${uid}` -> { role, waves, currentWave, completedTasks }
 const playerTaskState = new Map();
+// Room-level role assignment (locked per game start)
+// room -> { started: boolean, seed: number, thieves: Set<string>, assignedAt: number }
+const roomRoles = new Map();
+
+// Restrict assignments to only these 8 minigames (exclude "mix" and others)
+// Keep exactly 8 so client progress total (8) stays consistent
 const TASK_POOL = [
-  'wires','upload','mix','switch','card','timer','align','mop',
-  'simon','pipes','math','lights','mole','slider','rhythm','pattern',
+  'align',
+  'mop',
+  'upload',
+  'dodge',
+  'rhythm',
+  'switch',
+  'wires',
+  'math',
 ];
+
+// Thief tasks (sabotage minigames) - 8 tasks total
+const THIEF_TASK_POOL = [
+  'sabotage_lights',
+  'sabotage_comms',
+  'sabotage_reactor',
+  'sabotage_oxygen',
+  'steal_vault',
+  'steal_data',
+  'steal_artifact',
+  'disable_security',
+];
+
+function sanitizeWaves(waves, role='Visitor'){
+  try {
+    const pool = role === 'Thief' ? THIEF_TASK_POOL : TASK_POOL;
+    const allowed = new Set(pool);
+    const flat = (Array.isArray(waves) ? waves.flat() : []).filter(x => typeof x === 'string');
+    const filtered = [];
+    for (const t of flat){ if (allowed.has(t) && !filtered.includes(t)) filtered.push(t); }
+    // ensure exactly 8 by topping up from pool if needed
+    for (const t of pool){ if (filtered.length >= 8) break; if (!filtered.includes(t)) filtered.push(t); }
+    const eight = filtered.slice(0, 8);
+    // partition 3-3-2
+    const w1 = eight.slice(0, 3);
+    const w2 = eight.slice(3, 6);
+    const w3 = eight.slice(6, 8);
+    return [w1, w2, w3];
+  } catch {
+    // fallback to simple split on pool
+    const pool = role === 'Thief' ? THIEF_TASK_POOL : TASK_POOL;
+    return [pool.slice(0,3), pool.slice(3,6), pool.slice(6,8)];
+  }
+}
 
 function hashToInt(str){
   let h = 0;
@@ -18,17 +65,27 @@ function hashToInt(str){
   return Math.abs(h);
 }
 
+function getRequiredThieves(count){
+  if (count >= 6 && count <= 8) return 2;
+  if (count >= 3 && count <= 5) return 1;
+  return 0;
+}
+
 function assignTasksFor(room, uid){
   const key = `${room}:${uid}`;
   if (playerTaskState.has(key)) return playerTaskState.get(key);
-  const h = hashToInt(uid + ':' + room);
-  const role = (h % 5 === 0) ? 'Thief' : 'Visitor';
-  const shuffled = [...TASK_POOL].sort(() => (hashToInt(uid+room+Math.random()) % 3) - 1);
+
+  // Determine role based on room-level assignment if present; otherwise default Visitor pre-start
+  const rr = roomRoles.get(room);
+  const role = (rr && rr.started && rr.thieves && rr.thieves.has(uid)) ? 'Thief' : 'Visitor';
+
+  // Use different task pool based on role
+  const pool = role === 'Thief' ? THIEF_TASK_POOL : TASK_POOL;
+  const shuffled = [...pool].sort(() => (hashToInt(uid+room+Math.random()) % 3) - 1);
   const w1 = shuffled.slice(0, 3);
   const w2 = shuffled.slice(3, 6);
-  const w3 = shuffled.slice(6, 9);
-  const waves = [w1, w2, w3];
-  const state = { role, waves, currentWave: 1, completedTasks: [] };
+  const w3 = shuffled.slice(6, 8);
+  const state = { role, waves: [w1, w2, w3], currentWave: 1, completedTasks: [] };
   playerTaskState.set(key, state);
   return state;
 }
@@ -52,6 +109,8 @@ function registerSocketHandlers(io) {
           for (const [, t] of gr.removeTimers.entries()) try { clearTimeout(t); } catch {}
           delete gameRooms[room];
         }
+        // clear room role assignments
+        if (roomRoles.has(room)) roomRoles.delete(room);
         for (const k of Array.from(playerTaskState.keys())){
           if (k.startsWith(room + ':')) playerTaskState.delete(k);
         }
@@ -109,11 +168,12 @@ function registerSocketHandlers(io) {
         const key = `${room}:${uid}`;
         if (playerTaskState.has(key)){
           const st = playerTaskState.get(key);
+          const waves = sanitizeWaves(st.waves, st.role);
           socket.emit('state:resume', {
             room,
             uid,
             role: st.role,
-            waves: st.waves,
+            waves,
             currentWave: st.currentWave,
             completedTasks: st.completedTasks,
             x: (typeof x === 'number') ? x : undefined,
@@ -161,25 +221,91 @@ function registerSocketHandlers(io) {
       const room = data.room || socket.data.room;
       const uid = data.uid || socket.data.uid;
       if (!room || !uid) return;
+      // Auto-lock roles if game hasn't started but enough players (3+) request tasks
+      try {
+        const gr = gameRooms[room];
+        const uids = gr ? Array.from(gr.players.keys()) : [];
+        const need = getRequiredThieves(uids.length);
+        const rr = roomRoles.get(room);
+        if (need > 0 && (!rr || !rr.started)) {
+          // lock roles now
+          const shuffled = uids.slice();
+          for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = crypto.randomInt(0, i + 1);
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+          }
+          const selected = new Set(shuffled.slice(0, need));
+          const now = Date.now();
+          roomRoles.set(room, { started: true, seed: now, thieves: selected, assignedAt: now, wave1Sent: true });
+          // update any existing states and privately notify roles
+          if (gr) {
+            for (const [puid, p] of gr.players.entries()) {
+              const k = `${room}:${puid}`;
+              if (playerTaskState.has(k)) {
+                playerTaskState.get(k).role = selected.has(puid) ? 'Thief' : 'Visitor';
+              }
+              try { io.to(p.socketId).emit('role:update', { room, uid: puid, role: selected.has(puid) ? 'Thief' : 'Visitor' }); } catch {}
+            }
+          }
+          // announce wave 1 to room
+          try { io.to(room).emit('wave:unlock', { currentWave: 1, unlockedTasks: [] }); } catch {}
+          console.log(`?? auto-start -> roles locked (thieves=${selected.size}) for room ${room}`);
+        }
+      } catch {}
       const st = assignTasksFor(room, uid);
       try {
+        const waves = sanitizeWaves(st.waves, st.role);
         socket.emit('tasks:assigned', {
           room,
           uid,
           role: st.role,
-          waves: st.waves,
+          waves,
           currentWave: st.currentWave,
         });
       } catch {}
     });
 
-    // Accept game:start from host; broadcast wave:unlock
+    // Accept game:start from host; lock roles and broadcast wave:unlock
     socket.on('game:start', (data = {}) => {
       const room = data.room || socket.data.room;
       if (!room) return;
       try {
+        const gr = gameRooms[room];
+        const uids = gr ? Array.from(gr.players.keys()) : [];
+        const count = uids.length;
+        const need = getRequiredThieves(count);
+
+        // Fisher–Yates shuffle using crypto.randomInt for unbiased selection
+        const shuffled = uids.slice();
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = crypto.randomInt(0, i + 1);
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        const selected = new Set(shuffled.slice(0, Math.max(0, need)));
+
+        const now = Date.now();
+        roomRoles.set(room, { started: true, seed: now, thieves: selected, assignedAt: now });
+
+        // Update any pre-created task states to reflect locked roles
+        for (const uid of uids) {
+          const key = `${room}:${uid}`;
+          if (playerTaskState.has(key)) {
+            const st = playerTaskState.get(key);
+            st.role = selected.has(uid) ? 'Thief' : 'Visitor';
+          }
+        }
+
+        // Privately notify each player of their role (does not leak to room)
+        if (gr) {
+          for (const [uid, p] of gr.players.entries()) {
+            const role = selected.has(uid) ? 'Thief' : 'Visitor';
+            try { io.to(p.socketId).emit('role:update', { room, uid, role }); } catch {}
+          }
+        }
+
+        // Start wave 1 for everyone
         io.to(room).emit('wave:unlock', { currentWave: 1, unlockedTasks: [] });
-        console.log(`?? game:start broadcasted for room ${room}`);
+        console.log(`?? game:start -> roles locked (thieves=${selected.size}) for room ${room}`);
       } catch {}
     });
 
@@ -243,6 +369,47 @@ function registerSocketHandlers(io) {
             gr.removeTimers.set(uid, t);
           }
         }
+      }
+    });
+
+    // TASK COMPLETE -> update player state and unlock next wave if needed
+    socket.on('task:complete', (data = {}) => {
+      try {
+        const room = data.room || socket.data.room;
+        const uid = data.uid || socket.data.uid;
+        const taskNameRaw = data.taskName;
+        if (!room || !uid || !taskNameRaw) return;
+        const key = `${room}:${uid}`;
+        const st = assignTasksFor(room, uid);
+        const taskName = String(taskNameRaw).toLowerCase();
+        
+        // accept only allowed tasks based on role
+        const allowedPool = st.role === 'Thief' ? THIEF_TASK_POOL : TASK_POOL;
+        if (!allowedPool.includes(taskName)) return;
+        
+        // add to completed if part of any wave and not already recorded
+        const allWaveTasks = st.waves.flat().map(t => String(t).toLowerCase());
+        if (!allWaveTasks.includes(taskName)) return;
+        if (!st.completedTasks.includes(taskName)) st.completedTasks.push(taskName);
+
+        // Check if current wave is fully completed
+        const currentIdx = Math.max(0, Math.min(st.waves.length - 1, (st.currentWave|0) - 1));
+        const currentWaveTasks = (st.waves[currentIdx] || []).map(t => String(t).toLowerCase());
+        const doneCurrent = currentWaveTasks.every(t => st.completedTasks.includes(t));
+        if (doneCurrent) {
+          // Advance wave if possible
+          if (st.currentWave < st.waves.length) {
+            st.currentWave += 1;
+            const nextIdx = Math.max(0, Math.min(st.waves.length - 1, st.currentWave - 1));
+            const unlockedTasks = st.waves[nextIdx] || [];
+            // notify only this player
+            try { socket.emit('wave:unlock', { currentWave: st.currentWave, unlockedTasks }); } catch {}
+          } else {
+            // Already at last wave; optionally could signal completion summary here.
+          }
+        }
+      } catch (e) {
+        console.warn('task:complete handler failed', e);
       }
     });
   });

@@ -66,14 +66,22 @@ try {
 function dist(x1,y1,x2,y2){ return Math.hypot(x1-x2, y1-y2); }
 
 function setMissionUI(){
-  // ✅ ใช้ระบบภารกิจใหม่
-  if (state.myRole !== "Visitor") return;
+  // ✅ ใช้ระบบภารกิจใหม่ (รองรับทั้ง Visitor และ Thief)
+  if (!state.myRole) return;
   
   const completed = state.myCompletedTasks.length;
   const total = 8;
   const pct = Math.round((completed / total) * 100);
   
-  if (refs.missionBarFill) refs.missionBarFill.style.width = `${pct}%`;
+  if (refs.missionBarFill) {
+    refs.missionBarFill.style.width = `${pct}%`;
+    // ✅ Thief ใช้สีแดง, Visitor ใช้สีเขียว
+    if (state.myRole === 'Thief') {
+      refs.missionBarFill.style.background = 'linear-gradient(90deg, #ff0000, #cc0000)';
+    } else {
+      refs.missionBarFill.style.background = 'linear-gradient(90deg, #4CAF50, #2E7D32)';
+    }
+  }
   // ✅ ไม่แสดงตัวเลข (จะลบ element ในขั้นถัดไป)
   if (refs.missionText) refs.missionText.textContent = '';
 }
@@ -94,6 +102,8 @@ function ensureTaskHintStyle(){
     @keyframes taskPulse { 0%{ transform: translate(-50%, -100%) scale(0.9); opacity: .8 } 50%{ transform: translate(-50%, -100%) scale(1.1); opacity: 1 } 100%{ transform: translate(-50%, -100%) scale(0.9); opacity: .8 } }
     .task-marker{ position:absolute; width:22px; height:22px; border-radius:50%; background:rgba(255, 221, 0, .9); box-shadow:0 0 10px rgba(255,221,0,.8), 0 0 18px rgba(255,221,0,.6); pointer-events:none; z-index:500; animation: taskPulse 1.2s infinite; border:2px solid #000; }
     .task-marker::after{ content:''; position:absolute; left:50%; top:50%; width:6px; height:6px; background:#000; border-radius:50%; transform:translate(-50%, -50%); }
+    .task-marker.thief-marker{ background:rgba(255, 50, 50, .9); box-shadow:0 0 10px rgba(255,50,50,.8), 0 0 18px rgba(255,50,50,.6); border:2px solid #440000; }
+    .task-marker.thief-marker::after{ background:#fff; }
     `;
     const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s);
   } catch {}
@@ -101,7 +111,8 @@ function ensureTaskHintStyle(){
 
 export function updateTaskWorldHints(){
   try {
-    if (state.myRole !== 'Visitor') return;
+    // ✅ รองรับทั้ง Visitor และ Thief
+    if (!state.myRole || (state.myRole !== 'Visitor' && state.myRole !== 'Thief')) return;
     ensureTaskHintStyle();
     const gc = document.getElementById('game-container');
     if (!gc) return;
@@ -112,9 +123,23 @@ export function updateTaskWorldHints(){
       if (state.myCompletedTasks.includes(mg)) continue;
       need.add(mg);
       let el = _taskHintEls.get(mg);
-      if (!el){ el = document.createElement('div'); el.className = 'task-marker'; gc.appendChild(el); _taskHintEls.set(mg, el); }
+      if (!el){ 
+        el = document.createElement('div'); 
+        // ✅ Thief ใช้สีแดง, Visitor ใช้สีเหลือง
+        el.className = state.myRole === 'Thief' ? 'task-marker thief-marker' : 'task-marker';
+        gc.appendChild(el); 
+        _taskHintEls.set(mg, el); 
+      }
       const obj = INTERACTABLE_OBJECTS.find(o => o.mg === mg);
-      if (obj){ const r = normRect(obj); const cx = r.x + r.w/2; const cy = r.y; el.style.left = `${cx}px`; el.style.top = `${cy}px`; el.style.display = 'block'; el.title = `Task: ${mg}`; }
+      if (obj){ 
+        const r = normRect(obj); 
+        const cx = r.x + r.w/2; 
+        const cy = r.y; 
+        el.style.left = `${cx}px`; 
+        el.style.top = `${cy}px`; 
+        el.style.display = 'block'; 
+        el.title = `Task: ${mg}`; 
+      }
     }
 
     // ซ่อนของที่ไม่อยู่ใน need อีกแล้ว
@@ -257,7 +282,17 @@ export function checkInteractions(){
     { id: 'matchine', x: 6580, y: 3160, width: -380,height: -200, type: 'matchine', active: true, mg: 'rhythm' },
     { id: 'battery', x: 7120, y: 4260, width: -600,height: -600, type: 'battery', active: true , mg: 'switch'},
     { id: 'power', x: 7420, y: 7850, width: -200,height: -150, type: 'power', active: true , mg: 'wires'},
-    { id: '้hackbox', x: 1512, y: 6132, width: -200, height: -150, type: 'hackbox', active: true , mg: 'math'}
+    { id: '้hackbox', x: 1512, y: 6132, width: -200, height: -150, type: 'hackbox', active: true , mg: 'math'},
+    
+    // 🔴 Thief-only objects (สีแดง)
+    { id: 'thief_lights', x: 2000, y: 2000, width: 80, height: 80, type: 'sabotage', active: true, mg: 'sabotage_lights', roleRequired: 'Thief' },
+    { id: 'thief_comms', x: 5500, y: 2500, width: 80, height: 80, type: 'sabotage', active: true, mg: 'sabotage_comms', roleRequired: 'Thief' },
+    { id: 'thief_reactor', x: 6500, y: 5000, width: 80, height: 80, type: 'sabotage', active: true, mg: 'sabotage_reactor', roleRequired: 'Thief' },
+    { id: 'thief_oxygen', x: 2500, y: 5500, width: 80, height: 80, type: 'sabotage', active: true, mg: 'sabotage_oxygen', roleRequired: 'Thief' },
+    { id: 'thief_vault', x: 5000, y: 1500, width: 80, height: 80, type: 'steal', active: true, mg: 'steal_vault', roleRequired: 'Thief' },
+    { id: 'thief_data', x: 1800, y: 7200, width: 80, height: 80, type: 'steal', active: true, mg: 'steal_data', roleRequired: 'Thief' },
+    { id: 'thief_artifact', x: 6800, y: 6500, width: 80, height: 80, type: 'steal', active: true, mg: 'steal_artifact', roleRequired: 'Thief' },
+    { id: 'thief_security', x: 3800, y: 6000, width: 80, height: 80, type: 'sabotage', active: true, mg: 'disable_security', roleRequired: 'Thief' },
 ];
 
 function normRect({x,y,width:w,height:h}){
@@ -267,8 +302,11 @@ function normRect({x,y,width:w,height:h}){
 
 let telCooldown=false, telRemain=0, telTimer=null, telUsed=0;
 
-// ✅ 8 minigames ที่ใช้ในระบบภารกิจ
+// ✅ 8 minigames ที่ใช้ในระบบภารกิจ Visitor
 const VALID_MINIGAMES = ["align", "mop", "upload", "dodge", "rhythm", "switch", "wires", "math"];
+
+// ✅ 8 minigames ที่ใช้ในระบบภารกิจ Thief
+const THIEF_MINIGAMES = ["sabotage_lights", "sabotage_comms", "sabotage_reactor", "sabotage_oxygen", "steal_vault", "steal_data", "steal_artifact", "disable_security"];
 
 export function checkObjectInteractions(){
   const pcx = state.playerX + state.playerW/2;
@@ -278,14 +316,27 @@ export function checkObjectInteractions(){
   for (const raw of INTERACTABLE_OBJECTS){
     if (!raw.active) continue;
     
-    // ✅ กรองเฉพาะ object ที่มี mg และอยู่ใน VALID_MINIGAMES
-    if (raw.mg && !VALID_MINIGAMES.includes(raw.mg)) continue;
+    // ✅ เช็คว่า object นี้มีข้อกำหนดบทบาทหรือไม่
+    if (raw.roleRequired && raw.roleRequired !== state.myRole) continue;
     
-    // ✅ ถ้าเป็น Visitor ต้องเช็คว่าปลดล็อคแล้วหรือยัง
-    if (state.myRole === "Visitor" && raw.mg) {
-      if (!state.myUnlockedTasks.includes(raw.mg)) continue;
-      // ถ้าทำไปแล้วก็ไม่แสดง
-      if (state.myCompletedTasks.includes(raw.mg)) continue;
+    // ✅ กรองเฉพาะ object ที่มี mg และอยู่ใน pool ที่ถูกต้อง
+    if (raw.mg) {
+      const isVisitorTask = VALID_MINIGAMES.includes(raw.mg);
+      const isThiefTask = THIEF_MINIGAMES.includes(raw.mg);
+      
+      if (!isVisitorTask && !isThiefTask) continue;
+      
+      // Visitor tasks
+      if (state.myRole === "Visitor" && isVisitorTask) {
+        if (!state.myUnlockedTasks.includes(raw.mg)) continue;
+        if (state.myCompletedTasks.includes(raw.mg)) continue;
+      }
+      
+      // Thief tasks
+      if (state.myRole === "Thief" && isThiefTask) {
+        if (!state.myUnlockedTasks.includes(raw.mg)) continue;
+        if (state.myCompletedTasks.includes(raw.mg)) continue;
+      }
     }
     
     const {x,y,w,h} = normRect(raw);
@@ -336,8 +387,8 @@ export function checkObjectInteractions(){
     // Fallback to legacy opener only if the new system isn't available
     openMinigameForObject(near, {
       onComplete: (obj) => {
-        // ✅ เฉพาะ Visitor เท่านั้นที่ส่งผลกับ progress
-        if (state.myRole === "Visitor" && obj.mg) {
+        // ✅ ทั้ง Visitor และ Thief ต่างก็มีระบบ progress ของตัวเอง
+        if (obj.mg && (state.myRole === "Visitor" || state.myRole === "Thief")) {
           const taskName = obj.mg;
           
           // เช็คว่าทำไปแล้วหรือยัง
@@ -354,11 +405,13 @@ export function checkObjectInteractions(){
             // อัพเดท UI
             setMissionUI();
             try { updateTaskWorldHints?.(); } catch {}
-            log('✅ Minigame complete! (+progress)');
+            
+            if (state.myRole === "Visitor") {
+              log('✅ Minigame complete! (+progress)');
+            } else {
+              log('🔴 Sabotage complete!');
+            }
           }
-        } else if (state.myRole === "Thief") {
-          // Thief เล่นได้แต่ไม่นับ
-          log('🎮 Minigame complete (no progress)');
         }
         
         obj.active = false;

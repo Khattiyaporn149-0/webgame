@@ -965,11 +965,31 @@ function __ensureOverlay(){
   __mgModal.innerHTML = `
   <div style="position:fixed; inset:0; display:flex; flex-direction:column;">
     <button id="__mgCloseTop" title="Close" style="position:absolute; top:10px; right:12px; z-index:2; background:#ff4d4d; color:#fff; border:0; width:32px; height:32px; border-radius:50%; font-weight:800; cursor:pointer">✖</button>
-    <div style="height:6px; background:rgba(11,19,36,.9)"><div id="__mgFill" style="height:100%; width:0%; background:#2b64ff"></div></div>
     <iframe id="__mgFrame" title="Minigame" src="about:blank" style="flex:1; width:100%; border:0; background:#000" allow="autoplay; fullscreen"></iframe>
   </div>`;
   document.body.appendChild(__mgModal); document.getElementById("__mgCloseTop")?.addEventListener("click", __closeMini);
   __mgFrame = __mgModal.querySelector('#__mgFrame');
+  // Make iframe programmatically focusable and keep close button out of accidental keyboard focus
+  try {
+    const closeBtn = document.getElementById("__mgCloseTop");
+    if (closeBtn) closeBtn.setAttribute('tabindex','-1');
+    if (__mgFrame) __mgFrame.setAttribute('tabindex','-1');
+  } catch {}
+  // Guard against Space/Enter activating close button when overlay just opened
+  try {
+    __mgModal.addEventListener('keydown', (ev) => {
+      const k = ev.key || ev.code;
+      if (!k) return;
+      // Block Space/Enter at overlay layer unless the iframe itself has focus
+      const isSpace = (k === ' ' || k === 'Space' || k === 'Spacebar');
+      const isEnter = (k === 'Enter');
+      const ae = document.activeElement;
+      const iframeHasFocus = (ae === __mgFrame);
+      if ((isSpace || isEnter) && !iframeHasFocus) {
+        ev.preventDefault(); ev.stopPropagation();
+      }
+    }, true); // capture
+  } catch {}
   // Hide internal close buttons inside iframe and block ESC inside minigame
   __mgFrame?.addEventListener('load', ()=>{
     try {
@@ -980,13 +1000,29 @@ function __ensureOverlay(){
         doc.head.appendChild(style);
         try { doc.addEventListener('keydown', (ev)=>{ if (ev.key==='Escape'){ ev.preventDefault(); ev.stopPropagation(); } }, true); } catch {}
       }
+      // After content loads, shift focus inside the iframe to prevent parent hotkeys (Space/Enter) from closing overlay
+      try { __mgFrame?.focus?.({ preventScroll: true }); } catch {}
     } catch {}
   });
   // no external close button
   // no backdrop close
   window.addEventListener('message', __onMsg);
+  // Stronger global guard: while overlay is visible, block Space/Enter unless iframe has focus
+  try {
+    document.addEventListener('keydown', (ev) => {
+      if (!__mgModal || __mgModal.style.display !== 'flex') return;
+      const k = ev.key || ev.code;
+      const isSpace = (k === ' ' || k === 'Space' || k === 'Spacebar');
+      const isEnter = (k === 'Enter');
+      if (!(isSpace || isEnter)) return;
+      const ae = document.activeElement;
+      const iframeFocused = (ae === __mgFrame);
+      if (!iframeFocused) { ev.preventDefault(); ev.stopPropagation(); }
+    }, true);
+  } catch {}
 }
-function __setProgress(p){ const f=document.getElementById('__mgFill'); if (f) f.style.width = Math.max(0,Math.min(100,p|0))+'%'; }
+// Progress UI removed: keep no-op for compatibility with callers
+function __setProgress(p){ /* no-op */ }
 
 async function __openMiniFor(obj){
   if (!obj?.mg) return;
@@ -997,10 +1033,14 @@ async function __openMiniFor(obj){
   __mgSessionComplete = false;
   const key = (obj.mg?.key || obj.mg).toLowerCase();
   const difficulty = obj.mg?.difficulty || 'normal';
-  __pending = { obj, key, difficulty };
+  try { const now = (typeof performance!=='undefined' && performance.now) ? performance.now() : Date.now(); __pending = { obj, key, difficulty, openedAt: now }; }
+  catch { __pending = { obj, key, difficulty }; }
   try {
     // Append origin (object id) so minigame iframe knows which interactable opened it.
     let url = __urlFor(key) || '';
+  // Immediately try focusing iframe (and again on next tick) so Space/Enter won't hit parent close button
+  try { __mgFrame?.focus?.({ preventScroll: true }); } catch {}
+  try { setTimeout(()=>{ try { __mgFrame?.focus?.({ preventScroll:true }); } catch {} }, 0); } catch {}
     try {
       const originParam = encodeURIComponent(obj?.id || '');
       url += (url.indexOf('?') >= 0 ? '&' : '?') + 'origin=' + originParam;
@@ -1040,12 +1080,7 @@ function __onMsg(e){
   else if (d.type === 'mg:progress'){
   const p = Number(d.percent||0);
   __setProgress(p);
-  if (p >= 100 && !__closing) {
-    // Wait briefly for an explicit mg:complete from the minigame before force-closing.
-    // Some minigames show an animation and call complete slightly later; aborting too early causes mg:cancel.
-    try { if (__awaitingCompleteTimeout) clearTimeout(__awaitingCompleteTimeout); } catch(_){}
-    __awaitingCompleteTimeout = setTimeout(()=>{ if (!__closing) __closeMini(); }, 1000);
-  }
+  // Do not auto-close on progress; wait for explicit mg:complete to avoid accidental completes on overlay close
 }
   else if (d.type === 'mg:complete'){
     try { if (__awaitingCompleteTimeout) { clearTimeout(__awaitingCompleteTimeout); __awaitingCompleteTimeout = null; } } catch(_){ }
@@ -1056,6 +1091,16 @@ function __onMsg(e){
       setTimeout(()=> __closeMini(), 300);
       return;
     }
+    // Ignore too-fast completions (likely accidental overlay close or stray key)
+    try {
+      const now = (typeof performance!=='undefined' && performance.now) ? performance.now() : Date.now();
+      const openedAt = Number(__pending?.openedAt||0);
+      const elapsed = openedAt ? (now - openedAt) : Number.POSITIVE_INFINITY;
+      if (elapsed < 1000) { // under 1s since open
+        console.log('[game.js] mg:complete ignored (elapsed < 1s)');
+        return; // keep overlay open and do not count progress
+      }
+    } catch(_){ }
     __mgSessionComplete = true;
     
     // Deduplication: determine unique key for this completion

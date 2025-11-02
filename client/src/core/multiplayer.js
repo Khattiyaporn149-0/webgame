@@ -256,6 +256,28 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
     }
   });
 
+  // ✅ Role update (private) — server-authoritative reveal
+  socket.on('role:update', (data={}) => {
+    try {
+      if (!data) return;
+      const role = data.role || null;
+      if (!role) return;
+      // persist and apply
+      try { sessionStorage.setItem('myRole', role); } catch {}
+      state.myRole = role;
+      // trigger reveal UI if available
+      import('./roles.js').then(m => {
+        if (typeof m.getRole === 'function' && m.getRole() === role) return;
+        if (typeof m.isRoleRevealed === 'function' && m.isRoleRevealed()) return;
+        const reveal = m.revealRole || m.default;
+        if (reveal) reveal(role);
+      }).catch(()=>{});
+      console.log('🃏 role:update received ->', role);
+    } catch (e) {
+      console.error('role:update handler failed', e);
+    }
+  });
+
   // ✅ Receive tasks while already in game page
   socket.on('tasks:assigned', (data={}) => {
     try {
