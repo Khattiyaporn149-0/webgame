@@ -67,8 +67,11 @@ export function waitAuthReady() {
 
 async function persistUserSafeProfile(user) {
   try {
+    // ✅ ใช้ชื่อจาก localStorage (ซึ่งอาจจะเป็นชื่อที่ผู้เล่นเปลี่ยน) มากกว่าชื่อ Google
+    const displayName = localStorage.getItem("ggd.name") || user.displayName || "Unknown";
+    
     await set(ref(rtdb, `users_safe/${user.uid}`), {
-      name: user.displayName || "Unknown",
+      name: displayName,
       email: user.email || null,
       photo: user.photoURL || null,
       lastLogin: new Date().toISOString(),
@@ -76,7 +79,7 @@ async function persistUserSafeProfile(user) {
     // Also keep basic public profile under /users for friends list rendering
     try {
       await update(ref(rtdb, `users/${user.uid}`), {
-        name: user.displayName || "Unknown",
+        name: displayName,
         updatedAt: Date.now(),
       });
     } catch {}
@@ -88,21 +91,78 @@ async function persistUserSafeProfile(user) {
 export async function loginWithGoogle() {
   const result = await signInWithPopup(auth, provider);
   const user = result.user;
-  localStorage.setItem("ggd.name", user.displayName || "Unknown");
+  
+  // ✅ ตรวจสอบว่าผู้เล่นเปลี่ยนชื่อมาแล้วหรือไม่
+  const isNameCustomized = localStorage.getItem("ggd.name_customized") === "true";
+  const currentStoredName = localStorage.getItem("ggd.name") || "";
+  const googleName = user.displayName || "Unknown";
+  
+  // ✅ ถ้าผู้เล่นเปลี่ยนชื่อมาแล้ว ให้ใช้ชื่อนั้น มิฉะนั้นใช้ชื่อ Google
+  const finalName = isNameCustomized ? currentStoredName : googleName;
+  
+  localStorage.setItem("ggd.name", finalName);
   localStorage.setItem("ggd.uid", user.uid);
   localStorage.setItem("ggd.auth", "google");
-  await persistUserSafeProfile(user);
+  
+  // บันทึกชื่อลง Firebase
+  try {
+    await set(ref(rtdb, `users_safe/${user.uid}`), {
+      name: finalName,
+      email: user.email || null,
+      photo: user.photoURL || null,
+      lastLogin: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.warn("[loginWithGoogle] Firebase update failed:", e?.message);
+  }
+  
   return user;
 }
 
 export function watchAuthState(callback) {
-  onAuthStateChanged(auth, (user) => {
+  onAuthStateChanged(auth, async (user) => {
     if (user) {
-      localStorage.setItem("ggd.name", user.displayName || "Unknown");
-      localStorage.setItem("ggd.uid", user.uid);
-      localStorage.setItem("ggd.auth", "google");
-      // Fire and forget; keep users_safe fresh
-      persistUserSafeProfile(user);
+      try {
+        // ✅ อ่านชื่อจากฐานข้อมูล
+        const userSafeRef = ref(rtdb, `users_safe/${user.uid}`);
+        let finalName = user.displayName || "Unknown";
+        
+        try {
+          const getPromise = get(userSafeRef);
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Timeout")), 3000)
+          );
+          const snapshot = await Promise.race([getPromise, timeoutPromise]);
+          
+          if (snapshot.exists() && snapshot.val()?.name) {
+            finalName = snapshot.val().name;
+            console.log("[watchAuthState] Found name in Firebase:", finalName);
+          } else {
+            // ถ้าไม่มี entry ให้สร้างใหม่
+            await set(userSafeRef, {
+              name: finalName,
+              email: user.email || null,
+              photo: user.photoURL || null,
+              lastLogin: new Date().toISOString(),
+            });
+            console.log("[watchAuthState] Created new entry with Google name");
+          }
+        } catch (getError) {
+          console.log("[watchAuthState] Using Google name (Firebase read failed)");
+        }
+        
+        console.log("[watchAuthState] Final name:", finalName);
+        
+        localStorage.setItem("ggd.name", finalName);
+        localStorage.setItem("ggd.uid", user.uid);
+        localStorage.setItem("ggd.auth", "google");
+      } catch (e) {
+        console.warn("[watchAuthState] Error:", e?.message);
+        const googleName = user.displayName || "Unknown";
+        localStorage.setItem("ggd.name", googleName);
+        localStorage.setItem("ggd.uid", user.uid);
+        localStorage.setItem("ggd.auth", "google");
+      }
     } else {
       // No Firebase user: ensure UI treats as guest
       localStorage.setItem("ggd.auth", "guest");
