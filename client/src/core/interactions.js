@@ -157,6 +157,22 @@ export function startMeeting(at = CONST.MEETING_POINT){
   state.playerY = at.y;
   Object.keys(state.keysPressed).forEach(k => state.keysPressed[k] = false);
 
+  // 📡 Broadcast meeting:start to server so ALL players get notified
+  try {
+    if (window.socket) {
+      window.socket.emit('meeting:start', { room: state.gameRoom });
+      console.log('📡 [Meeting] Broadcasted meeting:start to server');
+    }
+  } catch (e) {
+    console.warn('[Meeting] Failed to broadcast:', e);
+  }
+
+  // Display meeting modal for this player
+  _displayMeetingUI();
+}
+
+// Helper function to display meeting UI
+export function _displayMeetingUI(){
   // แสดง Modal
   if (!refs.meetingModal) return;
   refs.meetingModal.style.display = 'flex';
@@ -194,22 +210,8 @@ export function startMeeting(at = CONST.MEETING_POINT){
         return;
       }
 
-      // 🗳 Voting system - track votes per player
-      const voteCount = {}; // uid -> vote count
-      let playerVoted = false; // has this player already voted?
-      const VOTE_TIME = 60000; // 60 seconds
-      
-      // ⏱ Start 60 second timer
-      let timeLeft = 60;
-      const timerEl = document.createElement('div');
-      timerEl.style.cssText = 'color:#fff; font-size:18px; font-weight:bold; text-align:center; margin:16px 0;';
-      timerEl.textContent = `⏱ ${timeLeft}s`;
-      grid.appendChild(timerEl);
-
       // ✅ สร้างการ์ดผู้เล่นแต่ละคน
       players.forEach(p => {
-        voteCount[p.uid] = 0;
-        
         const card = document.createElement('div');
         card.className = 'player-card';
         card.dataset.player = p.uid;
@@ -222,88 +224,19 @@ export function startMeeting(at = CONST.MEETING_POINT){
         name.className = 'name';
         name.textContent = p.name;
 
-        const voteCounter = document.createElement('span');
-        voteCounter.className = 'vote-counter';
-        voteCounter.textContent = '0 votes';
-        voteCounter.style.cssText = 'display:block; color:#ffaa00; font-size:12px; margin-top:4px;';
-
         const btn = document.createElement('button');
         btn.className = 'vote-btn';
         btn.textContent = 'Vote';
         btn.addEventListener('click', () => {
-          if (playerVoted) {
-            console.log('🚫 [Vote] Already voted');
-            return;
-          }
-          // Register vote
-          voteCount[p.uid] += 1;
-          voteCounter.textContent = `${voteCount[p.uid]} votes`;
-          playerVoted = true;
-          btn.disabled = true;
-          btn.style.opacity = '0.5';
-          if (result) result.textContent = `✅ คุณโหวตให้ ${p.name}`;
-          console.log(`🗳 [Vote] Voted for ${p.name}. Count: ${voteCount[p.uid]}`);
-          
-          // Broadcast vote to server
-          try {
-            if (window.socket) {
-              window.socket.emit('vote:cast', { 
-                room: state.gameRoom,
-                votedFor: p.uid,
-                votedForName: p.name
-              });
-            }
-          } catch (e) {
-            console.warn('Failed to broadcast vote:', e);
-          }
+          if (result) result.textContent = `คุณโหวตให้ ${p.name}`;
+          setTimeout(() => endMeeting(), 2000);
         });
 
-        card.append(img, name, voteCounter, btn);
+        card.append(img, name, btn);
         grid.appendChild(card);
       });
-
-      // Run timer
-      const timerInterval = setInterval(() => {
-        timeLeft -= 1;
-        timerEl.textContent = `⏱ ${timeLeft}s`;
-        if (timeLeft <= 0) {
-          clearInterval(timerInterval);
-          // Voting ended - find player with most votes
-          let maxVotes = 0;
-          let eliminated = null;
-          for (const [uid, votes] of Object.entries(voteCount)) {
-            if (votes > maxVotes) {
-              maxVotes = votes;
-              eliminated = uid;
-            }
-          }
-          
-          if (eliminated) {
-            const elimPlayer = players.find(p => p.uid === eliminated);
-            if (result) result.textContent = `❌ ${elimPlayer?.name || 'Player'} ถูก eliminate! (${maxVotes} votes)`;
-            
-            // Tell server about elimination
-            try {
-              if (window.socket) {
-                window.socket.emit('vote:complete', {
-                  room: state.gameRoom,
-                  eliminated: eliminated,
-                  eliminatedName: elimPlayer?.name || 'Unknown',
-                  voteCount: maxVotes
-                });
-              }
-            } catch (e) {
-              console.warn('Failed to send vote result:', e);
-            }
-          }
-          
-          // Close meeting after showing result
-          setTimeout(() => endMeeting(), 3000);
-        }
-      }, 1000);
-
     } catch (e) {
-      console.error('[Meeting] Failed to render voting:', e);
+      console.error('[Meeting] Failed to render players:', e);
       grid.innerHTML = '<p style="color:#f44">(ข้อผิดพลาด)</p>';
     }
   }, 300); // wait for snapshot

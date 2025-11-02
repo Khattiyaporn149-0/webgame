@@ -470,6 +470,26 @@ export function initMultiplayer({ serverUrl, room, uid, name, char, color, x, y 
     }
   });
 
+  // 🔔 Meeting started - all players see voting modal
+  socket.on('meeting:start', (data = {}) => {
+    try {
+      console.log('🔔 [Meeting] All players called to vote!');
+      // Import interactions to call startMeeting 
+      import('./interactions.js').then(m => {
+        if (m.startMeeting) {
+          // Use the broadcast version to show UI only (don't broadcast again)
+          if (m._displayMeetingUI) {
+            m._displayMeetingUI();
+          } else {
+            console.warn('_displayMeetingUI not available');
+          }
+        }
+      }).catch(err => console.error('interactions load failed', err));
+    } catch (e) {
+      console.error('meeting:start handler failed', e);
+    }
+  });
+
   socket.on('disconnect', (r) => console.log('Socket disconnected:', r));
   socket.on('error', (e) => console.error('Socket error:', e));
 }
