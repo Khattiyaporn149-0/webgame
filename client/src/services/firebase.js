@@ -146,7 +146,7 @@ export function watchAuthState(callback) {
           
           if (snapshot.exists() && snapshot.val()?.name) {
             finalName = snapshot.val().name;
-            console.log("[watchAuthState] Found name in Firebase:", finalName);
+            // console.log("[watchAuthState] Found name in Firebase:", finalName);
           } else {
             // ถ้าไม่มี entry ให้สร้างใหม่
             await set(userSafeRef, {
@@ -155,13 +155,13 @@ export function watchAuthState(callback) {
               photo: user.photoURL || null,
               lastLogin: new Date().toISOString(),
             });
-            console.log("[watchAuthState] Created new entry with Google name");
+            // console.log("[watchAuthState] Created new entry with Google name");
           }
         } catch (getError) {
-          console.log("[watchAuthState] Using Google name (Firebase read failed)");
+          // console.log("[watchAuthState] Using Google name (Firebase read failed)");
         }
         
-        console.log("[watchAuthState] Final name:", finalName);
+        // console.log("[watchAuthState] Final name:", finalName);
         
         localStorage.setItem("ggd.name", finalName);
         localStorage.setItem("ggd.uid", user.uid);

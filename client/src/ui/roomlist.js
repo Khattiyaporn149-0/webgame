@@ -184,7 +184,7 @@ async function runJanitorFresh() {
     const rooms = rs.exists() ? rs.val() : {};
     const codes = Object.keys(rooms || {});
     const now = Date.now();
-    console.log("[janitor] rooms:", codes.join(", ") || "(none)");
+    // console.log("[janitor] rooms:", codes.join(", ") || "(none)"); // ซ่อนไว้
 
     for (const code of codes) {
       const room = rooms[code] || {};

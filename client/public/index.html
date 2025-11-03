@@ -10,12 +10,12 @@
   <title>The Heist</title>
 
   <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://www.gstatic.com https://cdnjs.cloudflare.com https://cdn.socket.io https://*.firebaseapp.com https://accounts.google.com;
-    connect-src 'self' https://*.firebasedatabase.app wss://*.firebasedatabase.app https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://*.googleapis.com https://www.gstatic.com https://*.firebaseapp.com https://accounts.google.com;
-    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com https://*.firebasedatabase.app https://cdnjs.cloudflare.com https://cdn.socket.io;
+    default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://www.gstatic.com https://cdnjs.cloudflare.com https://cdn.socket.io https://cdn.jsdelivr.net https://*.firebaseapp.com https://accounts.google.com;
+    connect-src 'self' https://*.firebasedatabase.app wss://*.firebasedatabase.app https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://*.googleapis.com https://www.gstatic.com https://*.firebaseapp.com https://accounts.google.com ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:* https://webgame-25n5.onrender.com:* wss://webgame-25n5.onrender.com:* http://webgame-25n5.onrender.com:* ws://webgame-25n5.onrender.com:* https://*.onrender.com:* wss://*.onrender.com:* http://*.onrender.com:* ws://*.onrender.com:* https://cdn.jsdelivr.net;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com https://*.firebasedatabase.app https://cdnjs.cloudflare.com https://cdn.socket.io https://cdn.jsdelivr.net;
     frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://www.gstatic.com https://apis.google.com;
     img-src 'self' data: blob: https://www.gstatic.com https://*.googleusercontent.com;
-    style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
+    style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
     font-src 'self' https://cdnjs.cloudflare.com data:;">
 
   <!-- 🔄 important: เปลี่ยน path CSS ให้ขึ้นไปนอก public ก่อน -->

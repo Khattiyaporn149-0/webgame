@@ -7,60 +7,88 @@
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid",
-        "name": { ".validate": "newData.isString() && newData.val().length <= 100" },
-        "friendCode": { ".validate": "newData.isString() && newData.val().matches(/^[A-Z0-9]{4,16}$/)" },
-        "updatedAt": { ".validate": "newData.isNumber()" }
+        "name": { 
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 100" 
+        },
+        "friendCode": { 
+          ".validate": "newData.isString() && newData.val().matches(/^[A-Z0-9]{4,16}$/)" 
+        },
+        "updatedAt": { 
+          ".validate": "newData.isNumber() && newData.val() <= now + 60000"
+        },
+        "$other": { ".validate": false }
       }
     },
 
     "userCodes": {
       "$code": {
         ".read": "auth != null",
-        ".write": "auth != null && (!data.exists() || data.val() === auth.uid) && newData.val() === auth.uid"
+        ".write": "auth != null && (!data.exists() || data.val() === auth.uid) && newData.val() === auth.uid",
+        ".validate": "newData.isString() && $code.matches(/^[A-Z0-9]{4,16}$/)"
       }
     },
 
     "friends": {
       "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
         "$friendUid": {
           ".read": "auth != null && (auth.uid === $uid || auth.uid === $friendUid)",
           ".write": "auth != null && (auth.uid === $uid || auth.uid === $friendUid)",
-          ".validate": "newData.val() === true || newData.val() === null"
+          ".validate": "(newData.val() === true || newData.val() === null) && $friendUid !== $uid"
         }
       }
     },
 
     "rooms": {
       "$code": {
-        ".read": true,
-        ".write": true,
-        "playerCount": { ".validate": "newData.isNumber()" },
-        "lastActivity": { ".validate": "newData.isNumber() || newData.val() === null" }
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "playerCount": { 
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20"
+        },
+        "maxPlayers": {
+          ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 20"
+        },
+        "status": {
+          ".validate": "newData.isString()"
+        },
+        "createdBy": {
+          ".validate": "newData.isString()"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "lastActivity": { 
+          ".validate": "(newData.isNumber() && newData.val() <= now + 60000) || newData.val() === null" 
+        }
       }
     },
 
     "lobbies": {
       "$code": {
-        ".read": true,
-        ".write": true,
+        ".read": "auth != null",
+        ".write": "auth != null",
         "players": {
           "$uid": {
-            ".read": true,
-            ".write": true
+            ".read": "auth != null",
+            ".write": "auth != null"
           }
         },
         "chat": {
-          "$uid": {
-            "$msg": {
-              ".read": true,
-              ".write": true,
-              ".validate": "newData.hasChildren(['uid','name','msg','room'])"
-            }
+          ".read": "auth != null",
+          ".write": "auth != null",
+          "$msgId": {
+            ".validate": "newData.hasChildren(['uid','name','msg']) && newData.child('msg').val().length >= 1 && newData.child('msg').val().length <= 500",
+            "uid": { ".validate": "newData.isString()" },
+            "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 100" },
+            "msg": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 500" },
+            "room": { ".validate": "newData.isString()" },
+            "ts": { ".validate": "newData.isNumber()" }
           }
         }
       }
-    }
-    ,
+    },
+    
     "users_safe": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
