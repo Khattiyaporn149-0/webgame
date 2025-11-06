@@ -58,8 +58,9 @@ function hashToInt(str){
 }
 
 function getRequiredThieves(count){
-  if (count >= 6 && count <= 8) return 2;
-  if (count >= 3 && count <= 5) return 1;
+  // ปรับสมดุล: ให้มีหัวขโมยอย่างน้อย 1 คนเมื่อมีผู้เล่นตั้งแต่ 2 คนขึ้นไป
+  if (count >= 6) return 2;
+  if (count >= 2) return 1;
   return 0;
 }
 
@@ -88,6 +89,72 @@ function assignTasksFor(room, uid){
   return state;
 }
 
+// --- Security helpers: sanitize and simple rate limiting ---
+function sanitizeString(input, maxLen = 100) {
+  if (typeof input !== 'string') return '';
+  // Strip angle brackets and control chars, collapse whitespace
+  const s = input
+    .replace(/[<>]/g, '')
+    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return s.slice(0, Math.max(0, maxLen));
+}
+
+function sanitizeName(name, maxLen = 40) {
+  return sanitizeString(name, maxLen) || 'Unknown';
+}
+
+function sanitizeColor(color) {
+  if (typeof color === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) return color;
+  return '#ffffff';
+}
+
+function sanitizeChar(ch) {
+  if (typeof ch !== 'string') return 'mini_brown';
+  const v = ch.toLowerCase().replace(/[^a-z0-9_\-\/]/g, '').slice(0, 64);
+  return v || 'mini_brown';
+}
+
+function sanitizeEquip(eq) {
+  if (!eq || typeof eq !== 'object') return {};
+  const allowedKeys = ['acc', 'back', 'hat', 'mask', 'suit'];
+  const out = {};
+  for (const k of allowedKeys) {
+    const v = eq[k];
+    if (typeof v === 'string') {
+      out[k] = v.toLowerCase().replace(/[^a-z0-9_\-\/]/g, '').slice(0, 64);
+    }
+  }
+  return out;
+}
+
+// Simple token-bucket rate limiter per-socket per-key
+function allowEvent(socket, key, capacity, refillPerSec) {
+  try {
+    if (!socket.__rl) socket.__rl = {};
+    const now = Date.now();
+    let b = socket.__rl[key];
+    if (!b) {
+      b = { tokens: capacity, last: now };
+    } else {
+      const elapsed = (now - b.last) / 1000;
+      b.tokens = Math.min(capacity, b.tokens + elapsed * refillPerSec);
+      b.last = now;
+    }
+    if (b.tokens < 1) {
+      socket.__rl[key] = b;
+      return false;
+    }
+    b.tokens -= 1;
+    socket.__rl[key] = b;
+    return true;
+  } catch {
+    // On any error, allow (fail-open) to avoid breaking gameplay
+    return true;
+  }
+}
+
 /**
  * registerSocketHandlers(io)
  * @param {Server} io - socket.io server
@@ -95,6 +162,21 @@ function assignTasksFor(room, uid){
 function registerSocketHandlers(io) {
   io.on("connection", (socket) => {
     console.log("🟢 Connected:", socket.id);
+
+    // helper: รีเซ็ตสถานะเกมหลังจบรอบ เพื่อให้รอบใหม่สุ่มหัวขโมยได้ตามจำนวนผู้เล่น
+    function resetRoomGameState(room){
+      try {
+        if (roomRoles.has(room)) roomRoles.delete(room);
+        for (const k of Array.from(playerTaskState.keys())) {
+          if (k.startsWith(room + ':')) playerTaskState.delete(k);
+        }
+        const gr = gameRooms[room];
+        if (gr && gr.ejectedPlayers && typeof gr.ejectedPlayers.clear === 'function') gr.ejectedPlayers.clear();
+        console.log(`♻️ [${room}] Game state reset (roles & tasks cleared)`);
+      } catch (e) {
+        console.warn('resetRoomGameState failed', e);
+      }
+    }
 
     // GAME RESET: clear room state and any task assignments
     socket.on("game:reset", (data = {}) => {
@@ -119,8 +201,16 @@ function registerSocketHandlers(io) {
 
     // JOIN ROOM
     socket.on("game:join", (data = {}) => {
-      const { room, uid, name, color, char, x, y, equip } = data;
+      const { room, uid } = data || {};
       if (!room || !uid) return;
+
+      // sanitize user-provided fields
+      const safeName = sanitizeName(data.name, 40);
+      const safeColor = sanitizeColor(data.color);
+      const safeChar = sanitizeChar(data.char);
+      const safeEquip = sanitizeEquip(data.equip);
+      const nx = (typeof data.x === 'number' && Number.isFinite(data.x)) ? data.x : undefined;
+      const ny = (typeof data.y === 'number' && Number.isFinite(data.y)) ? data.y : undefined;
 
       const gr = ensureGameRoom(room);
       gr.io = io; // bind io ให้ tickRoom ใช้ได้
@@ -135,23 +225,23 @@ function registerSocketHandlers(io) {
       if (existing) {
         // อัปเดต player เดิม
         existing.socketId = socket.id;
-        existing.name = name || existing.name;
-        existing.color = color || existing.color;
-        existing.char = char || existing.char;
-        existing.x = (typeof x === "number") ? x : existing.x;
-        existing.y = (typeof y === "number") ? y : existing.y;
-        if (equip && typeof equip === 'object') existing.equip = equip;
+        existing.name = safeName || existing.name;
+        existing.color = safeColor || existing.color;
+        existing.char = safeChar || existing.char;
+        if (typeof nx === 'number') existing.x = nx;
+        if (typeof ny === 'number') existing.y = ny;
+        if (data.equip && typeof data.equip === 'object') existing.equip = safeEquip;
         existing.lastMoveAt = Date.now();
       } else {
         // สร้าง player ใหม่
         gr.players.set(uid, {
           uid, 
-          name, 
-          color, 
-          char, 
-          x, 
-          y,
-          equip: (equip && typeof equip === 'object') ? equip : {},
+          name: safeName, 
+          color: safeColor, 
+          char: safeChar, 
+          x: nx, 
+          y: ny,
+          equip: safeEquip,
           socketId: socket.id,
           room,
           lastMoveAt: Date.now(),
@@ -160,6 +250,9 @@ function registerSocketHandlers(io) {
 
       socket.data.room = room;
       socket.data.uid = uid;
+      socket.data.name = safeName;
+      socket.data.color = safeColor;
+      socket.data.char = safeChar;
       socket.join(room);
 
       // Ack back to this client and optionally resume known state
@@ -188,7 +281,7 @@ function registerSocketHandlers(io) {
         players: Array.from(gr.players.values()),
       });
 
-      console.log(`👋 ${name} joined ${room}`);
+      console.log(`👋 ${safeName} joined ${room}`);
     });
 
     // MOVE PLAYER
@@ -197,14 +290,19 @@ function registerSocketHandlers(io) {
       const uid = socket.data.uid;
       if (!room || !uid) return;
 
+      // rate limit moves to ~30/s per socket
+      if (!allowEvent(socket, 'player:move', 30, 30)) return;
+
       const gr = gameRooms[room];
       if (!gr) return;
 
       const p = gr.players.get(uid);
       if (!p) return;
 
-      if (typeof data.x === "number") p.x = data.x;
-      if (typeof data.y === "number") p.y = data.y;
+      const mx = Number(data.x);
+      const my = Number(data.y);
+      if (Number.isFinite(mx)) p.x = mx;
+      if (Number.isFinite(my)) p.y = my;
       p.lastMoveAt = data.ts || Date.now();
       
       // 👻 บันทึก ghost status
@@ -314,30 +412,34 @@ function registerSocketHandlers(io) {
 
     // CHAT
     socket.on("chat:message", (data = {}) => {
-      if (!data?.text || !data?.uid) return;
       const room = data.room || socket.data.room;
-      if (!room) return;
+      const uid = socket.data.uid;
+      if (!room || !uid) return;
+      if (!allowEvent(socket, 'chat:message', 5, 4)) return; // ~4 msgs/sec burst 5
 
       const now = Date.now();
-      const safeText = String(data.text).slice(0, 500);
+      const safeText = sanitizeString(data.text || '', 500);
+      if (!safeText) return;
+      const safeName = sanitizeName(data.name || socket.data.name || 'Unknown', 40);
+      // include ghost status so clients can filter ghost messages correctly
+      let isGhost = false;
+      try {
+        const gr = gameRooms[room];
+        const p = gr && gr.players ? gr.players.get(uid) : null;
+        isGhost = !!(p && p.isGhost) || !!socket.data.isGhost;
+      } catch {}
+
       socket.__msgSeq = socket.__msgSeq || new Map();
-      const keySeq = `${room}:${data.uid}`;
+      const keySeq = `${room}:${uid}`;
       const nextSeq = (socket.__msgSeq.get(keySeq) || 0) + 1;
       socket.__msgSeq.set(keySeq, nextSeq);
 
-      const id = (typeof data.id === "string" && data.id.length <= 128)
+      const id = (typeof data.id === 'string' && data.id.length <= 128)
         ? data.id
-        : `${data.uid}:${now}:${nextSeq}`;
+        : `${uid}:${now}:${nextSeq}`;
 
-      const payload = {
-        room,
-        uid: data.uid,
-        name: data.name || "Unknown",
-        text: safeText,
-        ts: now,
-        id,
-        seq: nextSeq,
-      };
+      const payload = { room, uid, name: safeName, text: safeText, ts: now, id, seq: nextSeq, isGhost };
+      try { io.to(room).emit('chat:message', payload); } catch {}
     });
 
     // DISCONNECT
@@ -410,29 +512,41 @@ function registerSocketHandlers(io) {
           }
         }
 
-        // 🏆 CHECK VISITOR WIN CONDITION: all visitors completed all 8 tasks
+        // 🏆 CHECK VISITOR WIN CONDITION: all ACTIVE visitors (in room and not ejected) completed all 8 tasks
         if (st.role === 'Visitor') {
           const rr = roomRoles.get(room);
           if (rr && rr.started) {
-            // Count how many visitors completed all 8 tasks
-            let visitorsCompleted = 0;
-            let totalVisitors = 0;
-            for (const [k, s] of playerTaskState.entries()) {
-              if (!k.startsWith(room + ':')) continue;
-              if (s.role === 'Visitor') {
-                totalVisitors++;
-                if (s.completedTasks.length >= 8) visitorsCompleted++;
+            try {
+              const gr = gameRooms[room];
+              const ejected = (gr && gr.ejectedPlayers) ? gr.ejectedPlayers : new Set();
+              const activeVisitorUids = [];
+              if (gr && gr.players instanceof Map) {
+                for (const [puid] of gr.players.entries()) {
+                  const isVisitor = !(rr.thieves && rr.thieves.has(puid));
+                  const notEjected = !ejected.has(puid);
+                  if (isVisitor && notEjected) activeVisitorUids.push(puid);
+                }
               }
-            }
-            console.log(`📋 [${room}] Visitor tasks progress: ${visitorsCompleted}/${totalVisitors} visitors completed all 8 tasks`);
-            if (totalVisitors > 0 && visitorsCompleted === totalVisitors) {
-              console.log(`🎉 [${room}] All visitors completed their tasks! Visitors win!`);
-              setTimeout(() => {
-                io.to(room).emit('game:visitorsWin', {
-                  reason: 'all_tasks_complete',
-                  message: 'All visitors completed their tasks!'
-                });
-              }, 1000);
+
+              let completed = 0;
+              for (const puid of activeVisitorUids) {
+                const pst = assignTasksFor(room, puid);
+                if (pst && pst.role !== 'Thief' && Array.isArray(pst.completedTasks) && pst.completedTasks.length >= 8) {
+                  completed++;
+                }
+              }
+
+              console.log(`📋 [${room}] Visitor tasks progress (active): ${completed}/${activeVisitorUids.length}`);
+              if (activeVisitorUids.length > 0 && completed === activeVisitorUids.length) {
+                console.log(`🎉 [${room}] All active visitors completed their tasks! Visitors win!`);
+                setTimeout(() => {
+                  io.to(room).emit('game:visitorsWin', { reason: 'all_tasks_complete', message: 'All visitors completed their tasks!' });
+                  // เตรียมรอบใหม่: ล้าง roles/task state เล็กน้อยหน่วงเวลาเพื่อให้ client แสดงผล endgame
+                  setTimeout(()=>resetRoomGameState(room), 1500);
+                }, 1000);
+              }
+            } catch (err) {
+              console.warn('visitor win check failed', err);
             }
           }
         }
@@ -582,21 +696,19 @@ function registerSocketHandlers(io) {
       }
     });
 
-    // � Handle meeting:chat - broadcast chat messages during meeting
+    // 💬 Handle meeting:chat - sanitized & rate-limited
     socket.on('meeting:chat', (data = {}) => {
       try {
         const room = data.room || socket.data.room;
-        if (!room) return;
-        
-        // Broadcast to everyone in the room
-        io.to(room).emit('meeting:chat', {
-          uid: data.uid,
-          name: data.name || 'Unknown',
-          text: data.text || '',
-          isGhost: data.isGhost || false
-        });
-        
-        console.log(`💬 [${room}] Meeting chat from ${data.name}: ${data.text} (ghost: ${data.isGhost || false})`);
+        const uid = socket.data.uid;
+        if (!room || !uid) return;
+        if (!allowEvent(socket, 'meeting:chat', 6, 3)) return; // ~3 msgs/sec burst 6
+        const safeName = sanitizeName(data.name || socket.data.name || 'Unknown', 40);
+        const safeText = sanitizeString(data.text || '', 300);
+        if (!safeText) return;
+        const isGhost = !!data.isGhost;
+        io.to(room).emit('meeting:chat', { uid, name: safeName, text: safeText, isGhost });
+        console.log(`💬 [${room}] Meeting chat from ${safeName}: ${safeText.substring(0,60)}${safeText.length>60?'…':''} (ghost: ${isGhost})`);
       } catch (e) {
         console.warn('meeting:chat handler failed', e);
       }
@@ -680,20 +792,16 @@ function registerSocketHandlers(io) {
           if (aliveThieves === 0) {
             console.log(`🎉 [${room}] All thieves ejected! Visitors win!`);
             setTimeout(() => {
-              io.to(room).emit('game:visitorsWin', { 
-                reason: 'All thieves were ejected!',
-                remainingVisitors: aliveVisitors
-              });
+              io.to(room).emit('game:visitorsWin', { reason: 'All thieves were ejected!', remainingVisitors: aliveVisitors });
+              setTimeout(()=>resetRoomGameState(room), 2500);
             }, 2000);
           }
           // 🎯 Win condition: All visitors ejected → Thieves win!
           else if (aliveVisitors === 0 && aliveThieves > 0) {
             console.log(`💎 [${room}] All visitors ejected! Thieves win!`);
             setTimeout(() => {
-              io.to(room).emit('game:thiefWin', { 
-                reason: 'All visitors were ejected!',
-                message: 'Thieves eliminated all visitors!'
-              });
+              io.to(room).emit('game:thiefWin', { reason: 'All visitors were ejected!', message: 'Thieves eliminated all visitors!' });
+              setTimeout(()=>resetRoomGameState(room), 2500);
             }, 2000);
           }
         }
@@ -750,6 +858,7 @@ function registerSocketHandlers(io) {
         const allStolen = gr.gems.every(g => !!g.stolenBy);
         if (allStolen){
           try { io.to(room).emit('game:thiefWin', { room, message: 'All gems stolen!' }); } catch {}
+          setTimeout(()=>resetRoomGameState(room), 2000);
         }
       } catch (e) {
         console.warn('gem:steal failed', e);

@@ -1,0 +1,20 @@
+{
+  "name": "security-tests",
+  "version": "1.0.0",
+  "description": "Penetration testing suite for webgame security",
+  "scripts": {
+    "test:xss": "node attack-xss.js",
+    "test:privilege": "node attack-privilege-escalation.js",
+    "test:dos": "node attack-dos.js",
+    "test:firebase": "node attack-firebase-rules.js",
+    "test:injection": "node attack-data-injection.js",
+    "test:all": "npm run test:xss && npm run test:privilege && npm run test:dos && npm run test:injection",
+    "report": "node generate-report.js"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}

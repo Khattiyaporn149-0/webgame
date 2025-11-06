@@ -38,7 +38,7 @@
       <span class="tag-icon">🪪</span>
       LOGGED IN AS <b id="playerNameTop">Guest</b>
       <span class="clan">[The Heist]</span>
-      <span class="ver" id="ver">V.test</span>
+  <span class="ver" id="ver">V.final</span>
     </div>
     <div class="top-icons">
       <button class="icon-btn" title="Profile" id="btnProfile" aria-label="Profile">
@@ -321,5 +321,13 @@
 
   <!-- iframe helper ยังอยู่ข้างๆ index.html ใน public -->
   <script src="./minigame-iframe.js"></script>
+
+  <!-- Enforce version text at runtime to defeat stale caches -->
+  <script>
+    (function(){
+      var el = document.getElementById('ver');
+      if (el) el.textContent = 'V.final';
+    })();
+  </script>
 </body>
 </html>

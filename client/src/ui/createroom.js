@@ -88,7 +88,9 @@ async function createRoom(){
   const authedUid = (auth && auth.currentUser && auth.currentUser.uid) ? auth.currentUser.uid : null;
   const uid = authedUid || currentUid();
   try { sessionStorage.setItem("ggd.uid", uid); } catch {}
-  const roomName   = (nameInput.value || "").trim();
+  let roomName   = (nameInput.value || "").trim();
+  // sanitize: strip angle brackets and limit length
+  roomName = roomName.replace(/[<>]/g, '').slice(0, 40);
   const maxPlayers = parseInt(maxSel.value, 10);
   const roomType   = typeSel.value; // 'public' | 'private'
   const hostName   = getPlayerName();

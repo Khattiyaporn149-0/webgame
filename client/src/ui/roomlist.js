@@ -97,16 +97,40 @@ function renderRooms(roomsObj){
   rooms.forEach(r=>{
     const div = document.createElement("div");
     div.className = "room-card";
-    div.innerHTML = `
-      <div class="room-info">
-        <div class="room-name">${r.name || "(no name)"} <small style="opacity:.7">#${r.code||""}</small></div>
-        <div class="room-detail">👥 ${r.playerCount || 0}/${r.maxPlayers ?? "?"} • ${r.type || "-"}</div>
-        ${r.host ? `<div class="room-host" style="opacity:.75">Host: ${r.host}</div>` : ""}
-      </div>
-      <button class="join-btn" data-code="${r.code}" type="button">Join</button>
-    `;
 
-    div.querySelector(".join-btn").onclick = async (e)=>{
+    const info = document.createElement('div');
+    info.className = 'room-info';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'room-name';
+    const safeName = String(r.name || "(no name)").replace(/[<>]/g,'').slice(0, 40);
+    nameEl.textContent = safeName + ' ';
+    const small = document.createElement('small');
+    small.style.opacity = '.7';
+    small.textContent = `#${r.code || ''}`;
+    nameEl.appendChild(small);
+
+    const detail = document.createElement('div');
+    detail.className = 'room-detail';
+    detail.textContent = `👥 ${r.playerCount || 0}/${r.maxPlayers ?? '?'} • ${r.type || '-'}`;
+
+    info.appendChild(nameEl);
+    info.appendChild(detail);
+    if (r.host){
+      const hostEl = document.createElement('div');
+      hostEl.className = 'room-host';
+      hostEl.style.opacity = '.75';
+      hostEl.textContent = `Host: ${String(r.host).replace(/[<>]/g,'').slice(0, 100)}`;
+      info.appendChild(hostEl);
+    }
+
+    const btn = document.createElement('button');
+    btn.className = 'join-btn';
+    btn.type = 'button';
+    btn.dataset.code = r.code;
+    btn.textContent = 'Join';
+
+    btn.onclick = async (e)=>{
       const code = e.currentTarget.dataset.code;
       try{
         const snap = await get(ref(rtdb, `rooms/${code}`));
@@ -133,6 +157,8 @@ function renderRooms(roomsObj){
       }
     };
 
+    div.appendChild(info);
+    div.appendChild(btn);
     listEl.appendChild(div);
   });
 }

@@ -935,22 +935,7 @@ export function checkObjectInteractions(){
     return;
   }
   if (near.type === 'Telephone') {
-if (near.type === 'Telephone') {
-  if (getRole() === 'Thief') {
-    import('./endgame.js').then(() => {
-      window.showEnd({
-        outcome: 'thief_win',
-        reason: 'heist_detected',
-        title: 'YOU WERE CAUGHT!',
-        desc: 'หัวขโมยถูกจับได้ขณะพยายามใช้โทรศัพท์!',
-        redirectTo: 'lobby.html',
-        delayMs: 8000,
-      });
-    }).catch(err => console.error('endgame load failed', err));
-    return;
-  }
-
-  if (near.type === 'Telephone'){
+    // ยกเลิกเงื่อนไข "Thief ถูกจับ" เพื่อให้หัวขโมยสามารถเรียกประชุมได้เหมือนผู้เล่นอื่น
     if (state.isMeetingActive){ log('☎️ ประชุมอยู่แล้ว'); return; }
     if (telCooldown){ log(`⏳ รอได้อีก (${telRemain}s)`); return; }
     if (telUsed >= CONST.MAX_TELEPHONE_CALLS){ log('📵 โทรศัพท์ใช้ครบแล้ว'); return; }
@@ -958,18 +943,18 @@ if (near.type === 'Telephone') {
     telUsed++; log(`📞 โทรเรียกประชุม (${telUsed}/${CONST.MAX_TELEPHONE_CALLS})`);
     startMeeting(CONST.MEETING_POINT); refs.sfxInteract?.play().catch(()=>{});
 
-      // 🔥 แจ้งให้เซิร์ฟเวอร์ broadcast ให้ทุกคนเปิดประชุม
-  try {
-    if (window.socket && window.socket.connected) {
-      window.socket.emit('meeting:start', {
-        room: state.currentRoom,
-        x: CONST.MEETING_POINT.x,
-        y: CONST.MEETING_POINT.y,
-      });
+    // แจ้ง server broadcast
+    try {
+      if (window.socket && window.socket.connected) {
+        window.socket.emit('meeting:start', {
+          room: state.currentRoom,
+          x: CONST.MEETING_POINT.x,
+          y: CONST.MEETING_POINT.y,
+        });
+      }
+    } catch (err) {
+      console.warn('meeting:start emit failed', err);
     }
-  } catch (err) {
-    console.warn('meeting:start emit failed', err);
-  }
 
     telCooldown = true; telRemain = CONST.TELEPHONE_COOLDOWN_MS/1000;
     clearInterval(telTimer);
@@ -986,11 +971,10 @@ if (near.type === 'Telephone') {
     return;
   }
 
-  // generic
+  // generic interaction fallback
   log(`✅ โต้ตอบกับ ${near.id}`); refs.sfxInteract?.play().catch(()=>{});
   near.active = false;
 }
-  }}
 /* ===== log helper ===== */
 function log(text, kind='general'){
   const box = refs.logContainer; if (!box) return;

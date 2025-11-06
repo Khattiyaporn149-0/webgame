@@ -7,16 +7,10 @@
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid",
-        "name": { 
-          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 100" 
-        },
-        "friendCode": { 
-          ".validate": "newData.isString() && newData.val().matches(/^[A-Z0-9]{4,16}$/)" 
-        },
-        "updatedAt": { 
-          ".validate": "newData.isNumber() && newData.val() <= now + 60000"
-        },
-        "$other": { ".validate": false }
+  "name": {".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 100 && newData.val().matches(/^[A-Za-z0-9 _-]{1,100}$/)"},
+        "friendCode": {".validate": "newData.isString() && newData.val().matches(/^[A-Z0-9]{4,16}$/)"},
+        "updatedAt": {".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 60000"},
+        "$other": {".validate": false}
       }
     },
 
@@ -35,64 +29,66 @@
           ".read": "auth != null && (auth.uid === $uid || auth.uid === $friendUid)",
           ".write": "auth != null && (auth.uid === $uid || auth.uid === $friendUid)",
           ".validate": "(newData.val() === true || newData.val() === null) && $friendUid !== $uid"
-        }
+        },
+        "$other": {".validate": false}
       }
     },
 
     "rooms": {
       "$code": {
         ".read": "auth != null",
-        ".write": "auth != null",
-        "playerCount": { 
-          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20"
-        },
-        "maxPlayers": {
-          ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 20"
-        },
-        "status": {
-          ".validate": "newData.isString()"
-        },
-        "createdBy": {
-          ".validate": "newData.isString()"
-        },
-        "createdAt": {
-          ".validate": "newData.isNumber()"
-        },
-        "lastActivity": { 
-          ".validate": "(newData.isNumber() && newData.val() <= now + 60000) || newData.val() === null" 
-        }
+        ".write": "auth != null && ((!data.exists() && newData.child('hostId').val() === auth.uid) || (data.exists() && data.child('hostId').val() === auth.uid))",
+        "code": {".validate": "newData.isString() && newData.val() === $code"},
+  "name": {".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40 && newData.val().matches(/^[A-Za-z0-9 _-]{1,40}$/)"},
+        "type": {".validate": "newData.isString() && newData.val().matches(/^(public|private)$/)"},
+  "host": {".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 100 && newData.val().matches(/^[A-Za-z0-9 _-]{1,100}$/)"},
+        "hostId": {".validate": "newData.isString() && ((!data.exists() && newData.val() === auth.uid) || (data.exists() && newData.val() === data.val()))"},
+        "playerCount": {".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20"},
+        "maxPlayers": {".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 20"},
+        "status": {".validate": "newData.isString() && newData.val().matches(/^(lobby|playing|finished)$/)"},
+        "createdAt": {".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 60000"},
+        "lastActivity": {".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 60000) || newData.val() === null"},
+        "$other": {".validate": false}
       }
     },
 
     "lobbies": {
       "$code": {
         ".read": "auth != null",
-        ".write": "auth != null",
+        ".write": "false",
         "players": {
           "$uid": {
             ".read": "auth != null",
-            ".write": "auth != null"
+            ".write": "auth != null && auth.uid === $uid",
+            "name": {".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40 && newData.val().matches(/^[A-Za-z0-9 _-]{1,40}$/)"},
+            "char": {".validate": "newData.isString() && newData.val().matches(/^[a-z0-9_-]{1,64}$/)"},
+            "color": {".validate": "newData.isString() && newData.val().matches(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/)"},
+            "joinedAt": {".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 60000"},
+            "$other": {".validate": false}
           }
         },
         "chat": {
           ".read": "auth != null",
-          ".write": "auth != null",
           "$msgId": {
-            ".validate": "newData.hasChildren(['uid','name','msg']) && newData.child('msg').val().length >= 1 && newData.child('msg').val().length <= 500",
-            "uid": { ".validate": "newData.isString()" },
-            "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 100" },
-            "msg": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 500" },
-            "room": { ".validate": "newData.isString()" },
-            "ts": { ".validate": "newData.isNumber()" }
+            ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid",
+            ".validate": "newData.hasChildren(['uid','name','msg','room','ts']) && newData.child('uid').isString() && newData.child('uid').val() === auth.uid && newData.child('name').isString() && newData.child('name').val().length >= 1 && newData.child('name').val().length <= 40 && newData.child('name').val().matches(/^[A-Za-z0-9 _-]{1,40}$/) && newData.child('msg').isString() && newData.child('msg').val().length >= 1 && newData.child('msg').val().length <= 500 && newData.child('room').isString() && newData.child('room').val() === $code && newData.child('ts').isNumber() && newData.child('ts').val() >= 0 && newData.child('ts').val() <= now + 60000",
+            "uid": {".validate": "newData.isString()"},
+            "name": {".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40 && newData.val().matches(/^[A-Za-z0-9 _-]{1,40}$/)"},
+            "msg": {".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 500"},
+            "room": {".validate": "newData.isString() && newData.val() === $code"},
+            "ts": {".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 60000"},
+            "$other": {".validate": false}
           }
-        }
+        },
+        "$other": {".validate": false}
       }
     },
-    
+
     "users_safe": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid"
+        ".write": "auth != null && auth.uid === $uid",
+        "$other": {".validate": false}
       }
     }
   }
